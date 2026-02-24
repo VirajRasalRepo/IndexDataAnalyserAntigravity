@@ -18,7 +18,6 @@
         }
         .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; border-bottom: 1px solid #444; padding-bottom: 5px; }
 
-        /* Minimize Button Style */
         .min-btn {
             background: none; border: 1px solid #444; color: #ffc107;
             border-radius: 4px; padding: 0 8px; font-weight: bold; cursor: pointer;
@@ -26,7 +25,6 @@
         }
         .min-btn:hover { background: #333; }
 
-        /* Table Styling */
         .group-blue td { background-color: #87CEFA !important; color: #000 !important; }
         .group-black td { background-color: #f6f4f4 !important; color: #0b0a0a !important; }
         .highlight-16 { background-color: #4B0082 !important; color: white !important; font-weight: bold !important; }
@@ -37,7 +35,6 @@
         .strike-col { background-color: #d3d3d3 !important; color: black !important; font-weight: bold !important; }
         .diff-col { font-weight: bold !important; background-color: #222 !important; }
 
-        /* Dropdown Styling */
         .filter-row th { background-color: #1a1a1a !important; padding: 2px !important; }
         .column-select {
             width: 100%;
@@ -91,15 +88,22 @@
             <thead class="sticky-header">
                 <tr id="titleRow">
                     <th>Date</th><th>Time</th><th>Spot</th>
-                    <th class="ce-head">CE_OI</th><th class="ce-head">CE_Vol</th><th class="ce-head">CE_IV</th>
+                    <th class="ce-head">CE_OI</th>
+                    <th class="ce-head">CE_Chg_OI</th>
+                    <th class="ce-head">CE_%_Chg</th>
+                    <th class="ce-head">CE_Vol</th><th class="ce-head">CE_IV</th>
                     <th class="ce-head">CE_Δ</th><th class="ce-head">CE_γ</th><th class="ce-head">CE_θ</th><th class="ce-head">CE_Price</th>
                     <th class="strike-col">STRIKE</th><th class="diff-col">OI DIFF</th>
                     <th class="pe-head">PE_Price</th><th class="pe-head">PE_θ</th><th class="pe-head">PE_γ</th>
-                    <th class="pe-head">PE_Δ</th><th class="pe-head">PE_IV</th><th class="pe-head">PE_Vol</th><th class="pe-head">PE_OI</th>
+                    <th class="pe-head">PE_Δ</th><th class="pe-head">PE_IV</th><th class="pe-head">PE_Vol</th>
+                    <th class="pe-head">PE_OI</th>
+                    <th class="pe-head">PE_Chg_OI</th>
+                    <th class="pe-head">PE_%_Chg</th>
                 </tr>
                 <tr class="filter-row" id="filterRow">
                     <th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th>
-                    <th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th>
+                    <th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th>
+                    <th></th><th></th><th></th>
                 </tr>
             </thead>
             <tbody></tbody>
@@ -118,18 +122,65 @@
         let isPaused = false;
         let table;
 
-        $(document).ready(function() {
-            window.JSZip = window.JSZip;
+        function calcOIChange(data, key, row, meta) {
+            if (meta.row >= meta.settings.aoData.length - 1) return 0;
+            let current = parseFloat(data) || 0;
+            let previous = parseFloat(meta.settings.aoData[meta.row + 1]._aData[key]) || 0;
+            return current - previous;
+        }
 
+        $(document).ready(function() {
             table = $('#mainTable').DataTable({
                 ajax: { url: "/get_data", dataSrc: "data" },
                 dom: 'lBrtip',
                 lengthMenu: [[31, 100, 500, 1000, 2000], [31, 100, 500, 1000, 2000]],
                 pageLength: 31,
-                buttons: [{ extend: 'excelHtml5', title: 'Nifty_Live_Terminal', exportOptions: { columns: ':visible' }}],
+                buttons: [
+                    {
+                        extend: 'excelHtml5',
+                        filename: function() {
+                            const now = new Date();
+                            const date = now.toISOString().split('T')[0];
+                            const time = now.getHours().toString().padStart(2, '0') + "-" +
+                                         now.getMinutes().toString().padStart(2, '0') + "-" +
+                                         now.getSeconds().toString().padStart(2, '0');
+                            return 'Nifty_Live_Terminal_' + date + '_' + time;
+                        },
+                        title: 'Nifty Live Terminal Data',
+                        exportOptions: {
+                            columns: ':visible',
+                            format: {
+                                header: function (data, columnIdx) {
+                                    return $('#titleRow th').eq(columnIdx).text();
+                                }
+                            }
+                        }
+                    }
+                ],
                 columns: [
                     { data: "date" }, { data: "time" }, { data: "spot_price" },
                     { data: "ce_oi", render: (d, t) => t==='display'?(d?Number(d).toLocaleString():"0"):d },
+                    {
+                        data: "ce_oi",
+                        render: (d, t, row, meta) => {
+                            let chg = calcOIChange(d, 'ce_oi', row, meta);
+                            return t === 'display' ? (chg > 0 ? "+" : "") + chg.toLocaleString() : chg;
+                        },
+                        createdCell: (td, d, row, rIdx, colIdx) => {
+                            let val = calcOIChange(row.ce_oi, 'ce_oi', row, {row: rIdx, settings: table.settings()[0]});
+                            if(val < 0) $(td).css('color','#ff4d4d'); else if(val > 0) $(td).css('color','#00ff00');
+                        }
+                    },
+                    {
+                        data: "ce_oi",
+                        render: (d, t, row, meta) => {
+                            let current = parseFloat(d) || 0;
+                            let chg = calcOIChange(d, 'ce_oi', row, meta);
+                            let prev = current - chg;
+                            let pct = prev !== 0 ? ((chg / prev) * 100).toFixed(2) : 0;
+                            return t === 'display' ? pct + "%" : pct;
+                        }
+                    },
                     { data: "ce_volume", render: (d, t) => t==='display'?(d?Number(d).toLocaleString():"0"):d },
                     { data: "ce_iv" }, { data: "ce_delta" }, { data: "ce_gamma" }, { data: "ce_theta" }, { data: "ce_price" },
                     { data: "strike_price", className: "strike-col" },
@@ -143,7 +194,28 @@
                     },
                     { data: "pe_price" }, { data: "pe_theta" }, { data: "pe_gamma" }, { data: "pe_delta" }, { data: "pe_iv" },
                     { data: "pe_volume", render: (d, t) => t==='display'?(d?Number(d).toLocaleString():"0"):d },
-                    { data: "pe_oi", render: (d, t) => t==='display'?(d?Number(d).toLocaleString():"0"):d }
+                    { data: "pe_oi", render: (d, t) => t==='display'?(d?Number(d).toLocaleString():"0"):d },
+                    {
+                        data: "pe_oi",
+                        render: (d, t, row, meta) => {
+                            let chg = calcOIChange(d, 'pe_oi', row, meta);
+                            return t === 'display' ? (chg > 0 ? "+" : "") + chg.toLocaleString() : chg;
+                        },
+                        createdCell: (td, d, row, rIdx, colIdx) => {
+                            let val = calcOIChange(row.pe_oi, 'pe_oi', row, {row: rIdx, settings: table.settings()[0]});
+                            if(val < 0) $(td).css('color','#ff4d4d'); else if(val > 0) $(td).css('color','#00ff00');
+                        }
+                    },
+                    {
+                        data: "pe_oi",
+                        render: (d, t, row, meta) => {
+                            let current = parseFloat(d) || 0;
+                            let chg = calcOIChange(d, 'pe_oi', row, meta);
+                            let prev = current - chg;
+                            let pct = prev !== 0 ? ((chg / prev) * 100).toFixed(2) : 0;
+                            return t === 'display' ? pct + "%" : pct;
+                        }
+                    }
                 ],
                 order: [[1, "desc"]],
                 initComplete: function() {
@@ -159,14 +231,20 @@
                 }
             });
 
-            $('#btnExcel').on('click', () => table.button('.buttons-excel').trigger());
+            table.on('xhr', function() {
+                const now = new Date();
+                $('#syncTime').text(now.toLocaleTimeString());
+            });
 
-            setInterval(() => {
+            $('#btnExcel').on('click', function() {
+                table.button(0).trigger();
+            });
+
+            setInterval(function() {
                 if (!isPaused) {
                     table.ajax.reload(null, false);
-                    $('#syncTime').text(new Date().toLocaleTimeString());
                 }
-            }, 4000);
+            }, 5000);
         });
 
         function toggleControlPanel() {
@@ -216,11 +294,13 @@
 
         function changeLayout(v) {
             if (v === 'greeks') {
-                table.columns([3,4,17,18]).visible(false);
-                table.columns([5,6,7,8,13,14,15,16]).visible(true);
+                // Hide OI, Chg OI, %, Vol (CE: 3,4,5,6 | PE: 19,20,21,22)
+                table.columns([3,4,5,6,19,20,21,22]).visible(false);
+                table.columns([7,8,9,10,11,15,16,17,18]).visible(true);
             } else if (v === 'oi_vol') {
-                table.columns([5,6,7,8,13,14,15,16]).visible(false);
-                table.columns([3,4,17,18]).visible(true);
+                // Hide Greeks (CE: 7,8,9,10,11 | PE: 15,16,17,18)
+                table.columns([7,8,9,10,11,15,16,17,18]).visible(false);
+                table.columns([3,4,5,6,19,20,21,22]).visible(true);
             } else {
                 table.columns().visible(true);
             }

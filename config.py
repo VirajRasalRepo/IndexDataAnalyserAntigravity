@@ -38,6 +38,7 @@ class Config:
     DATA_FETCH_INTERVAL: int = int(os.getenv("DATA_FETCH_INTERVAL", "4"))
     STRIKE_RANGE: int = int(os.getenv("STRIKE_RANGE", "750"))
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
+    DEBUG: bool = os.getenv("DEBUG", "False").lower() == "true"
 
     # Market Hours (IST)
     MARKET_START_HOUR: int = 9

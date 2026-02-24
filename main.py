@@ -89,7 +89,6 @@ def initialize_application() -> tuple[dhanhq, str]:
         logger.critical(f"Application initialization failed: {e}", exc_info=True)
         sys.exit(1)
 
-
 def run_pipeline():
     """Main application pipeline."""
     logger.info("=" * 60)
@@ -120,14 +119,14 @@ def run_pipeline():
         while True:
             iteration_count += 1
             current_time = time.time()
-
-            # Check market hours (can be disabled for testing)
             """
-            if not is_market_hours():
+            # Check market hours (can be disabled for testing)
+            if not is_market_hours() and not Config.DEBUG:
                 logger.info("Outside market hours. Waiting 60 seconds...")
                 time.sleep(60)
                 continue
             """
+
             try:
                 # --- STEP 1: Sync Trades (Every 60 seconds) ---
                 if current_time - last_trade_sync_time >= Config.TRADE_SYNC_INTERVAL:
@@ -181,7 +180,6 @@ def run_pipeline():
         DatabaseManager.close_pool()
         logger.info("Application shutdown complete")
         sys.exit(0)
-
 
 if __name__ == "__main__":
     run_pipeline()
