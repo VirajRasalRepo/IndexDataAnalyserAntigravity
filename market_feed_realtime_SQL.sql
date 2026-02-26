@@ -99,3 +99,4 @@ CREATE TABLE IF NOT EXISTS market_feed_realtime (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 select * from analyzer_db.market_feed_realtime;
+

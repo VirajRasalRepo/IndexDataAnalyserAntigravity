@@ -3,6 +3,8 @@ dhanhq>=2.0.0
 mysql-connector-python>=8.0.33
 python-dotenv>=1.0.0
 websocket-client>=1.6.0
+flask>=3.0.0
+flask-cors>=6.0.0
 
 # Optional: Development dependencies
 # pytest>=7.4.0

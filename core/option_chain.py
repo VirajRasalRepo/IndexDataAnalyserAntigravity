@@ -8,9 +8,9 @@ from datetime import datetime
 from typing import Dict, Tuple, Optional
 from dhanhq import dhanhq
 
-from config import Config
-from database import DatabaseManager
-import Utilities
+from .config import Config
+from .database import DatabaseManager
+from . import Utilities
 
 logger = logging.getLogger(__name__)
 

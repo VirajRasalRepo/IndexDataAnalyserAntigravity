@@ -1,16 +1,8 @@
-"""
-Setup script to create market_feed_realtime table.
-"""
-
-import mysql.connector
-from core.config import Config
-
-# SQL to create table
-CREATE_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS market_feed_realtime (
     id INT AUTO_INCREMENT PRIMARY KEY,
     timestamp DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3),
 
+    -- India VIX
     india_vix_ltp DECIMAL(10, 2),
     india_vix_volume BIGINT,
     india_vix_open DECIMAL(10, 2),
@@ -18,6 +10,7 @@ CREATE TABLE IF NOT EXISTS market_feed_realtime (
     india_vix_low DECIMAL(10, 2),
     india_vix_close DECIMAL(10, 2),
 
+    -- Nifty 50
     nifty_50_ltp DECIMAL(10, 2),
     nifty_50_volume BIGINT,
     nifty_50_open DECIMAL(10, 2),
@@ -25,6 +18,7 @@ CREATE TABLE IF NOT EXISTS market_feed_realtime (
     nifty_50_low DECIMAL(10, 2),
     nifty_50_close DECIMAL(10, 2),
 
+    -- Reliance
     reliance_ltp DECIMAL(10, 2),
     reliance_volume BIGINT,
     reliance_open DECIMAL(10, 2),
@@ -35,6 +29,7 @@ CREATE TABLE IF NOT EXISTS market_feed_realtime (
     reliance_total_buy_qty BIGINT,
     reliance_total_sell_qty BIGINT,
 
+    -- HDFC Bank
     hdfc_bank_ltp DECIMAL(10, 2),
     hdfc_bank_volume BIGINT,
     hdfc_bank_open DECIMAL(10, 2),
@@ -45,6 +40,7 @@ CREATE TABLE IF NOT EXISTS market_feed_realtime (
     hdfc_bank_total_buy_qty BIGINT,
     hdfc_bank_total_sell_qty BIGINT,
 
+    -- ICICI Bank
     icici_bank_ltp DECIMAL(10, 2),
     icici_bank_volume BIGINT,
     icici_bank_open DECIMAL(10, 2),
@@ -55,6 +51,7 @@ CREATE TABLE IF NOT EXISTS market_feed_realtime (
     icici_bank_total_buy_qty BIGINT,
     icici_bank_total_sell_qty BIGINT,
 
+    -- Infosys
     infosys_ltp DECIMAL(10, 2),
     infosys_volume BIGINT,
     infosys_open DECIMAL(10, 2),
@@ -65,6 +62,7 @@ CREATE TABLE IF NOT EXISTS market_feed_realtime (
     infosys_total_buy_qty BIGINT,
     infosys_total_sell_qty BIGINT,
 
+    -- TCS
     tcs_ltp DECIMAL(10, 2),
     tcs_volume BIGINT,
     tcs_open DECIMAL(10, 2),
@@ -75,6 +73,7 @@ CREATE TABLE IF NOT EXISTS market_feed_realtime (
     tcs_total_buy_qty BIGINT,
     tcs_total_sell_qty BIGINT,
 
+    -- ITC
     itc_ltp DECIMAL(10, 2),
     itc_volume BIGINT,
     itc_open DECIMAL(10, 2),
@@ -85,6 +84,7 @@ CREATE TABLE IF NOT EXISTS market_feed_realtime (
     itc_total_buy_qty BIGINT,
     itc_total_sell_qty BIGINT,
 
+    -- L&T
     lt_ltp DECIMAL(10, 2),
     lt_volume BIGINT,
     lt_open DECIMAL(10, 2),
@@ -96,48 +96,6 @@ CREATE TABLE IF NOT EXISTS market_feed_realtime (
     lt_total_sell_qty BIGINT,
 
     INDEX idx_timestamp (timestamp)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-"""
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-def main():
-    """Create the market_feed_realtime table."""
-    print("Creating market_feed_realtime table...")
-
-    try:
-        # Connect to database
-        conn = mysql.connector.connect(**Config.get_db_config())
-        cursor = conn.cursor()
-
-        # Create table
-        cursor.execute(CREATE_TABLE_SQL)
-        conn.commit()
-
-        print("[OK] Table 'market_feed_realtime' created successfully!")
-
-        # Verify table exists
-        cursor.execute("SHOW TABLES LIKE 'market_feed_realtime'")
-        result = cursor.fetchone()
-
-        if result:
-            print("[OK] Table verified in database")
-
-            # Show column count
-            cursor.execute("DESCRIBE market_feed_realtime")
-            columns = cursor.fetchall()
-            print(f"[OK] Table has {len(columns)} columns")
-        else:
-            print("[WARN] Table not found after creation")
-
-    except Exception as e:
-        print(f"[ERROR] {e}")
-        return 1
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
-
-    return 0
-
-if __name__ == "__main__":
-    exit(main())
+select * from analyzer_db.market_feed_realtime;

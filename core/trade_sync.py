@@ -7,7 +7,7 @@ import logging
 from typing import Dict, Set
 from dhanhq import dhanhq
 
-from database import DatabaseManager
+from .database import DatabaseManager
 
 logger = logging.getLogger(__name__)
 

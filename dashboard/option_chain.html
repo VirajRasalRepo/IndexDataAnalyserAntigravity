@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OI Analysis Dashboard - NIFTY Option Chain</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #101622;
+            color: #f1f5f9;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .dashboard {
+            display: flex;
+            height: 100vh;
+            width: 100%;
+        }
+
+        /* SIDEBAR */
+        .sidebar {
+            width: 256px;
+            background: #101622;
+            border-right: 1px solid #1e293b;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header {
+            padding: 24px;
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 30px;
+            height: 30px;
+            background: #135bec;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px;
+        }
+
+        .logo-text {
+            font-size: 18px;
+            font-weight: 700;
+            color: #f1f5f9;
+            letter-spacing: -0.45px;
+            line-height: 1.556;
+        }
+
+        .nav-menu {
+            flex: 1;
+            padding: 0 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            text-decoration: none;
+            color: #94a3b8;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .nav-link:hover {
+            background: #135bec1a;
+            color: #135bec;
+        }
+
+        .nav-link.active {
+            background: #135bec1a;
+            color: #135bec;
+        }
+
+        .section-header {
+            padding: 16px 12px 8px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #94a3b8;
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+        }
+
+        /* MAIN CONTENT */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header-bar {
+            height: 64px;
+            background: #101622;
+            border-bottom: 1px solid #1e293b;
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .search-container {
+            position: relative;
+            width: 320px;
+        }
+
+        .search-input {
+            width: 100%;
+            background: #1e293b;
+            border: none;
+            border-radius: 8px;
+            padding: 7px 16px 8px 40px;
+            color: #f1f5f9;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .search-input::placeholder {
+            color: #6b7280;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #94a3b8;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 16px;
+        }
+
+        .icon-button {
+            padding: 8px;
+            background: transparent;
+            border: none;
+            color: #64748b;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .icon-button:hover {
+            background: #1e293b;
+        }
+
+        /* CONTENT AREA */
+        .content-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* STATS CARDS */
+        .stats-row {
+            display: flex;
+            gap: 16px;
+        }
+
+        .stat-card {
+            flex: 1;
+            background: #1e293b66;
+            border: 1px solid #1e293b;
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #64748b;
+            letter-spacing: 0.6px;
+        }
+
+        .badge {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .badge.positive {
+            background: #10b9811a;
+            color: #10b981;
+        }
+
+        .badge.negative {
+            background: #f43f5e1a;
+            color: #f43f5e;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #f1f5f9;
+            line-height: 1.333;
+        }
+
+        .progress-bar {
+            height: 4px;
+            background: #1e293b;
+            border-radius: 9999px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #10b981;
+            border-radius: 9999px;
+            transition: width 0.3s;
+        }
+
+        /* FILTER CONTROLS */
+        .filter-controls {
+            background: #1e293b66;
+            border: 1px solid #1e293b;
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            gap: 16px;
+            align-items: flex-end;
+        }
+
+        .filter-group {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .filter-label {
+            font-size: 10px;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            line-height: 1.5;
+            padding: 0 4px;
+        }
+
+        .filter-select {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            color: #f1f5f9;
+            font-size: 14px;
+            font-family: inherit;
+            padding: 8px 12px;
+            height: 34px;
+            cursor: pointer;
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            font-family: inherit;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #135bec;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0d47b8;
+        }
+
+        .btn-secondary {
+            background: #334155;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #475569;
+        }
+
+        /* DATA TABLE */
+        .table-container {
+            background: #1e293b66;
+            border: 1px solid #1e293b;
+            border-radius: 12px;
+            overflow: hidden;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1000px;
+        }
+
+        .table-header-section {
+            background: #0f172a80;
+            border-bottom: 1px solid #1e293b;
+        }
+
+        .group-header-row {
+            background: #0f172acc;
+            border-bottom: 1px solid #334155;
+        }
+
+        .group-header {
+            font-size: 12px;
+            font-weight: 700;
+            color: #94a3b8;
+            text-align: center;
+            padding: 8px;
+        }
+
+        .group-header.calls {
+            background: #135bec0d;
+            border-right: 1px solid #334155;
+        }
+
+        .group-header.strike {
+            background: #334155;
+            color: #ffffff;
+        }
+
+        .group-header.puts {
+            background: #f43f5e0d;
+        }
+
+        .column-header-row {
+            background: #0f172a66;
+            border-bottom: 1px solid #1e293b;
+        }
+
+        .column-header {
+            font-size: 10px;
+            font-weight: 700;
+            color: #94a3b8;
+            text-align: center;
+            padding: 12.5px 8px;
+            white-space: nowrap;
+        }
+
+        .column-header.border-right {
+            border-right: 1px solid #334155;
+        }
+
+        .column-header.border-left {
+            border-left: 1px solid #334155;
+        }
+
+        .data-row {
+            border-bottom: 1px solid #1e293b80;
+        }
+
+        .data-row:hover {
+            background: #1e293b33;
+        }
+
+        .spot-row {
+            background: #135bec1a;
+            border-top: 2px solid #135bec66;
+            border-bottom: 2px solid #135bec66;
+        }
+
+        .spot-cell {
+            text-align: center;
+            padding: 5px 16px;
+            font-size: 10px;
+            font-weight: 700;
+            color: #135bec;
+            letter-spacing: 1px;
+        }
+
+        .data-cell {
+            padding: 8.5px 8px 9px 8px;
+            text-align: center;
+            font-size: 12px;
+            vertical-align: middle;
+        }
+
+        .data-cell.strike {
+            background: #1e293b;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .data-cell.border-right {
+            border-right: 1px solid #334155;
+        }
+
+        .data-cell.border-left {
+            border-left: 1px solid #334155;
+        }
+
+        .signal-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .signal-badge.BULLISH {
+            background: #10b9811a;
+            color: #10b981;
+        }
+
+        .signal-badge.BEARISH {
+            background: #f43f5e1a;
+            color: #f43f5e;
+        }
+
+        .signal-badge.NEUTRAL {
+            background: #64748b1a;
+            color: #64748b;
+        }
+
+        .value-positive {
+            color: #10b981;
+        }
+
+        .value-negative {
+            color: #f43f5e;
+        }
+
+        .value-bold {
+            font-weight: 700;
+        }
+
+        /* Loading State */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #94a3b8;
+        }
+
+        .spinner {
+            border: 3px solid #1e293b;
+            border-top: 3px solid #135bec;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Timestamp Display */
+        .timestamp {
+            font-size: 11px;
+            color: #64748b;
+            text-align: right;
+            padding: 8px 16px;
+            background: #0f172a66;
+            border-top: 1px solid #1e293b;
+        }
+
+        /* Auto-refresh indicator */
+        .refresh-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: #10b981;
+            border-radius: 50%;
+            margin-left: 8px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.3;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="dashboard">
+        <!-- SIDEBAR -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-container">
+                    <div class="logo-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M3 3v18h18"></path>
+                            <path d="m19 9-5 5-4-4-3 3"></path>
+                        </svg>
+                    </div>
+                    <div class="logo-text">OI Analysis</div>
+                </div>
+            </div>
+
+            <div class="nav-menu">
+                <a href="index.html" class="nav-link">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="14" width="7" height="7"></rect>
+                        <rect x="3" y="14" width="7" height="7"></rect>
+                    </svg>
+                    Dashboard
+                </a>
+                <a href="option_chain.html" class="nav-link active">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="1" x2="12" y2="23"></line>
+                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                    </svg>
+                    Option Chain
+                </a>
+                <a href="#" class="nav-link">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 20V10"></path>
+                        <path d="M12 20V4"></path>
+                        <path d="M6 20v-6"></path>
+                    </svg>
+                    OI Multi-Strike
+                </a>
+                <a href="#" class="nav-link">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path
+                            d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
+                        </path>
+                        <polyline points="7.5 4.21 12 6.81 16.5 4.21"></polyline>
+                        <polyline points="7.5 19.79 7.5 14.6 3 12"></polyline>
+                        <polyline points="21 12 16.5 14.6 16.5 19.79"></polyline>
+                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                        <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                    </svg>
+                    Greeks Dashboard
+                </a>
+
+                <div class="section-header">Reports</div>
+                <a href="#" class="nav-link">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
+                    </svg>
+                    Historical Data
+                </a>
+                <a href="#" class="nav-link">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                    </svg>
+                    Flash Signals
+                </a>
+            </div>
+        </div>
+
+        <!-- MAIN CONTENT -->
+        <div class="main-content">
+            <!-- HEADER BAR -->
+            <div class="header-bar">
+                <div class="search-container">
+                    <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <path d="m21 21-4.35-4.35"></path>
+                    </svg>
+                    <input type="text" class="search-input" placeholder="Search Symbol (e.g. NIFTY, RELIANCE)">
+                </div>
+                <div class="header-actions">
+                    <button class="icon-button" title="Notifications">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                        </svg>
+                    </button>
+                    <button class="icon-button" title="Settings">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path d="M12 1v6m0 6v6"></path>
+                            <path d="m1 12 6 0m6 0 6 0"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- CONTENT AREA -->
+            <div class="content-area">
+                <!-- STATS ROW -->
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-label">NIFTY 50</span>
+                            <span class="badge positive" id="nifty-badge">+0.5%</span>
+                        </div>
+                        <div class="stat-value" id="nifty-value">--</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="nifty-progress" style="width: 50%"></div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-label">INDIA VIX</span>
+                            <span class="badge negative" id="vix-badge">-2.1%</span>
+                        </div>
+                        <div class="stat-value" id="vix-value">--</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="vix-progress" style="width: 30%; background: #f43f5e;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FILTER CONTROLS -->
+                <div class="filter-controls">
+                    <div class="filter-group">
+                        <label class="filter-label">Symbol</label>
+                        <select class="filter-select" id="symbol-select">
+                            <option value="NIFTY">NIFTY</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-label">Expiry Date</label>
+                        <select class="filter-select" id="expiry-select">
+                            <option>Loading...</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-label">Strike Step</label>
+                        <select class="filter-select" id="strike-step-select">
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                            <option value="200">200</option>
+                        </select>
+                    </div>
+                    <div class="filter-actions">
+                        <button class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
+                        <button class="btn btn-secondary" onclick="resetFilters()">Reset</button>
+                    </div>
+                </div>
+
+                <!-- DATA TABLE -->
+                <div class="table-container">
+                    <div class="table-wrapper">
+                        <table class="data-table">
+                            <thead class="table-header-section">
+                                <tr class="group-header-row">
+                                    <th colspan="6" class="group-header calls">CALLS (CE)</th>
+                                    <th class="group-header strike">STRIKE</th>
+                                    <th colspan="6" class="group-header puts">PUTS (PE)</th>
+                                </tr>
+                                <tr class="column-header-row">
+                                    <th class="column-header">Signal</th>
+                                    <th class="column-header">OI (Lakhs)</th>
+                                    <th class="column-header">Chng OI</th>
+                                    <th class="column-header">IV</th>
+                                    <th class="column-header">LTP</th>
+                                    <th class="column-header border-right">Delta</th>
+                                    <th class="column-header">Price</th>
+                                    <th class="column-header border-left">Delta</th>
+                                    <th class="column-header">LTP</th>
+                                    <th class="column-header">IV</th>
+                                    <th class="column-header">Chng OI</th>
+                                    <th class="column-header">OI (Lakhs)</th>
+                                    <th class="column-header">Signal</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-body">
+                                <tr>
+                                    <td colspan="13" class="loading">
+                                        <div class="spinner"></div>
+                                        Loading option chain data...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="timestamp">
+                        Last updated: <span id="last-update">--</span>
+                        <span class="refresh-indicator"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000/api';
+        let refreshInterval;
+
+        // Fetch and update data
+        async function fetchData() {
+            try {
+                // Fetch spot price
+                const spotResponse = await fetch(`${API_BASE}/spot-price`);
+                const spotData = await spotResponse.json();
+
+                if (spotData.nifty) {
+                    updateStats(spotData);
+                }
+
+                // Fetch option chain
+                const symbol = document.getElementById('symbol-select').value;
+                const expiry = document.getElementById('expiry-select').value;
+                const strikeStep = document.getElementById('strike-step-select').value;
+
+                const chainResponse = await fetch(
+                    `${API_BASE}/option-chain?symbol=${symbol}&expiry=${expiry}&strike_step=${strikeStep}`
+                );
+                const chainData = await chainResponse.json();
+
+                if (chainData.data) {
+                    updateTable(chainData);
+                }
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            }
+        }
+
+        function updateStats(data) {
+            // Update NIFTY
+            document.getElementById('nifty-value').textContent =
+                data.nifty.value.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+            const niftyChange = data.nifty.change_pct;
+            const niftyBadge = document.getElementById('nifty-badge');
+            niftyBadge.textContent = `${niftyChange >= 0 ? '+' : ''}${niftyChange.toFixed(2)}%`;
+            niftyBadge.className = `badge ${niftyChange >= 0 ? 'positive' : 'negative'}`;
+
+            // Update VIX (if available)
+            if (data.vix && data.vix.value !== undefined) {
+                document.getElementById('vix-value').textContent = data.vix.value.toFixed(2);
+
+                const vixChange = data.vix.change_pct;
+                const vixBadge = document.getElementById('vix-badge');
+                vixBadge.textContent = `${vixChange >= 0 ? '+' : ''}${vixChange.toFixed(2)}%`;
+                vixBadge.className = `badge ${vixChange >= 0 ? 'positive' : 'negative'}`;
+            } else {
+                // VIX data not available
+                document.getElementById('vix-value').textContent = '--';
+                const vixBadge = document.getElementById('vix-badge');
+                vixBadge.textContent = 'N/A';
+                vixBadge.className = 'badge';
+            }
+        }
+
+        function updateTable(data) {
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '';
+
+            data.data.forEach((row) => {
+                // Check if this is the ATM strike
+                if (row.is_atm) {
+                    const spotRow = document.createElement('tr');
+                    spotRow.className = 'spot-row';
+                    spotRow.innerHTML = `<td colspan="13" class="spot-cell">Spot Price: ${data.spot_price.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</td>`;
+                    tbody.appendChild(spotRow);
+                }
+
+                // Data row
+                const tr = document.createElement('tr');
+                tr.className = 'data-row';
+                tr.innerHTML = `
+                    <td class="data-cell"><span class="signal-badge ${row.ce.signal}">${row.ce.signal}</span></td>
+                    <td class="data-cell">${row.ce.oi.toFixed(2)}</td>
+                    <td class="data-cell ${row.ce.oi_change >= 0 ? 'value-positive' : 'value-negative'}">${row.ce.oi_change >= 0 ? '+' : ''}${row.ce.oi_change.toFixed(2)}</td>
+                    <td class="data-cell">${(row.ce.iv * 100).toFixed(2)}</td>
+                    <td class="data-cell value-bold">${row.ce.ltp.toFixed(2)}</td>
+                    <td class="data-cell border-right">${row.ce.delta.toFixed(2)}</td>
+                    <td class="data-cell strike value-bold">${row.strike.toFixed(0)}</td>
+                    <td class="data-cell border-left">${row.pe.delta.toFixed(2)}</td>
+                    <td class="data-cell value-bold">${row.pe.ltp.toFixed(2)}</td>
+                    <td class="data-cell">${(row.pe.iv * 100).toFixed(2)}</td>
+                    <td class="data-cell ${row.pe.oi_change >= 0 ? 'value-positive' : 'value-negative'}">${row.pe.oi_change >= 0 ? '+' : ''}${row.pe.oi_change.toFixed(2)}</td>
+                    <td class="data-cell">${row.pe.oi.toFixed(2)}</td>
+                    <td class="data-cell"><span class="signal-badge ${row.pe.signal}">${row.pe.signal}</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // Update timestamp
+            document.getElementById('last-update').textContent = data.timestamp;
+        }
+
+        async function loadExpiryDates() {
+            try {
+                const response = await fetch(`${API_BASE}/expiry-dates`);
+                const dates = await response.json();
+
+                const select = document.getElementById('expiry-select');
+                select.innerHTML = dates.map(date =>
+                    `<option value="${date}">${date}</option>`
+                ).join('');
+
+                // Select first expiry
+                if (dates.length > 0) {
+                    select.value = dates[0];
+                }
+            } catch (error) {
+                console.error('Error loading expiry dates:', error);
+            }
+        }
+
+        function applyFilters() {
+            fetchData();
+        }
+
+        function resetFilters() {
+            document.getElementById('symbol-select').value = 'NIFTY';
+            document.getElementById('strike-step-select').value = '50';
+            loadExpiryDates();
+            fetchData();
+        }
+
+        // Auto-refresh every 5 seconds
+        function startAutoRefresh() {
+            refreshInterval = setInterval(fetchData, 5000);
+        }
+
+        function stopAutoRefresh() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+        }
+
+        // Initialize
+        window.addEventListener('load', async () => {
+            await loadExpiryDates();
+            await fetchData();
+            startAutoRefresh();
+        });
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', stopAutoRefresh);
+    </script>
+</body>
+
+</html>

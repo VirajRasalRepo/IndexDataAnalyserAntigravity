@@ -11,7 +11,7 @@ from mysql.connector import pooling, Error as MySQLError
 from mysql.connector.cursor import MySQLCursor
 from mysql.connector.pooling import PooledMySQLConnection
 
-from config import Config
+from .config import Config
 
 logger = logging.getLogger(__name__)
 
