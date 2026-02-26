@@ -354,7 +354,6 @@
         .group-header .calls {
             background: #135bec0d;
             border-bottom: 1px solid #334155;
-            border-right: 2px solid #475569;
         }
 
         .group-header .puts {
@@ -376,10 +375,6 @@
             padding: 8px 4px;
         }
 
-        .time-header .calls {
-            border-right: 2px solid #475569;
-        }
-
         .column-header {
             background: #0f172a80;
             border-bottom: 1px solid #1e293b;
@@ -398,7 +393,6 @@
         }
 
         .data-row {
-            height: 36px;
             border-bottom: 1px solid #1e293b80;
         }
 
@@ -407,30 +401,11 @@
         }
 
         .data-cell {
-            padding: 0 6px;
+            padding: 8px 6px;
             text-align: center;
             font-size: 11px;
             font-weight: 500;
             white-space: nowrap;
-            height: 36px;
-            vertical-align: middle;
-        }
-
-        .data-cell.ce-bg {
-            background: #135bec3d;
-        }
-
-        .data-cell.ce-last {
-            border-right: 2px solid #475569;
-        }
-
-        .data-cell.pe-bg {
-            background: #f43f5d40;
-        }
-
-        .data-cell.pe-last,
-        th.pe-last {
-            border-right: 2px solid #475569;
         }
 
         .value-positive {
@@ -719,21 +694,6 @@
                 return;
             }
 
-            // Filter to show only market hours (9:15 AM - 3:30 PM)
-            timeSeries = timeSeries.filter(ts => {
-                const time = ts.timestamp;
-                const [hours, minutes] = time.split(':').map(Number);
-                const timeInMinutes = hours * 60 + minutes;
-                const marketStart = 9 * 60 + 15;  // 9:15 AM = 555 minutes
-                const marketEnd = 15 * 60 + 30;   // 3:30 PM = 930 minutes
-                return timeInMinutes >= marketStart && timeInMinutes <= marketEnd;
-            });
-
-            if (timeSeries.length === 0) {
-                container.innerHTML = '<div class="loading">No data available for market hours (9:15 AM - 3:30 PM)</div>';
-                return;
-            }
-
             // Build table header
             let html = '<table class="data-table"><thead>';
 
@@ -741,7 +701,7 @@
             html += '<tr class="group-header">';
             timeSeries.forEach(() => {
                 html += '<th colspan="4" class="calls">CALLS (CE)</th>';
-                html += '<th colspan="4" class="puts pe-last">PUTS (PE)</th>';
+                html += '<th colspan="4" class="puts">PUTS (PE)</th>';
             });
             html += '</tr>';
 
@@ -749,7 +709,7 @@
             html += '<tr class="time-header">';
             timeSeries.forEach(ts => {
                 html += `<th colspan="4" class="calls">${ts.timestamp}</th>`;
-                html += `<th colspan="4" class="puts pe-last">${ts.timestamp}</th>`;
+                html += `<th colspan="4" class="puts">${ts.timestamp}</th>`;
             });
             html += '</tr>';
 
@@ -757,9 +717,9 @@
             html += '<tr class="column-header">';
             timeSeries.forEach(() => {
                 // CE columns (OI in Lakhs, others in Thousands)
-                html += '<th>OI(L)</th><th>ΔOI(K)</th><th>Vol(K)</th><th class="ce-last">ΔVol(K)</th>';
+                html += '<th>OI(L)</th><th>ΔOI(K)</th><th>Vol(K)</th><th>ΔVol(K)</th>';
                 // PE columns (OI in Lakhs, others in Thousands)
-                html += '<th>OI(L)</th><th>ΔOI(K)</th><th>Vol(K)</th><th class="pe-last">ΔVol(K)</th>';
+                html += '<th>OI(L)</th><th>ΔOI(K)</th><th>Vol(K)</th><th>ΔVol(K)</th>';
             });
             html += '</tr></thead><tbody>';
 
@@ -768,7 +728,7 @@
                 html += '<tr class="data-row">';
 
                 timeSeries.forEach(ts => {
-                    const strikeData = ts.data[strike.toFixed(1)] || {};
+                    const strikeData = ts.data[strike] || {};
                     const ceOi = (strikeData.ce_oi / 100000 || 0).toFixed(2);
                     const ceOiDiff = (strikeData.ce_oi_diff / 1000 || 0).toFixed(1);  // Show in thousands
                     const ceVol = (strikeData.ce_vol / 1000 || 0).toFixed(0);  // Show in thousands
@@ -779,16 +739,16 @@
                     const peVolDiff = (strikeData.pe_vol_diff / 1000 || 0).toFixed(0);  // Show in thousands
 
                     // CE columns
-                    html += `<td class="data-cell ce-bg">${ceOi}</td>`;
-                    html += `<td class="data-cell ce-bg ${getColorClass(ceOiDiff)}">${ceOiDiff >= 0 ? '+' : ''}${ceOiDiff}</td>`;
-                    html += `<td class="data-cell ce-bg">${ceVol}</td>`;
-                    html += `<td class="data-cell ce-bg ce-last ${getColorClass(ceVolDiff)}">${ceVolDiff >= 0 ? '+' : ''}${ceVolDiff}</td>`;
+                    html += `<td class="data-cell">${ceOi}</td>`;
+                    html += `<td class="data-cell ${getColorClass(ceOiDiff)}">${ceOiDiff >= 0 ? '+' : ''}${ceOiDiff}</td>`;
+                    html += `<td class="data-cell">${ceVol}</td>`;
+                    html += `<td class="data-cell ${getColorClass(ceVolDiff)}">${ceVolDiff >= 0 ? '+' : ''}${ceVolDiff}</td>`;
 
                     // PE columns
-                    html += `<td class="data-cell pe-bg">${peOi}</td>`;
-                    html += `<td class="data-cell pe-bg ${getColorClass(peOiDiff)}">${peOiDiff >= 0 ? '+' : ''}${peOiDiff}</td>`;
-                    html += `<td class="data-cell pe-bg">${peVol}</td>`;
-                    html += `<td class="data-cell pe-bg pe-last ${getColorClass(peVolDiff)}">${peVolDiff >= 0 ? '+' : ''}${peVolDiff}</td>`;
+                    html += `<td class="data-cell">${peOi}</td>`;
+                    html += `<td class="data-cell ${getColorClass(peOiDiff)}">${peOiDiff >= 0 ? '+' : ''}${peOiDiff}</td>`;
+                    html += `<td class="data-cell">${peVol}</td>`;
+                    html += `<td class="data-cell ${getColorClass(peVolDiff)}">${peVolDiff >= 0 ? '+' : ''}${peVolDiff}</td>`;
                 });
 
                 html += '</tr>';
@@ -811,7 +771,7 @@
         }
 
         function startAutoRefresh() {
-            refreshInterval = setInterval(fetchData, 5000); // 5 seconds for near real-time updates
+            refreshInterval = setInterval(fetchData, 180000); // 3 minutes
         }
 
         window.addEventListener('load', async () => {
