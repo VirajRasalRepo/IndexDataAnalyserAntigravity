@@ -94,6 +94,15 @@
             color: #135bec;
         }
 
+        .section-header {
+            padding: 16px 12px 8px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #94a3b8;
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+        }
+
         /* MAIN */
         .main-content {
             flex: 1;
@@ -137,7 +146,7 @@
 
         .header-actions {
             display: flex;
-            gap: 16px;
+            gap: 8px;
         }
 
         .icon-button {
@@ -292,6 +301,8 @@
 
         .strike-header {
             height: 96px;
+            min-height: 96px;
+            max-height: 96px;
             border-bottom: 2px solid #334155;
             display: flex;
             align-items: center;
@@ -303,10 +314,13 @@
             position: sticky;
             top: 0;
             z-index: 10;
+            box-sizing: border-box;
         }
 
         .strike-cell {
             height: 36px;
+            min-height: 36px;
+            max-height: 36px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -314,6 +328,7 @@
             font-weight: 700;
             color: #ffffff;
             border-bottom: 1px solid #1e293b;
+            box-sizing: border-box;
         }
 
         .strike-cell.atm {
@@ -341,6 +356,7 @@
             position: sticky;
             top: 0;
             z-index: 5;
+            height: 33px;
         }
 
         .group-header th {
@@ -349,6 +365,8 @@
             color: #94a3b8;
             text-align: center;
             padding: 8px;
+            height: 33px;
+            box-sizing: border-box;
         }
 
         .group-header .calls {
@@ -367,6 +385,7 @@
             position: sticky;
             top: 33px;
             z-index: 5;
+            height: 31px;
         }
 
         .time-header th {
@@ -374,6 +393,8 @@
             font-weight: 700;
             color: #94a3b8;
             padding: 8px 4px;
+            height: 31px;
+            box-sizing: border-box;
         }
 
         .time-header .calls {
@@ -386,6 +407,7 @@
             position: sticky;
             top: 64px;
             z-index: 5;
+            height: 32px;
         }
 
         .column-header th {
@@ -395,10 +417,14 @@
             padding: 8px 4px;
             text-align: center;
             white-space: nowrap;
+            height: 32px;
+            box-sizing: border-box;
         }
 
         .data-row {
             height: 36px;
+            min-height: 36px;
+            max-height: 36px;
             border-bottom: 1px solid #1e293b80;
         }
 
@@ -413,7 +439,10 @@
             font-weight: 500;
             white-space: nowrap;
             height: 36px;
+            min-height: 36px;
+            max-height: 36px;
             vertical-align: middle;
+            box-sizing: border-box;
         }
 
         .data-cell.ce-bg {
@@ -513,27 +542,51 @@
                     </svg>
                     Option Chain
                 </a>
+                <a href="#" class="nav-link">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 20V10"></path>
+                        <path d="M12 20V4"></path>
+                        <path d="M6 20v-6"></path>
+                    </svg>
+                    OI Multi-Strike
+                </a>
+                <a href="#" class="nav-link">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path
+                            d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
+                        </path>
+                        <polyline points="7.5 4.21 12 6.81 16.5 4.21"></polyline>
+                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                        <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                    </svg>
+                    Greeks Dashboard
+                </a>
+
+                <div class="section-header">Reports</div>
+                <a href="#" class="nav-link">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
+                    </svg>
+                    Historical Data
+                </a>
+                <a href="#" class="nav-link">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                    </svg>
+                    Flash Signals
+                </a>
             </div>
         </div>
 
         <div class="main-content">
             <div class="header-bar">
-                <div class="search-container">
-                    <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2">
-                        <circle cx="11" cy="11" r="8"></circle>
-                        <path d="m21 21-4.35-4.35"></path>
-                    </svg>
-                    <input type="text" class="search-input" placeholder="Search Symbol (e.g. NIFTY, RELIANCE)">
-                </div>
+                <div style="font-size: 18px; font-weight: 700; color: #f1f5f9;">OI Analysis Dashboard</div>
                 <div class="header-actions">
-                    <button class="icon-button">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-                        </svg>
-                    </button>
+                    <button class="btn btn-secondary" onclick="jumpToLatest()">Jump to Latest</button>
                 </div>
             </div>
 
@@ -575,21 +628,6 @@
                     </div>
                 </div>
 
-                <div class="filter-controls">
-                    <div class="filter-group">
-                        <div class="filter-label">Strike Count</div>
-                        <select class="filter-select" id="strike-count">
-                            <option value="10">10 Strikes</option>
-                            <option value="15">15 Strikes</option>
-                            <option value="20">20 Strikes</option>
-                        </select>
-                    </div>
-                    <div style="display: flex; gap: 8px;">
-                        <button class="btn btn-primary" onclick="fetchData()">Refresh</button>
-                        <button class="btn btn-secondary" onclick="jumpToLatest()">Jump to Latest</button>
-                    </div>
-                </div>
-
                 <div class="table-wrapper">
                     <div class="table-controls">
                         <span style="font-size: 12px; font-weight: 600; color: #94a3b8;">OI Difference - 3 Minute
@@ -620,7 +658,7 @@
 
         async function fetchData() {
             try {
-                const strikeCount = document.getElementById('strike-count').value;
+                const strikeCount = 15;  // Fixed to 15 strikes
 
                 // Fetch OI difference data
                 const response = await fetch(`${API_BASE}/oi-difference-live?strike_count=${strikeCount}`);
@@ -719,21 +757,6 @@
                 return;
             }
 
-            // Filter to show only market hours (9:15 AM - 3:30 PM)
-            timeSeries = timeSeries.filter(ts => {
-                const time = ts.timestamp;
-                const [hours, minutes] = time.split(':').map(Number);
-                const timeInMinutes = hours * 60 + minutes;
-                const marketStart = 9 * 60 + 15;  // 9:15 AM = 555 minutes
-                const marketEnd = 15 * 60 + 30;   // 3:30 PM = 930 minutes
-                return timeInMinutes >= marketStart && timeInMinutes <= marketEnd;
-            });
-
-            if (timeSeries.length === 0) {
-                container.innerHTML = '<div class="loading">No data available for market hours (9:15 AM - 3:30 PM)</div>';
-                return;
-            }
-
             // Build table header
             let html = '<table class="data-table"><thead>';
 
@@ -745,11 +768,12 @@
             });
             html += '</tr>';
 
-            // Time headers
+            // Time headers - show only actual time
             html += '<tr class="time-header">';
             timeSeries.forEach(ts => {
-                html += `<th colspan="4" class="calls">${ts.timestamp}</th>`;
-                html += `<th colspan="4" class="puts pe-last">${ts.timestamp}</th>`;
+                const timeDisplay = ts.actual_timestamp || ts.timestamp;
+                html += `<th colspan="4" class="calls">${timeDisplay}</th>`;
+                html += `<th colspan="4" class="puts pe-last">${timeDisplay}</th>`;
             });
             html += '</tr>';
 

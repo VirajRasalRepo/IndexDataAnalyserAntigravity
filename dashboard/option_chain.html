@@ -619,35 +619,6 @@
 
         <!-- MAIN CONTENT -->
         <div class="main-content">
-            <!-- HEADER BAR -->
-            <div class="header-bar">
-                <div class="search-container">
-                    <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2">
-                        <circle cx="11" cy="11" r="8"></circle>
-                        <path d="m21 21-4.35-4.35"></path>
-                    </svg>
-                    <input type="text" class="search-input" placeholder="Search Symbol (e.g. NIFTY, RELIANCE)">
-                </div>
-                <div class="header-actions">
-                    <button class="icon-button" title="Notifications">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-                        </svg>
-                    </button>
-                    <button class="icon-button" title="Settings">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <circle cx="12" cy="12" r="3"></circle>
-                            <path d="M12 1v6m0 6v6"></path>
-                            <path d="m1 12 6 0m6 0 6 0"></path>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-
             <!-- CONTENT AREA -->
             <div class="content-area">
                 <!-- STATS ROW -->
@@ -672,34 +643,6 @@
                         <div class="progress-bar">
                             <div class="progress-fill" id="vix-progress" style="width: 30%; background: #f43f5e;"></div>
                         </div>
-                    </div>
-                </div>
-
-                <!-- FILTER CONTROLS -->
-                <div class="filter-controls">
-                    <div class="filter-group">
-                        <label class="filter-label">Symbol</label>
-                        <select class="filter-select" id="symbol-select">
-                            <option value="NIFTY">NIFTY</option>
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label class="filter-label">Expiry Date</label>
-                        <select class="filter-select" id="expiry-select">
-                            <option>Loading...</option>
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label class="filter-label">Strike Step</label>
-                        <select class="filter-select" id="strike-step-select">
-                            <option value="50">50</option>
-                            <option value="100">100</option>
-                            <option value="200">200</option>
-                        </select>
-                    </div>
-                    <div class="filter-actions">
-                        <button class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
-                        <button class="btn btn-secondary" onclick="resetFilters()">Reset</button>
                     </div>
                 </div>
 
@@ -763,13 +706,12 @@
                     updateStats(spotData);
                 }
 
-                // Fetch option chain
-                const symbol = document.getElementById('symbol-select').value;
-                const expiry = document.getElementById('expiry-select').value;
-                const strikeStep = document.getElementById('strike-step-select').value;
+                // Fetch option chain with default values
+                const symbol = 'NIFTY';
+                const strikeStep = 50;
 
                 const chainResponse = await fetch(
-                    `${API_BASE}/option-chain?symbol=${symbol}&expiry=${expiry}&strike_step=${strikeStep}`
+                    `${API_BASE}/option-chain?symbol=${symbol}&strike_step=${strikeStep}`
                 );
                 const chainData = await chainResponse.json();
 
@@ -846,35 +788,7 @@
             document.getElementById('last-update').textContent = data.timestamp;
         }
 
-        async function loadExpiryDates() {
-            try {
-                const response = await fetch(`${API_BASE}/expiry-dates`);
-                const dates = await response.json();
-
-                const select = document.getElementById('expiry-select');
-                select.innerHTML = dates.map(date =>
-                    `<option value="${date}">${date}</option>`
-                ).join('');
-
-                // Select first expiry
-                if (dates.length > 0) {
-                    select.value = dates[0];
-                }
-            } catch (error) {
-                console.error('Error loading expiry dates:', error);
-            }
-        }
-
-        function applyFilters() {
-            fetchData();
-        }
-
-        function resetFilters() {
-            document.getElementById('symbol-select').value = 'NIFTY';
-            document.getElementById('strike-step-select').value = '50';
-            loadExpiryDates();
-            fetchData();
-        }
+        // Filter functions removed - using default values (NIFTY, strike_step=50)
 
         // Auto-refresh every 5 seconds
         function startAutoRefresh() {
@@ -889,7 +803,6 @@
 
         // Initialize
         window.addEventListener('load', async () => {
-            await loadExpiryDates();
             await fetchData();
             startAutoRefresh();
         });

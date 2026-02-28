@@ -150,7 +150,7 @@ def get_option_chain():
         strike_step = int(request.args.get('strike_step', 50))
 
         with DatabaseManager.get_cursor() as cursor:
-            # Get option chain data - using subquery to get latest timestamp
+            # Get option chain data - using subquery to get latest timestamp from market hours
             cursor.execute("""
                 SELECT
                     Strike_price,
@@ -163,6 +163,7 @@ def get_option_chain():
                 WHERE (Date, Time) = (
                     SELECT Date, Time
                     FROM nifty_oc_historical
+                    WHERE TIME_TO_SEC(Time) >= 33360 AND TIME_TO_SEC(Time) <= 56400
                     ORDER BY Date DESC, Time DESC
                     LIMIT 1
                 )
@@ -265,10 +266,11 @@ def get_oi_difference_live():
         interval_minutes = 3  # Fixed 3-minute intervals
 
         with DatabaseManager.get_cursor() as cursor:
-            # Get all timestamps for today, grouped by 3-minute intervals
+            # Get latest date with market hours data (9:16 AM - 3:30 PM)
             cursor.execute("""
                 SELECT DISTINCT Date
                 FROM nifty_oc_historical
+                WHERE TIME_TO_SEC(Time) >= 33360 AND TIME_TO_SEC(Time) <= 56400
                 ORDER BY Date DESC
                 LIMIT 1
             """)
@@ -279,15 +281,37 @@ def get_oi_difference_live():
 
             latest_date = latest_date_row[0]
 
-            # Get unique timestamps for the day, rounded to 3-minute intervals
+            # Find timestamps closest to 9:16, 9:19, 9:22, etc. (3-minute intervals from 9:16)
+            # Using a single query with CASE statements for efficiency
             cursor.execute("""
-                SELECT DISTINCT
-                    FLOOR(TIME_TO_SEC(Time) / 180) * 180 as interval_seconds,
-                    Date
-                FROM nifty_oc_historical
-                WHERE Date = %s
-                ORDER BY interval_seconds ASC
-            """, (latest_date,))
+                WITH target_times AS (
+                    SELECT DISTINCT
+                        FLOOR((TIME_TO_SEC(Time) - 33360) / 180) * 180 + 33360 as target_sec
+                    FROM nifty_oc_historical
+                    WHERE Date = %s
+                        AND TIME_TO_SEC(Time) >= 33360
+                        AND TIME_TO_SEC(Time) <= 56400
+                ),
+                closest_times AS (
+                    SELECT
+                        t.target_sec,
+                        (
+                            SELECT TIME_TO_SEC(h.Time)
+                            FROM nifty_oc_historical h
+                            WHERE h.Date = %s
+                                AND TIME_TO_SEC(h.Time) >= t.target_sec - 90
+                                AND TIME_TO_SEC(h.Time) <= t.target_sec + 90
+                            ORDER BY ABS(TIME_TO_SEC(h.Time) - t.target_sec) ASC
+                            LIMIT 1
+                        ) as actual_sec,
+                        %s as date
+                    FROM target_times t
+                )
+                SELECT target_sec, actual_sec, date
+                FROM closest_times
+                WHERE actual_sec IS NOT NULL
+                ORDER BY target_sec ASC
+            """, (latest_date, latest_date, latest_date))
 
             time_intervals = cursor.fetchall()
 
@@ -314,31 +338,20 @@ def get_oi_difference_live():
             # Fetch time-series data for all intervals
             time_series_data = []
 
-            for interval_sec, date in time_intervals:
-                # Get data for this specific interval
-                # Find the latest record within this 3-minute window
-                interval_start = interval_sec
-                interval_end = interval_sec + 180
-
+            for target_sec, actual_time_sec, date in time_intervals:
+                # Get data for the exact timestamp closest to target
                 cursor.execute("""
                     SELECT
-                        h1.Strike_price,
-                        h1.ce_oi, h1.ce_volume,
-                        h1.pe_oi, h1.pe_volume
-                    FROM nifty_oc_historical h1
-                    INNER JOIN (
-                        SELECT Strike_price, MAX(Time) as max_time
-                        FROM nifty_oc_historical
-                        WHERE Date = %s
-                            AND TIME_TO_SEC(Time) >= %s
-                            AND TIME_TO_SEC(Time) < %s
-                            AND Strike_price >= %s
-                            AND Strike_price <= %s
-                        GROUP BY Strike_price
-                    ) h2 ON h1.Strike_price = h2.Strike_price AND h1.Time = h2.max_time
-                    WHERE h1.Date = %s
-                    ORDER BY h1.Strike_price ASC
-                """, (date, interval_start, interval_end, min_strike, max_strike, date))
+                        Strike_price,
+                        ce_oi, ce_volume,
+                        pe_oi, pe_volume
+                    FROM nifty_oc_historical
+                    WHERE Date = %s
+                        AND TIME_TO_SEC(Time) = %s
+                        AND Strike_price >= %s
+                        AND Strike_price <= %s
+                    ORDER BY Strike_price ASC
+                """, (date, actual_time_sec, min_strike, max_strike))
 
                 interval_data = {}
                 for row in cursor.fetchall():
@@ -351,7 +364,9 @@ def get_oi_difference_live():
                     }
 
                 time_series_data.append({
-                    'timestamp': format_time_delta(interval_sec),
+                    'timestamp': format_time_delta(target_sec),
+                    'actual_timestamp': format_time_delta(actual_time_sec),
+                    'target_seconds': target_sec,
                     'data': interval_data
                 })
 
@@ -394,6 +409,236 @@ def get_oi_difference_live():
 
     except Exception as e:
         logger.error(f"Error fetching OI difference live: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/historical-data', methods=['GET'])
+def get_historical_data():
+    """Get historical option chain data for a specific date and time."""
+    try:
+        # Get query parameters
+        date_str = request.args.get('date')  # Format: YYYY-MM-DD
+        time_str = request.args.get('time')  # Format: HH:MM or HH:MM:SS
+        strike_step = int(request.args.get('strike_step', 50))
+
+        if not date_str or not time_str:
+            return jsonify({'error': 'Date and time parameters required'}), 400
+
+        # Ensure time has seconds
+        if len(time_str.split(':')) == 2:
+            time_str += ':00'
+
+        with DatabaseManager.get_cursor() as cursor:
+            # Get data for the specific date and time
+            cursor.execute("""
+                SELECT
+                    Strike_price,
+                    Spot_price,
+                    ce_oi, ce_volume, ce_IV, ce_delta, ce_gamma, ce_theta, ce_price, ce_vega, ce_signal,
+                    pe_oi, pe_volume, pe_IV, pe_delta, pe_gamma, pe_theta, pe_price, pe_vega, pe_signal,
+                    OI_Diff,
+                    Date, Time
+                FROM nifty_oc_historical
+                WHERE Date = %s AND Time = %s
+                ORDER BY Strike_price ASC
+            """, (date_str, time_str))
+
+            rows = cursor.fetchall()
+
+            if not rows:
+                return jsonify({'error': f'No data found for {date_str} at {time_str}'}), 404
+
+            # Process data
+            option_data = []
+            spot_price = None
+            latest_date = None
+            latest_time = None
+
+            for row in rows:
+                # Get timestamp from first row
+                if latest_date is None:
+                    latest_date = row[21]  # Date column
+                    latest_time = row[22]  # Time column
+                if spot_price is None:
+                    spot_price = decimal_to_float(row[1])
+
+                strike = decimal_to_float(row[0])
+
+                # Get OI change from previous record
+                ce_oi_change = 0
+                pe_oi_change = 0
+
+                option_data.append({
+                    'strike': strike,
+                    'ce': {
+                        'signal': row[10] or 'NEUTRAL',
+                        'oi': decimal_to_float(row[2]) / 100000 if row[2] else 0,  # Lakhs
+                        'oi_change': ce_oi_change,
+                        'iv': decimal_to_float(row[4]) if row[4] else 0,
+                        'ltp': decimal_to_float(row[8]) if row[8] else 0,
+                        'delta': decimal_to_float(row[5]) if row[5] else 0,
+                        'volume': decimal_to_float(row[3]) if row[3] else 0,
+                        'gamma': decimal_to_float(row[6]) if row[6] else 0,
+                        'theta': decimal_to_float(row[7]) if row[7] else 0,
+                        'vega': decimal_to_float(row[9]) if row[9] else 0
+                    },
+                    'pe': {
+                        'signal': row[19] or 'NEUTRAL',
+                        'oi': decimal_to_float(row[11]) / 100000 if row[11] else 0,  # Lakhs
+                        'oi_change': pe_oi_change,
+                        'iv': decimal_to_float(row[13]) if row[13] else 0,
+                        'ltp': decimal_to_float(row[17]) if row[17] else 0,
+                        'delta': decimal_to_float(row[14]) if row[14] else 0,
+                        'volume': decimal_to_float(row[12]) if row[12] else 0,
+                        'gamma': decimal_to_float(row[15]) if row[15] else 0,
+                        'theta': decimal_to_float(row[16]) if row[16] else 0,
+                        'vega': decimal_to_float(row[18]) if row[18] else 0
+                    },
+                    'is_atm': abs(strike - spot_price) < (strike_step / 2) if spot_price else False
+                })
+
+            return jsonify({
+                'spot_price': spot_price,
+                'timestamp': f"{decimal_to_float(latest_date)} {format_time_delta(latest_time)}",
+                'date': decimal_to_float(latest_date),
+                'time': format_time_delta(latest_time),
+                'data': option_data
+            })
+
+    except Exception as e:
+        logger.error(f"Error fetching historical data: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/export-full-day', methods=['GET'])
+def export_full_day():
+    """Export full day data as CSV."""
+    try:
+        date_str = request.args.get('date')  # Format: YYYY-MM-DD
+
+        if not date_str:
+            return jsonify({'error': 'Date parameter required'}), 400
+
+        with DatabaseManager.get_cursor() as cursor:
+            # Get all data for the day with 3-minute intervals
+            cursor.execute("""
+                WITH target_times AS (
+                    SELECT DISTINCT
+                        FLOOR((TIME_TO_SEC(Time) - 33360) / 180) * 180 + 33360 as target_sec
+                    FROM nifty_oc_historical
+                    WHERE Date = %s
+                        AND TIME_TO_SEC(Time) >= 33360
+                        AND TIME_TO_SEC(Time) <= 56400
+                ),
+                closest_times AS (
+                    SELECT
+                        t.target_sec,
+                        (
+                            SELECT TIME_TO_SEC(h.Time)
+                            FROM nifty_oc_historical h
+                            WHERE h.Date = %s
+                                AND TIME_TO_SEC(h.Time) >= t.target_sec - 90
+                                AND TIME_TO_SEC(h.Time) <= t.target_sec + 90
+                            ORDER BY ABS(TIME_TO_SEC(h.Time) - t.target_sec) ASC
+                            LIMIT 1
+                        ) as actual_sec
+                    FROM target_times t
+                )
+                SELECT
+                    h.Time,
+                    h.Strike_price,
+                    h.ce_oi, h.ce_volume, h.ce_IV, h.ce_delta, h.ce_price,
+                    h.pe_oi, h.pe_volume, h.pe_IV, h.pe_delta, h.pe_price
+                FROM nifty_oc_historical h
+                INNER JOIN closest_times ct ON TIME_TO_SEC(h.Time) = ct.actual_sec
+                WHERE h.Date = %s
+                ORDER BY h.Time ASC, h.Strike_price ASC
+            """, (date_str, date_str, date_str))
+
+            rows = cursor.fetchall()
+
+            if not rows:
+                return jsonify({'error': 'No data found for this date'}), 404
+
+            # Build CSV response
+            csv_lines = []
+            csv_lines.append('Time,Strike,CE_OI(L),CE_Volume(K),CE_IV,CE_Delta,CE_LTP,PE_LTP,PE_Delta,PE_IV,PE_Volume(K),PE_OI(L)')
+
+            for row in rows:
+                time = format_time_delta(decimal_to_float(row[0]))
+                strike = decimal_to_float(row[1])
+                ce_oi = decimal_to_float(row[2]) / 100000 if row[2] else 0  # Lakhs
+                ce_vol = decimal_to_float(row[3]) / 1000 if row[3] else 0  # Thousands
+                ce_iv = decimal_to_float(row[4]) if row[4] else 0
+                ce_delta = decimal_to_float(row[5]) if row[5] else 0
+                ce_ltp = decimal_to_float(row[6]) if row[6] else 0
+                pe_oi = decimal_to_float(row[7]) / 100000 if row[7] else 0  # Lakhs
+                pe_vol = decimal_to_float(row[8]) / 1000 if row[8] else 0  # Thousands
+                pe_iv = decimal_to_float(row[9]) if row[9] else 0
+                pe_delta = decimal_to_float(row[10]) if row[10] else 0
+                pe_ltp = decimal_to_float(row[11]) if row[11] else 0
+
+                csv_lines.append(f'{time},{strike:.0f},{ce_oi:.2f},{ce_vol:.0f},{ce_iv:.2f},{ce_delta:.2f},{ce_ltp:.2f},{pe_ltp:.2f},{pe_delta:.2f},{pe_iv:.2f},{pe_vol:.0f},{pe_oi:.2f}')
+
+            csv_content = '\n'.join(csv_lines)
+
+            # Return as downloadable CSV
+            from flask import make_response
+            response = make_response(csv_content)
+            response.headers['Content-Type'] = 'text/csv'
+            response.headers['Content-Disposition'] = f'attachment; filename=OI_FullDay_{date_str}.csv'
+            return response
+
+    except Exception as e:
+        logger.error(f"Error exporting full day: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/available-times', methods=['GET'])
+def get_available_times():
+    """Get available timestamps for a specific date with 3-minute intervals (same as index.html)."""
+    try:
+        date_str = request.args.get('date')  # Format: YYYY-MM-DD
+
+        if not date_str:
+            return jsonify({'error': 'Date parameter required'}), 400
+
+        with DatabaseManager.get_cursor() as cursor:
+            # Get 3-minute interval timestamps (same logic as /api/oi-difference-live)
+            cursor.execute("""
+                WITH target_times AS (
+                    SELECT DISTINCT
+                        FLOOR((TIME_TO_SEC(Time) - 33360) / 180) * 180 + 33360 as target_sec
+                    FROM nifty_oc_historical
+                    WHERE Date = %s
+                        AND TIME_TO_SEC(Time) >= 33360
+                        AND TIME_TO_SEC(Time) <= 56400
+                ),
+                closest_times AS (
+                    SELECT
+                        t.target_sec,
+                        (
+                            SELECT TIME_TO_SEC(h.Time)
+                            FROM nifty_oc_historical h
+                            WHERE h.Date = %s
+                                AND TIME_TO_SEC(h.Time) >= t.target_sec - 90
+                                AND TIME_TO_SEC(h.Time) <= t.target_sec + 90
+                            ORDER BY ABS(TIME_TO_SEC(h.Time) - t.target_sec) ASC
+                            LIMIT 1
+                        ) as actual_sec
+                    FROM target_times t
+                )
+                SELECT actual_sec
+                FROM closest_times
+                WHERE actual_sec IS NOT NULL
+                ORDER BY actual_sec ASC
+            """, (date_str, date_str))
+
+            times = [format_time_delta(row[0]) for row in cursor.fetchall()]
+            return jsonify(times)
+
+    except Exception as e:
+        logger.error(f"Error fetching available times: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 

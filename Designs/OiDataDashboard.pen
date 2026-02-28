@@ -42,7 +42,6 @@
                 "fill": "#1e293bff"
               },
               "layout": "vertical",
-              "layoutIncludeStroke": true,
               "children": [
                 {
                   "type": "frame",
@@ -242,116 +241,6 @@
                     },
                     {
                       "type": "frame",
-                      "id": "RQs1M",
-                      "name": "Link",
-                      "width": "fill_container",
-                      "cornerRadius": 8,
-                      "stroke": {
-                        "align": "inside",
-                        "thickness": 1
-                      },
-                      "gap": 12,
-                      "padding": [
-                        8,
-                        12
-                      ],
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "frame",
-                          "id": "Zc1qF",
-                          "name": "Container",
-                          "stroke": {
-                            "align": "inside",
-                            "thickness": 1
-                          },
-                          "layout": "vertical",
-                          "children": [
-                            {
-                              "type": "path",
-                              "id": "nLarE",
-                              "name": "Icon",
-                              "geometry": "M1.5 13l-1.5-1.5 7.5-7.5 4 4 7.1-8 1.4 1.4-8.5 9.6-4-4-6 6 0 0",
-                              "fill": "#94a3b8ff",
-                              "width": 20,
-                              "height": 13
-                            }
-                          ]
-                        },
-                        {
-                          "type": "text",
-                          "id": "wN0xi",
-                          "name": "Text",
-                          "fill": "#94a3b8ff",
-                          "textGrowth": "fixed-width-height",
-                          "width": 96.58000183105469,
-                          "height": 20,
-                          "content": "OI Multi-Strike",
-                          "lineHeight": 1.4285714285714286,
-                          "textAlignVertical": "middle",
-                          "fontFamily": "Inter",
-                          "fontSize": 14,
-                          "fontWeight": "500"
-                        }
-                      ]
-                    },
-                    {
-                      "type": "frame",
-                      "id": "aQuOF",
-                      "name": "Link",
-                      "width": "fill_container",
-                      "cornerRadius": 8,
-                      "stroke": {
-                        "align": "inside",
-                        "thickness": 1
-                      },
-                      "gap": 12,
-                      "padding": [
-                        8,
-                        12
-                      ],
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "frame",
-                          "id": "nQ1FC",
-                          "name": "Container",
-                          "stroke": {
-                            "align": "inside",
-                            "thickness": 1
-                          },
-                          "layout": "vertical",
-                          "children": [
-                            {
-                              "type": "path",
-                              "id": "1x3xv",
-                              "name": "Icon",
-                              "geometry": "M0 18l0-2 2-2 0 4-2 0 0 0m4 0l0-6 2-2 0 0 0 8-2 0 0 0m4 0l0-8 2 2.025 0 5.975-2 0 0 0m4 0l0-5.975 2-2 0 7.975-2 0 0 0m4 0l0-10 2-2 0 12-2 0 0 0m-16-5.175l0-2.825 7-7 4 4 7-7 0 2.825-7 7-4-4-7 7 0 0",
-                              "fill": "#94a3b8ff",
-                              "width": 18,
-                              "height": 18
-                            }
-                          ]
-                        },
-                        {
-                          "type": "text",
-                          "id": "Fn73m",
-                          "name": "Text",
-                          "fill": "#94a3b8ff",
-                          "textGrowth": "fixed-width-height",
-                          "width": 124.16999816894531,
-                          "height": 20,
-                          "content": "Greeks Dashboard",
-                          "lineHeight": 1.4285714285714286,
-                          "textAlignVertical": "middle",
-                          "fontFamily": "Inter",
-                          "fontSize": 14,
-                          "fontWeight": "500"
-                        }
-                      ]
-                    },
-                    {
-                      "type": "frame",
                       "id": "nHNE8",
                       "name": "Container",
                       "width": "fill_container",
@@ -438,61 +327,6 @@
                           "fontWeight": "500"
                         }
                       ]
-                    },
-                    {
-                      "type": "frame",
-                      "id": "Pgmpl",
-                      "name": "Link",
-                      "width": "fill_container",
-                      "cornerRadius": 8,
-                      "stroke": {
-                        "align": "inside",
-                        "thickness": 1
-                      },
-                      "gap": 12,
-                      "padding": [
-                        8,
-                        12
-                      ],
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "frame",
-                          "id": "z91mp",
-                          "name": "Container",
-                          "stroke": {
-                            "align": "inside",
-                            "thickness": 1
-                          },
-                          "layout": "vertical",
-                          "children": [
-                            {
-                              "type": "path",
-                              "id": "bxYzK",
-                              "name": "Icon",
-                              "geometry": "M6.55 16.2l5.175-6.2-4 0 0.725-5.675-4.625 6.675 3.475 0-0.75 5.2 0 0m-2.55 3.8l1-7-5 0 9-13 2 0-1 8 6 0-10 12-2 0 0 0m3.775-9.75l0 0 0 0 0 0 0 0 0 0 0 0 0 0",
-                              "fill": "#94a3b8ff",
-                              "width": 16,
-                              "height": 20
-                            }
-                          ]
-                        },
-                        {
-                          "type": "text",
-                          "id": "cxFPx",
-                          "name": "Text",
-                          "fill": "#94a3b8ff",
-                          "textGrowth": "fixed-width-height",
-                          "width": 88.11000061035156,
-                          "height": 20,
-                          "content": "Flash Signals",
-                          "lineHeight": 1.4285714285714286,
-                          "textAlignVertical": "middle",
-                          "fontFamily": "Inter",
-                          "fontSize": 14,
-                          "fontWeight": "500"
-                        }
-                      ]
                     }
                   ]
                 },
@@ -510,7 +344,6 @@
                   },
                   "layout": "vertical",
                   "padding": 16,
-                  "layoutIncludeStroke": true,
                   "children": [
                     {
                       "type": "frame",
@@ -695,7 +528,6 @@
                   ],
                   "justifyContent": "space_between",
                   "alignItems": "center",
-                  "layoutIncludeStroke": true,
                   "children": [
                     {
                       "type": "frame",
@@ -911,7 +743,6 @@
                           "layout": "vertical",
                           "gap": 8,
                           "padding": 16,
-                          "layoutIncludeStroke": true,
                           "children": [
                             {
                               "type": "frame",
@@ -1052,7 +883,6 @@
                           "layout": "vertical",
                           "gap": 8,
                           "padding": 16,
-                          "layoutIncludeStroke": true,
                           "children": [
                             {
                               "type": "frame",
@@ -1194,7 +1024,6 @@
                       "gap": 16,
                       "padding": 16,
                       "alignItems": "center",
-                      "layoutIncludeStroke": true,
                       "children": [
                         {
                           "type": "frame",
@@ -1766,7 +1595,6 @@
                         "fill": "#1e293bff"
                       },
                       "layout": "vertical",
-                      "layoutIncludeStroke": true,
                       "children": [
                         {
                           "type": "frame",
@@ -1785,7 +1613,6 @@
                           "padding": 16,
                           "justifyContent": "space_between",
                           "alignItems": "center",
-                          "layoutIncludeStroke": true,
                           "children": [
                             {
                               "type": "frame",
@@ -2001,7 +1828,6 @@
                                         16
                                       ],
                                       "alignItems": "center",
-                                      "layoutIncludeStroke": true,
                                       "children": [
                                         {
                                           "type": "text",
@@ -2296,7 +2122,6 @@
                                         12.5,
                                         8
                                       ],
-                                      "layoutIncludeStroke": true,
                                       "children": [
                                         {
                                           "type": "text",
@@ -2333,7 +2158,6 @@
                                         12.5,
                                         8
                                       ],
-                                      "layoutIncludeStroke": true,
                                       "children": [
                                         {
                                           "type": "text",
@@ -2796,7 +2620,6 @@
                                         9,
                                         8
                                       ],
-                                      "layoutIncludeStroke": true,
                                       "children": [
                                         {
                                           "type": "text",
@@ -2835,7 +2658,6 @@
                                         9,
                                         8
                                       ],
-                                      "layoutIncludeStroke": true,
                                       "children": [
                                         {
                                           "type": "text",
@@ -3098,7 +2920,6 @@
                                     "fill": "#135bec66"
                                   },
                                   "layout": "vertical",
-                                  "layoutIncludeStroke": true,
                                   "children": [
                                     {
                                       "type": "frame",
@@ -3362,7 +3183,6 @@
                                         8.5,
                                         8
                                       ],
-                                      "layoutIncludeStroke": true,
                                       "children": [
                                         {
                                           "type": "text",
@@ -3401,7 +3221,6 @@
                                         8.5,
                                         8
                                       ],
-                                      "layoutIncludeStroke": true,
                                       "children": [
                                         {
                                           "type": "text",
@@ -3865,7 +3684,6 @@
                                         8.5,
                                         8
                                       ],
-                                      "layoutIncludeStroke": true,
                                       "children": [
                                         {
                                           "type": "text",
@@ -3902,7 +3720,6 @@
                                         8.5,
                                         8
                                       ],
-                                      "layoutIncludeStroke": true,
                                       "children": [
                                         {
                                           "type": "text",
@@ -4356,7 +4173,6 @@
                                         8.5,
                                         8
                                       ],
-                                      "layoutIncludeStroke": true,
                                       "children": [
                                         {
                                           "type": "text",
@@ -4393,7 +4209,6 @@
                                         8.5,
                                         8
                                       ],
-                                      "layoutIncludeStroke": true,
                                       "children": [
                                         {
                                           "type": "text",
