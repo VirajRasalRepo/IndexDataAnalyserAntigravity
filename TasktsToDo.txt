@@ -1,0 +1,18 @@
+Starting Projects :
+python main.py
+
+cd dashboard
+python api.py
+
+start dashboard/index.html
+
+
+This contains the task that are done today and which are in mind and remaining for tomorrow .
+
+27-02-2026 :
+DONE task 1: the task of timestamp ois done and now we need to use same timestamp from index.html and use it for historical data , this is to be implemented.
+
+28-02-2026 :
+DONE task 1: Optimized full day CSV export feature to use backend endpoint (/api/export-full-day) instead of frontend loop. Performance improved from ~2-3 seconds to <1 second. Feature tested and working correctly.
+
+IMP : hosting this website on the server.

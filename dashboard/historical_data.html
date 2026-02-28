@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historical Data - OI Analysis</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #101622;
+            color: #f1f5f9;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .dashboard {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* SIDEBAR */
+        .sidebar {
+            width: 256px;
+            background: #101622;
+            border-right: 1px solid #1e293b;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header {
+            padding: 24px;
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 30px;
+            height: 30px;
+            background: #135bec;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px;
+        }
+
+        .logo-text {
+            font-size: 18px;
+            font-weight: 700;
+            color: #f1f5f9;
+            letter-spacing: -0.45px;
+        }
+
+        .nav-menu {
+            flex: 1;
+            padding: 0 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            text-decoration: none;
+            color: #94a3b8;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .nav-link:hover {
+            background: #135bec1a;
+            color: #135bec;
+        }
+
+        .nav-link.active {
+            background: #135bec1a;
+            color: #135bec;
+        }
+
+        .section-header {
+            padding: 16px 12px 8px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #94a3b8;
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+        }
+
+        /* MAIN CONTENT */
+        .main-content {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* TIMELINE SIDEBAR */
+        .timeline-sidebar {
+            width: 128px;
+            background: #0f172a;
+            border-right: 1px solid #1e293b;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .timeline-header {
+            padding: 16px;
+            border-bottom: 1px solid #1e293b;
+            text-align: center;
+        }
+
+        .timeline-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: #94a3b8;
+            text-transform: uppercase;
+        }
+
+        .timeline-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .timeline-item {
+            padding: 12px 45.5px;
+            border-bottom: 1px solid #1e293b80;
+            text-align: center;
+            cursor: pointer;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 12px;
+            color: #64748b;
+            transition: all 0.2s;
+        }
+
+        .timeline-item:hover {
+            background: #1e293b33;
+        }
+
+        .timeline-item.active {
+            background: #135bec0d;
+            border-left: 4px solid #135bec;
+            color: #135bec;
+            font-weight: 700;
+        }
+
+        /* CONTENT AREA */
+        .content-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 24px;
+            overflow: hidden;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 24px;
+        }
+
+        .page-title {
+            font-size: 30px;
+            font-weight: 700;
+            letter-spacing: -0.75px;
+            color: #f1f5f9;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: none;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-secondary {
+            background: #1e293b;
+            color: #e2e8f0;
+        }
+
+        .btn-secondary:hover {
+            background: #334155;
+        }
+
+        .btn-primary {
+            background: #135bec;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #1d4ed8;
+        }
+
+        /* FILTER BAR */
+        .filter-bar {
+            background: #0f172a;
+            border: 1px solid #1e293b;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .filter-group {
+            background: #1e293b;
+            border-radius: 8px;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .date-picker {
+            background: transparent;
+            border: none;
+            color: #f1f5f9;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 4px 8px;
+            cursor: pointer;
+        }
+
+        .divider {
+            width: 1px;
+            height: 32px;
+            background: #1e293b;
+        }
+
+        .filter-label {
+            font-size: 12px;
+            color: #94a3b8;
+            font-weight: 600;
+        }
+
+        .filter-select {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            color: #f1f5f9;
+            padding: 6px 12px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        /* DATA TABLE */
+        .table-container {
+            flex: 1;
+            background: #0f172a;
+            border: 1px solid #1e293b;
+            border-radius: 12px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .table-header-bar {
+            background: #1e293b33;
+            border-bottom: 1px solid #1e293b;
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .table-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #f1f5f9;
+        }
+
+        .table-info {
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        .table-wrapper {
+            flex: 1;
+            overflow: auto;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table thead {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .group-header {
+            background: #1e293b;
+            padding: 12px;
+            text-align: center;
+            font-size: 12px;
+            font-weight: 700;
+            color: #94a3b8;
+            text-transform: uppercase;
+            border-bottom: 1px solid #1e293b;
+        }
+
+        .group-header.calls {
+            background: #135bec0d;
+        }
+
+        .group-header.puts {
+            background: #f43f5e0d;
+        }
+
+        .column-header {
+            background: #0f172a80;
+            padding: 8px;
+            text-align: center;
+            font-size: 10px;
+            font-weight: 700;
+            color: #64748b;
+            border-bottom: 1px solid #1e293b;
+        }
+
+        .data-row {
+            border-bottom: 1px solid #1e293b80;
+        }
+
+        .data-row:hover {
+            background: #1e293b33;
+        }
+
+        .data-cell {
+            padding: 12px 8px;
+            text-align: center;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .data-cell.strike {
+            font-weight: 700;
+            color: #ffffff;
+            background: #1e293b;
+        }
+
+        .data-cell.atm {
+            background: #135bec1a;
+            color: #135bec;
+            font-weight: 700;
+        }
+
+        .value-positive {
+            color: #10b981;
+        }
+
+        .value-negative {
+            color: #f43f5e;
+        }
+
+        .table-footer {
+            background: #1e293b33;
+            border-top: 1px solid #1e293b;
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .footer-text {
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+        .page-info {
+            font-size: 12px;
+            color: #94a3b8;
+            font-weight: 600;
+        }
+
+        /* PAGE FOOTER */
+        .page-footer {
+            margin-top: 24px;
+            padding: 16px 0;
+            border-top: 1px solid #1e293b;
+            text-align: center;
+        }
+
+        .copyright {
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+        /* LOADING */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            color: #64748b;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #1e293b;
+            border-top-color: #135bec;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 12px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="dashboard">
+        <!-- SIDEBAR -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-container">
+                    <div class="logo-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M3 3v18h18"></path>
+                            <path d="m19 9-5 5-4-4-3 3"></path>
+                        </svg>
+                    </div>
+                    <div class="logo-text">OI Analysis</div>
+                </div>
+            </div>
+            <div class="nav-menu">
+                <a href="index.html" class="nav-link">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="14" width="7" height="7"></rect>
+                        <rect x="3" y="14" width="7" height="7"></rect>
+                    </svg>
+                    Dashboard
+                </a>
+                <a href="option_chain.html" class="nav-link">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="1" x2="12" y2="23"></line>
+                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                    </svg>
+                    Option Chain
+                </a>
+                <a href="#" class="nav-link">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 20V10"></path>
+                        <path d="M12 20V4"></path>
+                        <path d="M6 20v-6"></path>
+                    </svg>
+                    OI Multi-Strike
+                </a>
+                <a href="#" class="nav-link">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path
+                            d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
+                        </path>
+                        <polyline points="7.5 4.21 12 6.81 16.5 4.21"></polyline>
+                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                        <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                    </svg>
+                    Greeks Dashboard
+                </a>
+
+                <div class="section-header">Reports</div>
+                <a href="historical_data.html" class="nav-link active">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
+                    </svg>
+                    Historical Data
+                </a>
+                <a href="#" class="nav-link">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                    </svg>
+                    Flash Signals
+                </a>
+            </div>
+        </div>
+
+        <!-- MAIN CONTENT -->
+        <div class="main-content">
+            <!-- TIMELINE SIDEBAR -->
+            <div class="timeline-sidebar">
+                <div class="timeline-header">
+                    <div class="timeline-title">Timeline</div>
+                </div>
+                <div class="timeline-list" id="timeline-list">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        Loading...
+                    </div>
+                </div>
+            </div>
+
+            <!-- CONTENT AREA -->
+            <div class="content-area">
+                <div class="page-header">
+                    <h1 class="page-title">Minute-by-Minute OI Data</h1>
+                    <div class="header-actions">
+                        <button class="btn btn-secondary" onclick="exportCSV()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="7 10 12 15 17 10"></polyline>
+                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                            Export Snapshot
+                        </button>
+                        <button class="btn btn-secondary" onclick="exportFullDayCSV()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="7 10 12 15 17 10"></polyline>
+                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                            Export Full Day
+                        </button>
+                        <button class="btn btn-primary" onclick="saveReport()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                                <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                                <polyline points="7 3 7 8 15 8"></polyline>
+                            </svg>
+                            Save Report
+                        </button>
+                    </div>
+                </div>
+
+                <div class="filter-bar">
+                    <div class="filter-group">
+                        <input type="date" class="date-picker" id="date-picker">
+                    </div>
+                    <div class="divider"></div>
+                    <div class="filter-label">Intraday OI Activity</div>
+                    <div class="divider"></div>
+                    <div class="filter-label">Spot Price: <span id="spot-price" style="color: #10b981; font-weight: 700;">--</span></div>
+                    <div class="divider"></div>
+                    <div class="filter-label">ATM Strike: <span id="atm-strike" style="color: #135bec; font-weight: 700;">--</span></div>
+                </div>
+
+                <div class="table-container">
+                    <div class="table-header-bar">
+                        <div class="table-title">Option Chain Data</div>
+                        <div class="table-info" id="table-info">Loading...</div>
+                    </div>
+                    <div class="table-wrapper">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th colspan="6" class="group-header calls">CALLS (CE)</th>
+                                    <th class="group-header strike">STRIKE</th>
+                                    <th colspan="6" class="group-header puts">PUTS (PE)</th>
+                                </tr>
+                                <tr>
+                                    <th class="column-header">OI (L)</th>
+                                    <th class="column-header">ΔOI</th>
+                                    <th class="column-header">IV</th>
+                                    <th class="column-header">LTP</th>
+                                    <th class="column-header">Delta</th>
+                                    <th class="column-header">Volume</th>
+                                    <th class="column-header">Price</th>
+                                    <th class="column-header">Volume</th>
+                                    <th class="column-header">Delta</th>
+                                    <th class="column-header">LTP</th>
+                                    <th class="column-header">IV</th>
+                                    <th class="column-header">ΔOI</th>
+                                    <th class="column-header">OI (L)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-body">
+                                <tr>
+                                    <td colspan="13" class="loading">
+                                        <div class="spinner"></div>
+                                        Loading historical data...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="table-footer">
+                        <div class="footer-text">Showing intraday OI data for the selected snapshot</div>
+                        <div class="page-info">Page <span id="page-num">01</span></div>
+                    </div>
+                </div>
+
+                <div class="page-footer">
+                    <div class="copyright">© 2023 OI Analytics Pro. Data provided for educational and analytical purposes. Trading involves significant risk.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000/api';
+        let selectedDate = null;
+        let selectedTime = null;
+        let availableTimes = [];
+        let currentData = null;  // Store current data for export
+
+        // Initialize
+        window.addEventListener('load', async () => {
+            // Set today's date
+            const today = new Date();
+            document.getElementById('date-picker').valueAsDate = today;
+            selectedDate = formatDate(today);
+
+            await loadAvailableTimes();
+        });
+
+        function formatDate(date) {
+            return date.toISOString().split('T')[0];
+        }
+
+        async function loadAvailableTimes() {
+            try {
+                const response = await fetch(`${API_BASE}/available-times?date=${selectedDate}`);
+                availableTimes = await response.json();
+
+                if (availableTimes.error) {
+                    console.error('Error loading times:', availableTimes.error);
+                    availableTimes = [];
+                }
+
+                renderTimeline();
+
+                // Select first time by default
+                if (availableTimes.length > 0) {
+                    selectTime(availableTimes[0]);
+                } else {
+                    document.getElementById('timeline-list').innerHTML =
+                        '<div class="loading" style="color: #64748b;">No data available for this date</div>';
+                }
+            } catch (error) {
+                console.error('Error loading available times:', error);
+                availableTimes = [];
+                document.getElementById('timeline-list').innerHTML =
+                    '<div class="loading" style="color: #f43f5e;">Error loading times</div>';
+            }
+        }
+
+        function renderTimeline() {
+            const container = document.getElementById('timeline-list');
+            container.innerHTML = availableTimes.map(time =>
+                `<div class="timeline-item" onclick="selectTime('${time}')">${time}</div>`
+            ).join('');
+        }
+
+        function selectTime(time) {
+            selectedTime = time;
+
+            // Update active state
+            document.querySelectorAll('.timeline-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.textContent === time) {
+                    item.classList.add('active');
+                }
+            });
+
+            loadHistoricalData();
+        }
+
+        async function loadHistoricalData() {
+            if (!selectedDate || !selectedTime) return;
+
+            try {
+                const response = await fetch(
+                    `${API_BASE}/historical-data?date=${selectedDate}&time=${selectedTime}&strike_step=50`
+                );
+                const data = await response.json();
+
+                if (data.error) {
+                    console.error('API Error:', data.error);
+                    document.getElementById('table-body').innerHTML =
+                        `<tr><td colspan="13" class="loading" style="color: #f43f5e;">${data.error}</td></tr>`;
+                    return;
+                }
+
+                if (data.data) {
+                    currentData = data;  // Store for export
+                    renderTable(data);
+                    document.getElementById('table-info').textContent =
+                        `${data.date} @ ${data.time}`;
+                }
+            } catch (error) {
+                console.error('Error loading historical data:', error);
+                document.getElementById('table-body').innerHTML =
+                    '<tr><td colspan="13" class="loading" style="color: #f43f5e;">Error loading data</td></tr>';
+            }
+        }
+
+        function renderTable(data) {
+            const tbody = document.getElementById('table-body');
+            const spotPrice = data.spot_price;
+
+            // Update spot price and ATM strike in filter bar
+            document.getElementById('spot-price').textContent = spotPrice ? spotPrice.toFixed(2) : '--';
+
+            // Calculate ATM strike
+            const strikeStep = 50;
+            const atmStrike = spotPrice ? (Math.round(spotPrice / strikeStep) * strikeStep) : null;
+            document.getElementById('atm-strike').textContent = atmStrike ? atmStrike.toFixed(0) : '--';
+
+            let html = '';
+            data.data.forEach(row => {
+                const isAtm = row.is_atm;
+                html += `<tr class="data-row">
+                    <td class="data-cell">${row.ce.oi.toFixed(2)}</td>
+                    <td class="data-cell ${row.ce.oi_change >= 0 ? 'value-positive' : 'value-negative'}">
+                        ${row.ce.oi_change >= 0 ? '+' : ''}${row.ce.oi_change.toFixed(2)}
+                    </td>
+                    <td class="data-cell">${row.ce.iv.toFixed(2)}</td>
+                    <td class="data-cell">${row.ce.ltp.toFixed(2)}</td>
+                    <td class="data-cell">${row.ce.delta.toFixed(2)}</td>
+                    <td class="data-cell">${(row.ce.volume / 1000).toFixed(0)}K</td>
+                    <td class="data-cell strike ${isAtm ? 'atm' : ''}">${row.strike.toFixed(0)}</td>
+                    <td class="data-cell">${(row.pe.volume / 1000).toFixed(0)}K</td>
+                    <td class="data-cell">${row.pe.delta.toFixed(2)}</td>
+                    <td class="data-cell">${row.pe.ltp.toFixed(2)}</td>
+                    <td class="data-cell">${row.pe.iv.toFixed(2)}</td>
+                    <td class="data-cell ${row.pe.oi_change >= 0 ? 'value-positive' : 'value-negative'}">
+                        ${row.pe.oi_change >= 0 ? '+' : ''}${row.pe.oi_change.toFixed(2)}
+                    </td>
+                    <td class="data-cell">${row.pe.oi.toFixed(2)}</td>
+                </tr>`;
+            });
+
+            tbody.innerHTML = html;
+        }
+
+        function exportCSV() {
+            if (!currentData || !currentData.data) {
+                alert('No data available to export');
+                return;
+            }
+
+            // Create CSV content
+            const headers = [
+                'Strike',
+                'CE_OI(L)', 'CE_ΔOI', 'CE_IV', 'CE_LTP', 'CE_Delta', 'CE_Volume',
+                'PE_Volume', 'PE_Delta', 'PE_LTP', 'PE_IV', 'PE_ΔOI', 'PE_OI(L)'
+            ];
+
+            let csvContent = 'data:text/csv;charset=utf-8,';
+
+            // Add metadata
+            csvContent += `Date: ${currentData.date}\n`;
+            csvContent += `Time: ${currentData.time}\n`;
+            csvContent += `Spot Price: ${currentData.spot_price}\n`;
+            csvContent += '\n';
+
+            // Add headers
+            csvContent += headers.join(',') + '\n';
+
+            // Add data rows
+            currentData.data.forEach(row => {
+                const rowData = [
+                    row.strike.toFixed(0),
+                    row.ce.oi.toFixed(2),
+                    row.ce.oi_change.toFixed(2),
+                    row.ce.iv.toFixed(2),
+                    row.ce.ltp.toFixed(2),
+                    row.ce.delta.toFixed(2),
+                    (row.ce.volume / 1000).toFixed(0),
+                    (row.pe.volume / 1000).toFixed(0),
+                    row.pe.delta.toFixed(2),
+                    row.pe.ltp.toFixed(2),
+                    row.pe.iv.toFixed(2),
+                    row.pe.oi_change.toFixed(2),
+                    row.pe.oi.toFixed(2)
+                ];
+                csvContent += rowData.join(',') + '\n';
+            });
+
+            // Create download link
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement('a');
+            link.setAttribute('href', encodedUri);
+            link.setAttribute('download', `OI_Snapshot_${currentData.date}_${currentData.time.replace(/:/g, '-')}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        async function exportFullDayCSV() {
+            if (!selectedDate || !availableTimes || availableTimes.length === 0) {
+                alert('No data available to export');
+                return;
+            }
+
+            if (!confirm(`This will export data for all ${availableTimes.length} timestamps. Continue?`)) {
+                return;
+            }
+
+            // Show loading indicator
+            const originalText = event.target.textContent;
+            event.target.textContent = 'Exporting...';
+            event.target.disabled = true;
+
+            try {
+                // Use the backend export-full-day endpoint for efficiency
+                const response = await fetch(`${API_BASE}/export-full-day?date=${selectedDate}`);
+
+                if (!response.ok) {
+                    throw new Error(`Export failed: ${response.statusText}`);
+                }
+
+                // Get the CSV content from the backend
+                const blob = await response.blob();
+
+                // Create download link
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.setAttribute('download', `OI_FullDay_${selectedDate}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+
+                alert('Full day data exported successfully!');
+            } catch (error) {
+                console.error('Error exporting full day:', error);
+                alert('Error exporting data. Please try again.');
+            } finally {
+                // Restore button state
+                event.target.textContent = originalText;
+                event.target.disabled = false;
+            }
+        }
+
+        function saveReport() {
+            if (!currentData || !currentData.data) {
+                alert('No data available to save');
+                return;
+            }
+
+            // Create HTML report
+            const reportContent = `
+<!DOCTYPE html>
+<html>
+<head>
+    <title>OI Analysis Report - ${currentData.date} @ ${currentData.time}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .header { background: #135bec; color: white; padding: 20px; border-radius: 8px; }
+        .info { display: flex; gap: 20px; margin: 20px 0; }
+        .info-card { background: white; padding: 15px; border-radius: 8px; flex: 1; }
+        .info-label { color: #64748b; font-size: 12px; }
+        .info-value { font-size: 24px; font-weight: bold; color: #135bec; }
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; }
+        th { background: #1e293b; color: white; padding: 12px; text-align: center; font-size: 11px; }
+        th.calls { background: #135bec; }
+        th.puts { background: #f43f5e; }
+        td { padding: 10px; text-align: center; border-bottom: 1px solid #e5e7eb; }
+        .strike { background: #f1f5f9; font-weight: bold; }
+        .atm { background: #135bec20; color: #135bec; font-weight: bold; }
+        .positive { color: #10b981; }
+        .negative { color: #f43f5e; }
+        .footer { margin-top: 20px; text-align: center; color: #64748b; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>OI Analysis Report</h1>
+        <p>Generated on ${new Date().toLocaleString()}</p>
+    </div>
+    <div class="info">
+        <div class="info-card">
+            <div class="info-label">Date</div>
+            <div class="info-value">${currentData.date}</div>
+        </div>
+        <div class="info-card">
+            <div class="info-label">Time</div>
+            <div class="info-value">${currentData.time}</div>
+        </div>
+        <div class="info-card">
+            <div class="info-label">Spot Price</div>
+            <div class="info-value">${currentData.spot_price.toFixed(2)}</div>
+        </div>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th colspan="6" class="calls">CALLS (CE)</th>
+                <th>STRIKE</th>
+                <th colspan="6" class="puts">PUTS (PE)</th>
+            </tr>
+            <tr>
+                <th>OI (L)</th><th>ΔOI</th><th>IV</th><th>LTP</th><th>Delta</th><th>Volume</th>
+                <th>Price</th>
+                <th>Volume</th><th>Delta</th><th>LTP</th><th>IV</th><th>ΔOI</th><th>OI (L)</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${currentData.data.map(row => `
+                <tr>
+                    <td>${row.ce.oi.toFixed(2)}</td>
+                    <td class="${row.ce.oi_change >= 0 ? 'positive' : 'negative'}">${row.ce.oi_change >= 0 ? '+' : ''}${row.ce.oi_change.toFixed(2)}</td>
+                    <td>${row.ce.iv.toFixed(2)}</td>
+                    <td>${row.ce.ltp.toFixed(2)}</td>
+                    <td>${row.ce.delta.toFixed(2)}</td>
+                    <td>${(row.ce.volume / 1000).toFixed(0)}K</td>
+                    <td class="strike ${row.is_atm ? 'atm' : ''}">${row.strike.toFixed(0)}</td>
+                    <td>${(row.pe.volume / 1000).toFixed(0)}K</td>
+                    <td>${row.pe.delta.toFixed(2)}</td>
+                    <td>${row.pe.ltp.toFixed(2)}</td>
+                    <td>${row.pe.iv.toFixed(2)}</td>
+                    <td class="${row.pe.oi_change >= 0 ? 'positive' : 'negative'}">${row.pe.oi_change >= 0 ? '+' : ''}${row.pe.oi_change.toFixed(2)}</td>
+                    <td>${row.pe.oi.toFixed(2)}</td>
+                </tr>
+            `).join('')}
+        </tbody>
+    </table>
+    <div class="footer">
+        <p>© 2023 OI Analytics Pro. Data provided for educational and analytical purposes.</p>
+    </div>
+</body>
+</html>`;
+
+            // Create download link
+            const blob = new Blob([reportContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `OI_Report_${currentData.date}_${currentData.time.replace(/:/g, '-')}.html`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+
+        // Date picker change
+        document.getElementById('date-picker').addEventListener('change', (e) => {
+            selectedDate = e.target.value;
+            loadAvailableTimes();
+        });
+    </script>
+</body>
+
+</html>

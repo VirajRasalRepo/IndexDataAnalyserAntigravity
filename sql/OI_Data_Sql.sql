@@ -19,15 +19,3 @@ SELECT column_name, data_type, is_nullable
 FROM information_schema.columns
 WHERE table_name = 'NIFTY_OC_HISTORICAL'
   AND table_schema = 'analyzer_db'; -- Optional: Use if you have multiple schemas
-  
-SELECT * FROM analyzer_db.nifty_oc_historical 
-WHERE Strike_price = 25400 
-AND time IN ("09:15:00", "09:18:00");
-
-SELECT * FROM analyzer_db.nifty_oc_historical 
-WHERE Strike_price = 25450;
-
-
-
-SELECT * FROM analyzer_db.nifty_oc_historical 
-GROUP BY Strike_price;

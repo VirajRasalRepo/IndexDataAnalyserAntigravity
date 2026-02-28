@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Debug Page</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .test-result {
+            background: #2a2a2a;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 4px solid #60a5fa;
+        }
+        .success { border-left-color: #4ade80; }
+        .error { border-left-color: #ef4444; }
+        pre {
+            background: #0a0a0a;
+            padding: 10px;
+            border-radius: 3px;
+            overflow-x: auto;
+        }
+        button {
+            background: #60a5fa;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #3b82f6;
+        }
+        .loading {
+            color: #fbbf24;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 API Debug Test</h1>
+    <button onclick="runTests()">Run API Tests</button>
+    <div id="results"></div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000/api';
+
+        async function runTests() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<p class="loading">Running tests...</p>';
+
+            let html = '';
+
+            // Test 1: API Health
+            html += '<div class="test-result">';
+            html += '<h2>Test 1: API Health Check</h2>';
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                html += '<div class="success">✅ SUCCESS</div>';
+                html += '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+            } catch (error) {
+                html += '<div class="error">❌ FAILED: ' + error.message + '</div>';
+            }
+            html += '</div>';
+
+            // Test 2: OI Difference API
+            html += '<div class="test-result">';
+            html += '<h2>Test 2: OI Difference API</h2>';
+            try {
+                const response = await fetch(`${API_BASE}/oi-difference-live?strike_count=5`);
+                const data = await response.json();
+                html += '<div class="success">✅ SUCCESS</div>';
+                html += '<p>Total timestamps: ' + data.time_series.length + '</p>';
+
+                // Show last timestamp
+                const lastTs = data.time_series[data.time_series.length - 1];
+                html += '<h3>Last Timestamp: ' + lastTs.timestamp + '</h3>';
+
+                // Show first strike data
+                const firstStrike = Object.keys(lastTs.data)[0];
+                const strikeData = lastTs.data[firstStrike];
+
+                html += '<table border="1" cellpadding="8" style="border-collapse: collapse; margin: 10px 0;">';
+                html += '<tr><th>Field</th><th>Raw Value</th><th>Displayed Value</th></tr>';
+                html += '<tr><td>Strike</td><td>' + firstStrike + '</td><td>-</td></tr>';
+                html += '<tr><td>CE OI</td><td>' + strikeData.ce_oi.toLocaleString() + '</td><td>' + (strikeData.ce_oi / 100000).toFixed(2) + 'L</td></tr>';
+                html += '<tr><td>CE OI Diff</td><td>' + strikeData.ce_oi_diff.toLocaleString() + '</td><td>' + (strikeData.ce_oi_diff / 1000).toFixed(1) + 'K</td></tr>';
+                html += '<tr><td>CE Vol</td><td>' + strikeData.ce_vol.toLocaleString() + '</td><td>' + (strikeData.ce_vol / 1000).toFixed(0) + 'K</td></tr>';
+                html += '<tr><td>CE Vol Diff</td><td>' + strikeData.ce_vol_diff.toLocaleString() + '</td><td>' + (strikeData.ce_vol_diff / 1000).toFixed(0) + 'K</td></tr>';
+                html += '<tr><td>PE OI</td><td>' + strikeData.pe_oi.toLocaleString() + '</td><td>' + (strikeData.pe_oi / 100000).toFixed(2) + 'L</td></tr>';
+                html += '<tr><td>PE OI Diff</td><td>' + strikeData.pe_oi_diff.toLocaleString() + '</td><td>' + (strikeData.pe_oi_diff / 1000).toFixed(1) + 'K</td></tr>';
+                html += '<tr><td>PE Vol</td><td>' + strikeData.pe_vol.toLocaleString() + '</td><td>' + (strikeData.pe_vol / 1000).toFixed(0) + 'K</td></tr>';
+                html += '<tr><td>PE Vol Diff</td><td>' + strikeData.pe_vol_diff.toLocaleString() + '</td><td>' + (strikeData.pe_vol_diff / 1000).toFixed(0) + 'K</td></tr>';
+                html += '</table>';
+
+                // Check for non-zero values
+                html += '<h3>Non-Zero Value Check:</h3>';
+                let foundNonZero = false;
+                for (let ts of data.time_series) {
+                    for (let [strike, values] of Object.entries(ts.data)) {
+                        if (values.ce_oi_diff !== 0 || values.pe_oi_diff !== 0) {
+                            foundNonZero = true;
+                            html += '<p style="color: #4ade80;">✅ Found non-zero OI difference at ' + ts.timestamp + ', Strike ' + strike + ':</p>';
+                            html += '<p>  CE OI Diff: ' + values.ce_oi_diff.toLocaleString() + ' (Display: ' + (values.ce_oi_diff / 1000).toFixed(1) + 'K)</p>';
+                            html += '<p>  PE OI Diff: ' + values.pe_oi_diff.toLocaleString() + ' (Display: ' + (values.pe_oi_diff / 1000).toFixed(1) + 'K)</p>';
+                            break;
+                        }
+                    }
+                    if (foundNonZero) break;
+                }
+
+                if (!foundNonZero) {
+                    html += '<p style="color: #fbbf24;">⚠️ All OI differences are zero in the API response</p>';
+                }
+
+            } catch (error) {
+                html += '<div class="error">❌ FAILED: ' + error.message + '</div>';
+            }
+            html += '</div>';
+
+            // Test 3: Browser Console Errors
+            html += '<div class="test-result">';
+            html += '<h2>Test 3: Browser Info</h2>';
+            html += '<p>User Agent: ' + navigator.userAgent + '</p>';
+            html += '<p>Current URL: ' + window.location.href + '</p>';
+            html += '<p>API Base: ' + API_BASE + '</p>';
+            html += '</div>';
+
+            resultsDiv.innerHTML = html;
+        }
+
+        // Auto-run on load
+        window.addEventListener('load', runTests);
+    </script>
+</body>
+</html>

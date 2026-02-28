@@ -9,13 +9,12 @@ import time
 from datetime import datetime, time as dt_time
 from dhanhq import dhanhq
 
-import Utilities
-from config import Config
-from database import DatabaseManager
-from trade_sync import TradeSync, TradeSyncError
-from option_chain import OptionChainData, OptionChainError
-from market_watch import MarketWatchData, MarketWatchError
-from market_feed_websocket import DhanMarketFeed, MarketFeedError
+from core import Utilities
+from core.config import Config
+from core.database import DatabaseManager
+from core.trade_sync import TradeSync, TradeSyncError
+from core.option_chain import OptionChainData, OptionChainError
+from streaming.market_feed_websocket import DhanMarketFeed, MarketFeedError
 
 # Configure logging
 logging.basicConfig(
@@ -101,7 +100,6 @@ def run_pipeline():
     # Initialize sync handlers
     trade_sync = TradeSync(dhan_client)
     option_chain = OptionChainData(dhan_client, expiry)
-    market_watch = MarketWatchData(dhan_client)
 
     # Initialize WebSocket market feed for real-time data
     market_feed = DhanMarketFeed(Config.DHAN_CLIENT_ID, Config.DHAN_ACCESS_TOKEN)
@@ -148,14 +146,7 @@ def run_pipeline():
                 except OptionChainError as e:
                     logger.error(f"Option chain fetch failed: {e}")
 
-                # --- STEP 3: Fetch and Store Market Watch Data (REST API) ---
-                try:
-                    instruments_count = market_watch.fetch_and_store()
-                    logger.info(f"Market watch: Stored {instruments_count} instruments")
-                except MarketWatchError as e:
-                    logger.error(f"Market watch fetch failed: {e}")
-
-                # --- STEP 4: Store Real-time Market Feed Data (WebSocket) ---
+                # --- STEP 3: Store Real-time Market Feed Data (WebSocket) ---
                 try:
                     market_feed.store_to_database()
                     latest_data = market_feed.get_latest_data()

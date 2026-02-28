@@ -61,18 +61,11 @@ python main.py
 
 ### Data Storage
 
-**Two Tables Now:**
-
-1. **`market_watch_wide`** (OLD - REST API)
-   - Only LTP (Last Traded Price)
-   - May fail outside market hours
-   - One API call per instrument
-
-2. **`market_feed_realtime`** (NEW - WebSocket)
+**Table: `market_feed_realtime`**
    - LTP, Volume, OHLC
    - Average price, Buy/Sell quantities
-   - Real-time updates
-   - Single WebSocket for all instruments
+   - Real-time updates via WebSocket
+   - Single WebSocket connection for all instruments
 
 ## Application Logs
 
@@ -189,27 +182,25 @@ mysql -u root -p analyzer_db < schema_market_feed.sql
 
 ## Architecture
 
-### Before (REST API only):
+### Real-Time WebSocket Flow:
 ```
-Main Loop (4s) → REST API Call × 9 → Store LTP only
-```
-
-### Now (Hybrid):
-```
-Main Loop (4s) → REST API Call × 9 → Store LTP (fallback)
-                ↓
-WebSocket (Background) → Streaming Data → Store Full Data
+Main Loop (4s):
+  ├─ Sync Trades (every 60s)
+  ├─ Fetch Option Chain Data
+  └─ Store WebSocket Data → market_feed_realtime
+       ↑
+WebSocket (Background Thread) → Continuous Streaming
 ```
 
 ## Performance Benefits
 
-| Metric | Before (REST) | Now (WebSocket) |
-|--------|---------------|-----------------|
-| **API Calls/min** | ~135 calls (9×15) | 0 (streaming) |
-| **Latency** | ~1-2 seconds | Real-time |
-| **Data Points** | 1 (LTP only) | 9+ per instrument |
-| **Efficiency** | 9 connections | 1 connection |
-| **Cost** | Higher API usage | Lower API usage |
+| Feature | WebSocket Implementation |
+|---------|-------------------------|
+| **API Calls/min** | 0 (streaming only) |
+| **Latency** | Real-time (<1 second) |
+| **Data Points** | 9+ fields per instrument |
+| **Connections** | 1 WebSocket for all instruments |
+| **Efficiency** | Minimal bandwidth, maximum data |
 
 ## Next Steps
 

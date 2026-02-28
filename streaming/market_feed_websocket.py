@@ -10,10 +10,15 @@ import threading
 import time
 from datetime import datetime
 from typing import Dict, Optional, Callable
+import sys
+from pathlib import Path
 import websocket
 
-from config import Config
-from database import DatabaseManager
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from core.config import Config
+from core.database import DatabaseManager
 
 logger = logging.getLogger(__name__)
 
@@ -160,6 +165,8 @@ class DhanMarketFeed:
             message: Binary message data
         """
         try:
+            logger.debug(f"Received message: {len(message)} bytes")
+
             # Parse binary message
             data = self._parse_quote_packet(message)
 
@@ -174,7 +181,9 @@ class DhanMarketFeed:
                 if self.on_data_callback:
                     self.on_data_callback(data)
 
-                logger.debug(f"Received data for {instrument_key}: LTP={data.get('ltp', 0)}")
+                logger.info(f"Received data for {instrument_key}: LTP={data.get('ltp', 0)}")
+            else:
+                logger.warning(f"Failed to parse message of {len(message)} bytes")
 
         except Exception as e:
             logger.error(f"Error processing message: {e}", exc_info=True)

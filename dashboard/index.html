@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OI Difference Live - NIFTY Analysis</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #101622;
+            color: #f1f5f9;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .dashboard {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* SIDEBAR */
+        .sidebar {
+            width: 256px;
+            background: #101622;
+            border-right: 1px solid #1e293b;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 24px;
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 30px;
+            height: 30px;
+            background: #135bec;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px;
+        }
+
+        .logo-text {
+            font-size: 18px;
+            font-weight: 700;
+            color: #f1f5f9;
+        }
+
+        .nav-menu {
+            flex: 1;
+            padding: 0 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            text-decoration: none;
+            color: #94a3b8;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .nav-link:hover {
+            background: #135bec1a;
+            color: #135bec;
+        }
+
+        .nav-link.active {
+            background: #135bec1a;
+            color: #135bec;
+        }
+
+        .section-header {
+            padding: 16px 12px 8px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #94a3b8;
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+        }
+
+        /* MAIN */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header-bar {
+            height: 64px;
+            background: #101622;
+            border-bottom: 1px solid #1e293b;
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .search-container {
+            position: relative;
+            width: 320px;
+        }
+
+        .search-input {
+            width: 100%;
+            background: #1e293b;
+            border: none;
+            border-radius: 8px;
+            padding: 7px 16px 8px 40px;
+            color: #f1f5f9;
+            font-size: 14px;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #94a3b8;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .icon-button {
+            padding: 8px;
+            background: transparent;
+            border: none;
+            color: #64748b;
+            cursor: pointer;
+            border-radius: 8px;
+        }
+
+        /* CONTENT */
+        .content-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .stats-row {
+            display: flex;
+            gap: 16px;
+        }
+
+        .stat-card {
+            flex: 1;
+            background: #1e293b66;
+            border: 1px solid #1e293b;
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #64748b;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #f1f5f9;
+            margin-top: 8px;
+        }
+
+        .badge {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .badge.positive {
+            background: #10b9811a;
+            color: #10b981;
+        }
+
+        .badge.negative {
+            background: #f43f5e1a;
+            color: #f43f5e;
+        }
+
+        /* FILTER */
+        .filter-controls {
+            background: #1e293b66;
+            border: 1px solid #1e293b;
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            gap: 16px;
+            align-items: flex-end;
+        }
+
+        .filter-group {
+            flex: 1;
+        }
+
+        .filter-label {
+            font-size: 10px;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .filter-select {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            color: #f1f5f9;
+            font-size: 14px;
+            padding: 8px 12px;
+            width: 100%;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+        }
+
+        .btn-primary {
+            background: #135bec;
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #334155;
+            color: white;
+        }
+
+        /* TABLE */
+        .table-wrapper {
+            background: #1e293b66;
+            border: 1px solid #1e293b;
+            border-radius: 12px;
+            overflow: hidden;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            max-height: calc(100vh - 200px);
+        }
+
+        .table-controls {
+            padding: 12px 16px;
+            border-bottom: 1px solid #1e293b;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .table-scroll-container {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            display: flex;
+            max-height: 100%;
+        }
+
+        /* FIXED LEFT COLUMN */
+        .fixed-strikes {
+            width: 96px;
+            background: #0f172a;
+            border-right: 2px solid #334155;
+            flex-shrink: 0;
+        }
+
+        .strike-header {
+            height: 96px;
+            min-height: 96px;
+            max-height: 96px;
+            border-bottom: 2px solid #334155;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            color: #ffffff;
+            background: #334155;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            box-sizing: border-box;
+        }
+
+        .strike-cell {
+            height: 36px;
+            min-height: 36px;
+            max-height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            color: #ffffff;
+            border-bottom: 1px solid #1e293b;
+            box-sizing: border-box;
+        }
+
+        .strike-cell.atm {
+            background: #135bec1a;
+            border-top: 2px solid #135bec66;
+            border-bottom: 2px solid #135bec66;
+            color: #135bec;
+        }
+
+        /* SCROLLABLE DATA */
+        .scrollable-data {
+            flex: 1;
+            overflow-x: auto;
+            overflow-y: hidden;
+        }
+
+        .data-table {
+            border-collapse: collapse;
+            min-width: 100%;
+        }
+
+        .group-header {
+            background: #0f172acc;
+            border-bottom: 2px solid #334155;
+            position: sticky;
+            top: 0;
+            z-index: 5;
+            height: 33px;
+        }
+
+        .group-header th {
+            font-size: 12px;
+            font-weight: 700;
+            color: #94a3b8;
+            text-align: center;
+            padding: 8px;
+            height: 33px;
+            box-sizing: border-box;
+        }
+
+        .group-header .calls {
+            background: #135bec0d;
+            border-bottom: 1px solid #334155;
+            border-right: 2px solid #475569;
+        }
+
+        .group-header .puts {
+            background: #f43f5e0d;
+        }
+
+        .time-header {
+            background: #0f172a66;
+            border-bottom: 1px solid #1e293b;
+            position: sticky;
+            top: 33px;
+            z-index: 5;
+            height: 31px;
+        }
+
+        .time-header th {
+            font-size: 11px;
+            font-weight: 700;
+            color: #94a3b8;
+            padding: 8px 4px;
+            height: 31px;
+            box-sizing: border-box;
+        }
+
+        .time-header .calls {
+            border-right: 2px solid #475569;
+        }
+
+        .column-header {
+            background: #0f172a80;
+            border-bottom: 1px solid #1e293b;
+            position: sticky;
+            top: 64px;
+            z-index: 5;
+            height: 32px;
+        }
+
+        .column-header th {
+            font-size: 9px;
+            font-weight: 700;
+            color: #64748b;
+            padding: 8px 4px;
+            text-align: center;
+            white-space: nowrap;
+            height: 32px;
+            box-sizing: border-box;
+        }
+
+        .data-row {
+            height: 36px;
+            min-height: 36px;
+            max-height: 36px;
+            border-bottom: 1px solid #1e293b80;
+        }
+
+        .data-row:hover {
+            background: #1e293b33;
+        }
+
+        .data-cell {
+            padding: 0 6px;
+            text-align: center;
+            font-size: 11px;
+            font-weight: 500;
+            white-space: nowrap;
+            height: 36px;
+            min-height: 36px;
+            max-height: 36px;
+            vertical-align: middle;
+            box-sizing: border-box;
+        }
+
+        .data-cell.ce-bg {
+            background: #135bec3d;
+        }
+
+        .data-cell.ce-last {
+            border-right: 2px solid #475569;
+        }
+
+        .data-cell.pe-bg {
+            background: #f43f5d40;
+        }
+
+        .data-cell.pe-last,
+        th.pe-last {
+            border-right: 2px solid #475569;
+        }
+
+        .value-positive {
+            color: #10b981;
+        }
+
+        .value-negative {
+            color: #f43f5e;
+        }
+
+        .value-neutral {
+            color: #94a3b8;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #94a3b8;
+        }
+
+        .spinner {
+            border: 3px solid #1e293b;
+            border-top: 3px solid #135bec;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .timestamp {
+            font-size: 11px;
+            color: #64748b;
+            padding: 8px 16px;
+            background: #0f172a66;
+            border-top: 1px solid #1e293b;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="dashboard">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-container">
+                    <div class="logo-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M3 3v18h18"></path>
+                            <path d="m19 9-5 5-4-4-3 3"></path>
+                        </svg>
+                    </div>
+                    <div class="logo-text">OI Analysis</div>
+                </div>
+            </div>
+            <div class="nav-menu">
+                <a href="index.html" class="nav-link active">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="14" width="7" height="7"></rect>
+                        <rect x="3" y="14" width="7" height="7"></rect>
+                    </svg>
+                    Dashboard
+                </a>
+                <a href="option_chain.html" class="nav-link">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="1" x2="12" y2="23"></line>
+                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                    </svg>
+                    Option Chain
+                </a>
+                <a href="#" class="nav-link">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 20V10"></path>
+                        <path d="M12 20V4"></path>
+                        <path d="M6 20v-6"></path>
+                    </svg>
+                    OI Multi-Strike
+                </a>
+                <a href="#" class="nav-link">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path
+                            d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
+                        </path>
+                        <polyline points="7.5 4.21 12 6.81 16.5 4.21"></polyline>
+                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                        <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                    </svg>
+                    Greeks Dashboard
+                </a>
+
+                <div class="section-header">Reports</div>
+                <a href="#" class="nav-link">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
+                    </svg>
+                    Historical Data
+                </a>
+                <a href="#" class="nav-link">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                    </svg>
+                    Flash Signals
+                </a>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="header-bar">
+                <div style="font-size: 18px; font-weight: 700; color: #f1f5f9;">OI Analysis Dashboard</div>
+                <div class="header-actions">
+                    <button class="btn btn-secondary" onclick="jumpToLatest()">Jump to Latest</button>
+                </div>
+            </div>
+
+            <div class="content-area">
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span class="stat-label">NIFTY 50</span>
+                            <span class="badge positive" id="nifty-badge">+0.5%</span>
+                        </div>
+                        <div class="stat-value" id="nifty-value">--</div>
+                    </div>
+                    <div class="stat-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span class="stat-label">ATM STRIKE</span>
+                        </div>
+                        <div class="stat-value" id="atm-value">--</div>
+                    </div>
+                    <div class="stat-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span class="stat-label">INDIA VIX</span>
+                            <span class="badge" id="vix-badge" style="background: #135bec1a; color: #135bec;">--</span>
+                        </div>
+                        <div class="stat-value" id="vix-value">--</div>
+                        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #334155;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                                <span style="font-size: 10px; font-weight: 600; color: #64748b;">15-Min Move
+                                    (95%):</span>
+                                <span style="font-size: 12px; font-weight: 700; color: #10b981;"
+                                    id="move-15min">--</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span style="font-size: 10px; font-weight: 600; color: #64748b;">5-Min Move
+                                    (95%):</span>
+                                <span style="font-size: 12px; font-weight: 700; color: #f43f5e;"
+                                    id="move-5min">--</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-wrapper">
+                    <div class="table-controls">
+                        <span style="font-size: 12px; font-weight: 600; color: #94a3b8;">OI Difference - 3 Minute
+                            Intervals</span>
+                        <span class="timestamp">Last updated: <span id="last-update">--</span></span>
+                    </div>
+                    <div class="table-scroll-container">
+                        <div class="fixed-strikes" id="fixed-strikes">
+                            <div class="strike-header">STRIKE</div>
+                            <div class="loading">Loading...</div>
+                        </div>
+                        <div class="scrollable-data" id="scrollable-data">
+                            <div class="loading">
+                                <div class="spinner"></div>
+                                Loading time-series data...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000/api';
+        let refreshInterval;
+        let currentData = null;
+
+        async function fetchData() {
+            try {
+                const strikeCount = 15;  // Fixed to 15 strikes
+
+                // Fetch OI difference data
+                const response = await fetch(`${API_BASE}/oi-difference-live?strike_count=${strikeCount}`);
+                const data = await response.json();
+
+                if (data.error) {
+                    console.error('API Error:', data.error);
+                    return;
+                }
+
+                // Fetch spot price and VIX data
+                const spotResponse = await fetch(`${API_BASE}/spot-price`);
+                const spotData = await spotResponse.json();
+
+                currentData = data;
+                updateStats(data, spotData);
+                renderTable(data);
+                document.getElementById('last-update').textContent = new Date().toLocaleString();
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            }
+        }
+
+        function updateStats(data, spotData) {
+            // Update NIFTY
+            const spotPrice = data.spot_price;
+            document.getElementById('nifty-value').textContent = spotPrice.toFixed(2);
+
+            // Update NIFTY change badge
+            if (spotData && spotData.nifty) {
+                const niftyChange = spotData.nifty.change_pct;
+                const niftyBadge = document.getElementById('nifty-badge');
+                niftyBadge.textContent = `${niftyChange >= 0 ? '+' : ''}${niftyChange.toFixed(2)}%`;
+                niftyBadge.className = `badge ${niftyChange >= 0 ? 'positive' : 'negative'}`;
+            }
+
+            // Update ATM Strike
+            document.getElementById('atm-value').textContent = data.atm_strike.toFixed(0);
+
+            // Update VIX and calculate volatility moves
+            if (spotData && spotData.vix && spotData.vix.value !== undefined) {
+                const vix = spotData.vix.value;
+                document.getElementById('vix-value').textContent = vix.toFixed(2);
+                document.getElementById('vix-badge').textContent = vix.toFixed(1);
+
+                // Calculate expected moves
+                // For 15-minute candles
+                const sd15min = vix / Math.sqrt(6300);  // 1 SD
+                const sd15min2 = sd15min * 2;  // 2 SD (95%)
+                const points15min = (sd15min2 / 100) * spotPrice;
+
+                // For 5-minute candles
+                const sd5min = vix / Math.sqrt(18900);  // 1 SD
+                const sd5min2 = sd5min * 2;  // 2 SD (95%)
+                const points5min = (sd5min2 / 100) * spotPrice;
+
+                // Update display
+                document.getElementById('move-15min').textContent = `±${points15min.toFixed(0)} pts`;
+                document.getElementById('move-5min').textContent = `±${points5min.toFixed(0)} pts`;
+            } else {
+                // VIX data not available
+                document.getElementById('vix-value').textContent = '--';
+                document.getElementById('vix-badge').textContent = 'N/A';
+                document.getElementById('move-15min').textContent = '--';
+                document.getElementById('move-5min').textContent = '--';
+            }
+        }
+
+        function renderTable(data) {
+            const { strikes, time_series, atm_strike } = data;
+
+            // Render fixed strikes column
+            renderStrikesColumn(strikes, atm_strike);
+
+            // Render scrollable data
+            renderTimeSeriesData(strikes, time_series);
+        }
+
+        function renderStrikesColumn(strikes, atm_strike) {
+            const container = document.getElementById('fixed-strikes');
+            let html = '<div class="strike-header">STRIKE</div>';
+
+            strikes.forEach(strike => {
+                const isAtm = strike === atm_strike;
+                html += `<div class="strike-cell ${isAtm ? 'atm' : ''}">${strike.toFixed(0)}</div>`;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function renderTimeSeriesData(strikes, timeSeries) {
+            const container = document.getElementById('scrollable-data');
+
+            if (!timeSeries || timeSeries.length === 0) {
+                container.innerHTML = '<div class="loading">No data available</div>';
+                return;
+            }
+
+            // Build table header
+            let html = '<table class="data-table"><thead>';
+
+            // Group headers (CALLS / PUTS)
+            html += '<tr class="group-header">';
+            timeSeries.forEach(() => {
+                html += '<th colspan="4" class="calls">CALLS (CE)</th>';
+                html += '<th colspan="4" class="puts pe-last">PUTS (PE)</th>';
+            });
+            html += '</tr>';
+
+            // Time headers - show only actual time
+            html += '<tr class="time-header">';
+            timeSeries.forEach(ts => {
+                const timeDisplay = ts.actual_timestamp || ts.timestamp;
+                html += `<th colspan="4" class="calls">${timeDisplay}</th>`;
+                html += `<th colspan="4" class="puts pe-last">${timeDisplay}</th>`;
+            });
+            html += '</tr>';
+
+            // Column headers
+            html += '<tr class="column-header">';
+            timeSeries.forEach(() => {
+                // CE columns (OI in Lakhs, others in Thousands)
+                html += '<th>OI(L)</th><th>ΔOI(K)</th><th>Vol(K)</th><th class="ce-last">ΔVol(K)</th>';
+                // PE columns (OI in Lakhs, others in Thousands)
+                html += '<th>OI(L)</th><th>ΔOI(K)</th><th>Vol(K)</th><th class="pe-last">ΔVol(K)</th>';
+            });
+            html += '</tr></thead><tbody>';
+
+            // Data rows
+            strikes.forEach(strike => {
+                html += '<tr class="data-row">';
+
+                timeSeries.forEach(ts => {
+                    const strikeData = ts.data[strike.toFixed(1)] || {};
+                    const ceOi = (strikeData.ce_oi / 100000 || 0).toFixed(2);
+                    const ceOiDiff = (strikeData.ce_oi_diff / 1000 || 0).toFixed(1);  // Show in thousands
+                    const ceVol = (strikeData.ce_vol / 1000 || 0).toFixed(0);  // Show in thousands
+                    const ceVolDiff = (strikeData.ce_vol_diff / 1000 || 0).toFixed(0);  // Show in thousands
+                    const peOi = (strikeData.pe_oi / 100000 || 0).toFixed(2);
+                    const peOiDiff = (strikeData.pe_oi_diff / 1000 || 0).toFixed(1);  // Show in thousands
+                    const peVol = (strikeData.pe_vol / 1000 || 0).toFixed(0);  // Show in thousands
+                    const peVolDiff = (strikeData.pe_vol_diff / 1000 || 0).toFixed(0);  // Show in thousands
+
+                    // CE columns
+                    html += `<td class="data-cell ce-bg">${ceOi}</td>`;
+                    html += `<td class="data-cell ce-bg ${getColorClass(ceOiDiff)}">${ceOiDiff >= 0 ? '+' : ''}${ceOiDiff}</td>`;
+                    html += `<td class="data-cell ce-bg">${ceVol}</td>`;
+                    html += `<td class="data-cell ce-bg ce-last ${getColorClass(ceVolDiff)}">${ceVolDiff >= 0 ? '+' : ''}${ceVolDiff}</td>`;
+
+                    // PE columns
+                    html += `<td class="data-cell pe-bg">${peOi}</td>`;
+                    html += `<td class="data-cell pe-bg ${getColorClass(peOiDiff)}">${peOiDiff >= 0 ? '+' : ''}${peOiDiff}</td>`;
+                    html += `<td class="data-cell pe-bg">${peVol}</td>`;
+                    html += `<td class="data-cell pe-bg pe-last ${getColorClass(peVolDiff)}">${peVolDiff >= 0 ? '+' : ''}${peVolDiff}</td>`;
+                });
+
+                html += '</tr>';
+            });
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        function getColorClass(value) {
+            const num = parseFloat(value);
+            if (num > 0) return 'value-positive';
+            if (num < 0) return 'value-negative';
+            return 'value-neutral';
+        }
+
+        function jumpToLatest() {
+            const scrollable = document.getElementById('scrollable-data');
+            scrollable.scrollLeft = scrollable.scrollWidth;
+        }
+
+        function startAutoRefresh() {
+            refreshInterval = setInterval(fetchData, 5000); // 5 seconds for near real-time updates
+        }
+
+        window.addEventListener('load', async () => {
+            await fetchData();
+            startAutoRefresh();
+        });
+    </script>
+</body>
+
+</html>
