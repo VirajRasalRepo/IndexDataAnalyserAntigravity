@@ -1,0 +1,56 @@
+Starting Projects :
+python main.py
+
+cd dashboard
+python api.py
+
+start dashboard/index.html
+
+
+This contains the task that are done today and which are in mind and remaining for tomorrow .
+
+27-02-2026 :
+DONE task 1: the task of timestamp ois done and now we need to use same timestamp from index.html and use it for historical data , this is to be implemented.
+
+28-02-2026 :
+DONE task 1: Optimized full day CSV export feature to use backend endpoint (/api/export-full-day) instead of frontend loop. Performance improved from ~2-3 seconds to <1 second. Feature tested and working correctly.
+
+01-03-2026 :
+DONE task 1: Updated market hours to official Indian market timing (9:15 AM - 3:30 PM IST)
+  - Changed MARKET_OPEN_TIME from 33360 (9:16 AM) to 33300 (9:15 AM)
+  - Changed MARKET_CLOSE_TIME from 56400 (3:40 PM) to 55800 (3:30 PM)
+  - Updated all API endpoints to use new constants
+  - 3-minute intervals now start from 9:15 AM
+
+DONE task 2: Implemented trading day validation
+  - Added is_trading_day() function to check weekends
+  - Created /api/is-trading-day endpoint for frontend validation
+  - Backend now rejects weekend requests with proper error messages
+  - Frontend auto-adjusts date picker to previous Friday if weekend selected
+  - Shows market closed warning for non-trading days
+
+DONE task 3: All changes tested and verified
+  - Tested weekend validation (Sunday returns market closed warning)
+  - Tested weekday validation (Friday returns trading day confirmation)
+  - Verified market hours are correct (9:15 AM - 3:30 PM IST)
+  - Confirmed 3-minute intervals working correctly
+
+DONE task 4: Created complete Linux deployment setup
+  - setup_database.sql: Database and table creation script
+  - setup.sh: One-time system setup (MySQL, Python, dependencies, systemd services)
+  - start.sh: Start all services (data collector + API)
+  - stop.sh: Stop all services gracefully
+  - status.sh: Check service status and health
+  - .env.example: Environment configuration template
+  - DEPLOYMENT.md: Complete deployment documentation with troubleshooting
+
+DONE task 5: Fixed critical WebSocket/webhook issues
+  - Fixed database schema mismatch: Changed from normalized to wide-format schema
+  - Updated market_feed_realtime table to match WebSocket code expectations
+  - Fixed API VIX query: Updated column names (india_vix_close, india_vix_ltp)
+  - Fixed timestamp column name (timestamp instead of last_update_time)
+  - Added proper VIX change percentage calculation
+  - Created WEBHOOK_FIXES.md with detailed analysis and testing guide
+  - WebSocket now properly stores real-time data for 9 instruments
+
+IMP : hosting this website on the server.
