@@ -634,12 +634,28 @@
         let availableTimes = [];
         let currentData = null;  // Store current data for export
 
+        // Check if a date is a trading day (Monday-Friday)
+        function isTradingDay(date) {
+            const day = date.getDay();
+            return day >= 1 && day <= 5; // Monday=1, Friday=5
+        }
+
+        // Get the most recent trading day
+        function getMostRecentTradingDay(date) {
+            const newDate = new Date(date);
+            while (!isTradingDay(newDate)) {
+                newDate.setDate(newDate.getDate() - 1);
+            }
+            return newDate;
+        }
+
         // Initialize
         window.addEventListener('load', async () => {
-            // Set today's date
+            // Set today's date or most recent trading day
             const today = new Date();
-            document.getElementById('date-picker').valueAsDate = today;
-            selectedDate = formatDate(today);
+            const tradingDay = getMostRecentTradingDay(today);
+            document.getElementById('date-picker').valueAsDate = tradingDay;
+            selectedDate = formatDate(tradingDay);
 
             await loadAvailableTimes();
         });
@@ -651,7 +667,24 @@
         async function loadAvailableTimes() {
             try {
                 const response = await fetch(`${API_BASE}/available-times?date=${selectedDate}`);
-                availableTimes = await response.json();
+                const data = await response.json();
+
+                // Check for weekend/holiday warning
+                if (data.warning) {
+                    document.getElementById('timeline-list').innerHTML =
+                        `<div class="loading" style="color: #f59e0b; padding: 20px; text-align: center;">
+                            <div style="font-size: 24px; margin-bottom: 8px;">📅</div>
+                            <div style="font-weight: 700; margin-bottom: 4px;">Market Closed</div>
+                            <div style="font-size: 11px;">${data.warning}</div>
+                        </div>`;
+                    document.getElementById('table-body').innerHTML =
+                        `<tr><td colspan="13" class="loading" style="color: #f59e0b;">${data.warning}</td></tr>`;
+                    document.getElementById('table-info').textContent = 'No trading data';
+                    availableTimes = [];
+                    return;
+                }
+
+                availableTimes = data.times || data;
 
                 if (availableTimes.error) {
                     console.error('Error loading times:', availableTimes.error);
@@ -968,7 +1001,21 @@
 
         // Date picker change
         document.getElementById('date-picker').addEventListener('change', (e) => {
-            selectedDate = e.target.value;
+            const pickedDate = new Date(e.target.value + 'T00:00:00');
+
+            // Check if weekend
+            if (!isTradingDay(pickedDate)) {
+                // Auto-adjust to previous Friday
+                const tradingDay = getMostRecentTradingDay(pickedDate);
+                document.getElementById('date-picker').valueAsDate = tradingDay;
+                selectedDate = formatDate(tradingDay);
+
+                // Show notification
+                alert(`${pickedDate.toLocaleDateString('en-US', { weekday: 'long' })} is a weekend. Auto-adjusted to ${tradingDay.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' })}`);
+            } else {
+                selectedDate = e.target.value;
+            }
+
             loadAvailableTimes();
         });
     </script>
