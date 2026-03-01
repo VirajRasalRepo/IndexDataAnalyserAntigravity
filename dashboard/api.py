@@ -291,22 +291,31 @@ def get_oi_difference_live():
         # Get query parameters
         strike_count = int(request.args.get('strike_count', 10))
         interval_minutes = 3  # Fixed 3-minute intervals
+        requested_date = request.args.get('date', None)  # Optional date parameter (YYYY-MM-DD)
 
         with DatabaseManager.get_cursor() as cursor:
-            # Get latest date with market hours data (9:15 AM - 3:30 PM IST)
-            cursor.execute(f"""
-                SELECT DISTINCT Date
-                FROM nifty_oc_historical
-                WHERE TIME_TO_SEC(Time) >= {MARKET_OPEN_TIME} AND TIME_TO_SEC(Time) <= {MARKET_CLOSE_TIME}
-                ORDER BY Date DESC
-                LIMIT 1
-            """)
+            # Get date to use (either requested or latest)
+            if requested_date:
+                # Use requested date
+                selected_date = requested_date
+                logger.info(f"Using requested date: {selected_date}")
+            else:
+                # Get latest date with market hours data (9:15 AM - 3:30 PM IST)
+                cursor.execute(f"""
+                    SELECT DISTINCT Date
+                    FROM nifty_oc_historical
+                    WHERE TIME_TO_SEC(Time) >= {MARKET_OPEN_TIME} AND TIME_TO_SEC(Time) <= {MARKET_CLOSE_TIME}
+                    ORDER BY Date DESC
+                    LIMIT 1
+                """)
 
-            latest_date_row = cursor.fetchone()
-            if not latest_date_row:
-                return jsonify({'error': 'No data available'}), 404
+                latest_date_row = cursor.fetchone()
+                if not latest_date_row:
+                    return jsonify({'error': 'No data available'}), 404
 
-            latest_date = latest_date_row[0]
+                selected_date = latest_date_row[0]
+
+            latest_date = selected_date
 
             # Find timestamps closest to 9:15, 9:18, 9:21, etc. (3-minute intervals from 9:15 AM IST)
             # Using a single query with CASE statements for efficiency
@@ -633,6 +642,29 @@ def export_full_day():
 
     except Exception as e:
         logger.error(f"Error exporting full day: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/available-dates', methods=['GET'])
+def get_available_dates():
+    """Get list of dates with available data."""
+    try:
+        with DatabaseManager.get_cursor() as cursor:
+            # Get distinct dates with market hours data
+            cursor.execute(f"""
+                SELECT DISTINCT Date
+                FROM nifty_oc_historical
+                WHERE TIME_TO_SEC(Time) >= {MARKET_OPEN_TIME}
+                  AND TIME_TO_SEC(Time) <= {MARKET_CLOSE_TIME}
+                ORDER BY Date DESC
+                LIMIT 30
+            """)
+
+            dates = [str(row[0]) for row in cursor.fetchall()]
+            return jsonify(dates)
+
+    except Exception as e:
+        logger.error(f"Error fetching available dates: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 
