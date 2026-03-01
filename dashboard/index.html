@@ -857,7 +857,7 @@
     </div>
 
     <script>
-        const API_BASE = 'http://localhost:5000/api';
+        const API_BASE = 'https://nonexhibitive-buena-chirurgical.ngrok-free.dev/api';
         let refreshInterval;
         let currentData = null;
         let selectedDate = null;  // Track selected date
@@ -1179,7 +1179,7 @@
         }
 
         // Close calendar when clicking outside
-        document.addEventListener('click', function(event) {
+        document.addEventListener('click', function (event) {
             const container = document.querySelector('.date-picker-container');
             const dropdown = document.getElementById('calendar-dropdown');
 
