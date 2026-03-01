@@ -117,13 +117,15 @@ def run_pipeline():
         while True:
             iteration_count += 1
             current_time = time.time()
-            """
-            # Check market hours (can be disabled for testing)
-            if not is_market_hours() and not Config.DEBUG:
-                logger.info("Outside market hours. Waiting 60 seconds...")
-                time.sleep(60)
-                continue
-            """
+
+            # Check market hours (9:15 AM - 3:30 PM IST, Monday-Friday)
+            if not is_market_hours():
+                if Config.DEBUG:
+                    logger.debug("Outside market hours but DEBUG mode enabled - continuing")
+                else:
+                    logger.info("Outside market hours. Sleeping for 5 minutes...")
+                    time.sleep(300)  # Sleep for 5 minutes instead of 60 seconds
+                    continue
 
             try:
                 # --- STEP 1: Sync Trades (Every 60 seconds) ---

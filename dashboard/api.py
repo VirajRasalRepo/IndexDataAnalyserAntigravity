@@ -30,6 +30,26 @@ CORS(app)  # Enable CORS for frontend access
 # Initialize database pool
 DatabaseManager.initialize_pool(pool_size=5)
 
+# Indian Market Hours (IST)
+MARKET_OPEN_TIME = 33300   # 9:15 AM in seconds (9*3600 + 15*60)
+MARKET_CLOSE_TIME = 55800  # 3:30 PM in seconds (15*3600 + 30*60)
+INTERVAL_SECONDS = 180     # 3 minutes
+
+
+def is_trading_day(date_obj):
+    """Check if a date is a trading day (Monday-Friday, excluding holidays)."""
+    if isinstance(date_obj, str):
+        date_obj = datetime.strptime(date_obj, '%Y-%m-%d').date()
+    elif isinstance(date_obj, datetime):
+        date_obj = date_obj.date()
+
+    # Check if weekend (Saturday=5, Sunday=6)
+    if date_obj.weekday() >= 5:
+        return False
+
+    # TODO: Add Indian market holiday calendar check here if needed
+    return True
+
 
 def decimal_to_float(obj):
     """Convert Decimal objects to float for JSON serialization."""
@@ -103,21 +123,28 @@ def get_spot_price():
                 vix_data = None
                 try:
                     cursor.execute("""
-                        SELECT close_price
+                        SELECT india_vix_close, india_vix_ltp
                         FROM market_feed_realtime
-                        WHERE symbol = 'INDIA VIX'
-                        ORDER BY last_update_time DESC
+                        ORDER BY timestamp DESC
                         LIMIT 1
                     """)
                     vix_result = cursor.fetchone()
                     if vix_result and vix_result[0]:
-                        vix_value = decimal_to_float(vix_result[0])
+                        vix_close = decimal_to_float(vix_result[0])
+                        vix_ltp = decimal_to_float(vix_result[1]) if vix_result[1] else vix_close
+
+                        # Calculate change percentage
+                        change_pct = 0.0
+                        if vix_close and vix_close > 0:
+                            change_pct = ((vix_ltp - vix_close) / vix_close) * 100
+
                         vix_data = {
-                            'value': vix_value,
-                            'change_pct': 0.0  # Can be calculated if historical VIX data exists
+                            'value': vix_ltp,
+                            'change_pct': round(change_pct, 2)
                         }
-                except Exception:
+                except Exception as e:
                     # VIX data not available in database
+                    logger.debug(f"VIX data not available: {e}")
                     pass
 
                 response = {
@@ -151,7 +178,7 @@ def get_option_chain():
 
         with DatabaseManager.get_cursor() as cursor:
             # Get option chain data - using subquery to get latest timestamp from market hours
-            cursor.execute("""
+            cursor.execute(f"""
                 SELECT
                     Strike_price,
                     Spot_price,
@@ -163,7 +190,7 @@ def get_option_chain():
                 WHERE (Date, Time) = (
                     SELECT Date, Time
                     FROM nifty_oc_historical
-                    WHERE TIME_TO_SEC(Time) >= 33360 AND TIME_TO_SEC(Time) <= 56400
+                    WHERE TIME_TO_SEC(Time) >= {MARKET_OPEN_TIME} AND TIME_TO_SEC(Time) <= {MARKET_CLOSE_TIME}
                     ORDER BY Date DESC, Time DESC
                     LIMIT 1
                 )
@@ -266,11 +293,11 @@ def get_oi_difference_live():
         interval_minutes = 3  # Fixed 3-minute intervals
 
         with DatabaseManager.get_cursor() as cursor:
-            # Get latest date with market hours data (9:16 AM - 3:30 PM)
-            cursor.execute("""
+            # Get latest date with market hours data (9:15 AM - 3:30 PM IST)
+            cursor.execute(f"""
                 SELECT DISTINCT Date
                 FROM nifty_oc_historical
-                WHERE TIME_TO_SEC(Time) >= 33360 AND TIME_TO_SEC(Time) <= 56400
+                WHERE TIME_TO_SEC(Time) >= {MARKET_OPEN_TIME} AND TIME_TO_SEC(Time) <= {MARKET_CLOSE_TIME}
                 ORDER BY Date DESC
                 LIMIT 1
             """)
@@ -281,16 +308,16 @@ def get_oi_difference_live():
 
             latest_date = latest_date_row[0]
 
-            # Find timestamps closest to 9:16, 9:19, 9:22, etc. (3-minute intervals from 9:16)
+            # Find timestamps closest to 9:15, 9:18, 9:21, etc. (3-minute intervals from 9:15 AM IST)
             # Using a single query with CASE statements for efficiency
-            cursor.execute("""
+            cursor.execute(f"""
                 WITH target_times AS (
                     SELECT DISTINCT
-                        FLOOR((TIME_TO_SEC(Time) - 33360) / 180) * 180 + 33360 as target_sec
+                        FLOOR((TIME_TO_SEC(Time) - {MARKET_OPEN_TIME}) / {INTERVAL_SECONDS}) * {INTERVAL_SECONDS} + {MARKET_OPEN_TIME} as target_sec
                     FROM nifty_oc_historical
                     WHERE Date = %s
-                        AND TIME_TO_SEC(Time) >= 33360
-                        AND TIME_TO_SEC(Time) <= 56400
+                        AND TIME_TO_SEC(Time) >= {MARKET_OPEN_TIME}
+                        AND TIME_TO_SEC(Time) <= {MARKET_CLOSE_TIME}
                 ),
                 closest_times AS (
                     SELECT
@@ -424,6 +451,14 @@ def get_historical_data():
         if not date_str or not time_str:
             return jsonify({'error': 'Date and time parameters required'}), 400
 
+        # Check if trading day
+        if not is_trading_day(date_str):
+            date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
+            return jsonify({
+                'error': f'{date_obj.strftime("%A")} - Market closed (Weekend/Holiday)',
+                'is_trading_day': False
+            }), 400
+
         # Ensure time has seconds
         if len(time_str.split(':')) == 2:
             time_str += ':00'
@@ -519,16 +554,23 @@ def export_full_day():
         if not date_str:
             return jsonify({'error': 'Date parameter required'}), 400
 
+        # Check if trading day
+        if not is_trading_day(date_str):
+            date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
+            return jsonify({
+                'error': f'{date_obj.strftime("%A")} - Market closed (Weekend/Holiday)'
+            }), 400
+
         with DatabaseManager.get_cursor() as cursor:
-            # Get all data for the day with 3-minute intervals
-            cursor.execute("""
+            # Get all data for the day with 3-minute intervals (9:15 AM - 3:30 PM IST)
+            cursor.execute(f"""
                 WITH target_times AS (
                     SELECT DISTINCT
-                        FLOOR((TIME_TO_SEC(Time) - 33360) / 180) * 180 + 33360 as target_sec
+                        FLOOR((TIME_TO_SEC(Time) - {MARKET_OPEN_TIME}) / {INTERVAL_SECONDS}) * {INTERVAL_SECONDS} + {MARKET_OPEN_TIME} as target_sec
                     FROM nifty_oc_historical
                     WHERE Date = %s
-                        AND TIME_TO_SEC(Time) >= 33360
-                        AND TIME_TO_SEC(Time) <= 56400
+                        AND TIME_TO_SEC(Time) >= {MARKET_OPEN_TIME}
+                        AND TIME_TO_SEC(Time) <= {MARKET_CLOSE_TIME}
                 ),
                 closest_times AS (
                     SELECT
@@ -594,6 +636,30 @@ def export_full_day():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/is-trading-day', methods=['GET'])
+def check_trading_day():
+    """Check if a specific date is a trading day."""
+    try:
+        date_str = request.args.get('date')  # Format: YYYY-MM-DD
+
+        if not date_str:
+            return jsonify({'error': 'Date parameter required'}), 400
+
+        date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
+        is_trading = is_trading_day(date_obj)
+
+        return jsonify({
+            'date': date_str,
+            'is_trading_day': is_trading,
+            'day_of_week': date_obj.strftime('%A'),
+            'message': 'Trading day' if is_trading else 'Weekend/Holiday - Market closed'
+        })
+
+    except Exception as e:
+        logger.error(f"Error checking trading day: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/available-times', methods=['GET'])
 def get_available_times():
     """Get available timestamps for a specific date with 3-minute intervals (same as index.html)."""
@@ -603,16 +669,25 @@ def get_available_times():
         if not date_str:
             return jsonify({'error': 'Date parameter required'}), 400
 
+        # Check if trading day
+        if not is_trading_day(date_str):
+            date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
+            return jsonify({
+                'warning': f'{date_obj.strftime("%A")} - Market closed (Weekend/Holiday)',
+                'times': []
+            })
+
         with DatabaseManager.get_cursor() as cursor:
             # Get 3-minute interval timestamps (same logic as /api/oi-difference-live)
-            cursor.execute("""
+            # 9:15 AM - 3:30 PM IST
+            cursor.execute(f"""
                 WITH target_times AS (
                     SELECT DISTINCT
-                        FLOOR((TIME_TO_SEC(Time) - 33360) / 180) * 180 + 33360 as target_sec
+                        FLOOR((TIME_TO_SEC(Time) - {MARKET_OPEN_TIME}) / {INTERVAL_SECONDS}) * {INTERVAL_SECONDS} + {MARKET_OPEN_TIME} as target_sec
                     FROM nifty_oc_historical
                     WHERE Date = %s
-                        AND TIME_TO_SEC(Time) >= 33360
-                        AND TIME_TO_SEC(Time) <= 56400
+                        AND TIME_TO_SEC(Time) >= {MARKET_OPEN_TIME}
+                        AND TIME_TO_SEC(Time) <= {MARKET_CLOSE_TIME}
                 ),
                 closest_times AS (
                     SELECT
