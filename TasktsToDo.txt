@@ -44,4 +44,13 @@ DONE task 4: Created complete Linux deployment setup
   - .env.example: Environment configuration template
   - DEPLOYMENT.md: Complete deployment documentation with troubleshooting
 
+DONE task 5: Fixed critical WebSocket/webhook issues
+  - Fixed database schema mismatch: Changed from normalized to wide-format schema
+  - Updated market_feed_realtime table to match WebSocket code expectations
+  - Fixed API VIX query: Updated column names (india_vix_close, india_vix_ltp)
+  - Fixed timestamp column name (timestamp instead of last_update_time)
+  - Added proper VIX change percentage calculation
+  - Created WEBHOOK_FIXES.md with detailed analysis and testing guide
+  - WebSocket now properly stores real-time data for 9 instruments
+
 IMP : hosting this website on the server.

@@ -123,21 +123,28 @@ def get_spot_price():
                 vix_data = None
                 try:
                     cursor.execute("""
-                        SELECT close_price
+                        SELECT india_vix_close, india_vix_ltp
                         FROM market_feed_realtime
-                        WHERE symbol = 'INDIA VIX'
-                        ORDER BY last_update_time DESC
+                        ORDER BY timestamp DESC
                         LIMIT 1
                     """)
                     vix_result = cursor.fetchone()
                     if vix_result and vix_result[0]:
-                        vix_value = decimal_to_float(vix_result[0])
+                        vix_close = decimal_to_float(vix_result[0])
+                        vix_ltp = decimal_to_float(vix_result[1]) if vix_result[1] else vix_close
+
+                        # Calculate change percentage
+                        change_pct = 0.0
+                        if vix_close and vix_close > 0:
+                            change_pct = ((vix_ltp - vix_close) / vix_close) * 100
+
                         vix_data = {
-                            'value': vix_value,
-                            'change_pct': 0.0  # Can be calculated if historical VIX data exists
+                            'value': vix_ltp,
+                            'change_pct': round(change_pct, 2)
                         }
-                except Exception:
+                except Exception as e:
                     # VIX data not available in database
+                    logger.debug(f"VIX data not available: {e}")
                     pass
 
                 response = {

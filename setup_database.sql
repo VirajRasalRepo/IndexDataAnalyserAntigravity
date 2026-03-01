@@ -55,53 +55,107 @@ CREATE TABLE IF NOT EXISTS nifty_oc_historical (
 -- ============================================================
 -- Table: market_feed_realtime
 -- Stores real-time market data from WebSocket feed
+-- Note: Wide format with columns for each instrument (required by WebSocket code)
 -- ============================================================
 CREATE TABLE IF NOT EXISTS market_feed_realtime (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    timestamp DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3),
 
-    -- Market identifier
-    symbol VARCHAR(50) NOT NULL,
+    -- India VIX
+    india_vix_ltp DECIMAL(10, 2),
+    india_vix_volume BIGINT,
+    india_vix_open DECIMAL(10, 2),
+    india_vix_high DECIMAL(10, 2),
+    india_vix_low DECIMAL(10, 2),
+    india_vix_close DECIMAL(10, 2),
 
-    -- Timestamp
-    last_update_time DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+    -- Nifty 50
+    nifty_50_ltp DECIMAL(10, 2),
+    nifty_50_volume BIGINT,
+    nifty_50_open DECIMAL(10, 2),
+    nifty_50_high DECIMAL(10, 2),
+    nifty_50_low DECIMAL(10, 2),
+    nifty_50_close DECIMAL(10, 2),
 
-    -- Price data
-    ltp DECIMAL(10, 2),
-    open_price DECIMAL(10, 2),
-    high_price DECIMAL(10, 2),
-    low_price DECIMAL(10, 2),
-    close_price DECIMAL(10, 2),
+    -- Reliance
+    reliance_ltp DECIMAL(10, 2),
+    reliance_volume BIGINT,
+    reliance_open DECIMAL(10, 2),
+    reliance_high DECIMAL(10, 2),
+    reliance_low DECIMAL(10, 2),
+    reliance_close DECIMAL(10, 2),
+    reliance_avg_price DECIMAL(10, 2),
+    reliance_total_buy_qty BIGINT,
+    reliance_total_sell_qty BIGINT,
 
-    -- Volume data
-    volume BIGINT,
-    avg_price DECIMAL(10, 2),
-    total_buy_qty BIGINT,
-    total_sell_qty BIGINT,
+    -- HDFC Bank
+    hdfc_bank_ltp DECIMAL(10, 2),
+    hdfc_bank_volume BIGINT,
+    hdfc_bank_open DECIMAL(10, 2),
+    hdfc_bank_high DECIMAL(10, 2),
+    hdfc_bank_low DECIMAL(10, 2),
+    hdfc_bank_close DECIMAL(10, 2),
+    hdfc_bank_avg_price DECIMAL(10, 2),
+    hdfc_bank_total_buy_qty BIGINT,
+    hdfc_bank_total_sell_qty BIGINT,
 
-    -- Change data
-    change_value DECIMAL(10, 2),
-    change_percent DECIMAL(10, 4),
+    -- ICICI Bank
+    icici_bank_ltp DECIMAL(10, 2),
+    icici_bank_volume BIGINT,
+    icici_bank_open DECIMAL(10, 2),
+    icici_bank_high DECIMAL(10, 2),
+    icici_bank_low DECIMAL(10, 2),
+    icici_bank_close DECIMAL(10, 2),
+    icici_bank_avg_price DECIMAL(10, 2),
+    icici_bank_total_buy_qty BIGINT,
+    icici_bank_total_sell_qty BIGINT,
 
-    -- Indexes
-    INDEX idx_symbol (symbol),
-    INDEX idx_update_time (last_update_time),
-    UNIQUE KEY unique_symbol (symbol)
+    -- Infosys
+    infosys_ltp DECIMAL(10, 2),
+    infosys_volume BIGINT,
+    infosys_open DECIMAL(10, 2),
+    infosys_high DECIMAL(10, 2),
+    infosys_low DECIMAL(10, 2),
+    infosys_close DECIMAL(10, 2),
+    infosys_avg_price DECIMAL(10, 2),
+    infosys_total_buy_qty BIGINT,
+    infosys_total_sell_qty BIGINT,
+
+    -- TCS
+    tcs_ltp DECIMAL(10, 2),
+    tcs_volume BIGINT,
+    tcs_open DECIMAL(10, 2),
+    tcs_high DECIMAL(10, 2),
+    tcs_low DECIMAL(10, 2),
+    tcs_close DECIMAL(10, 2),
+    tcs_avg_price DECIMAL(10, 2),
+    tcs_total_buy_qty BIGINT,
+    tcs_total_sell_qty BIGINT,
+
+    -- ITC
+    itc_ltp DECIMAL(10, 2),
+    itc_volume BIGINT,
+    itc_open DECIMAL(10, 2),
+    itc_high DECIMAL(10, 2),
+    itc_low DECIMAL(10, 2),
+    itc_close DECIMAL(10, 2),
+    itc_avg_price DECIMAL(10, 2),
+    itc_total_buy_qty BIGINT,
+    itc_total_sell_qty BIGINT,
+
+    -- L&T
+    lt_ltp DECIMAL(10, 2),
+    lt_volume BIGINT,
+    lt_open DECIMAL(10, 2),
+    lt_high DECIMAL(10, 2),
+    lt_low DECIMAL(10, 2),
+    lt_close DECIMAL(10, 2),
+    lt_avg_price DECIMAL(10, 2),
+    lt_total_buy_qty BIGINT,
+    lt_total_sell_qty BIGINT,
+
+    INDEX idx_timestamp (timestamp)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============================================================
--- Insert default market symbols
--- ============================================================
-INSERT IGNORE INTO market_feed_realtime (symbol) VALUES
-    ('NIFTY'),
-    ('INDIA VIX'),
-    ('NIFTY BANK'),
-    ('RELIANCE'),
-    ('HDFC BANK'),
-    ('ICICI BANK'),
-    ('INFOSYS'),
-    ('TCS'),
-    ('ITC'),
-    ('L&T');
 
 -- ============================================================
 -- Display table information
