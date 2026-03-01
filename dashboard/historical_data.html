@@ -252,6 +252,173 @@
             cursor: pointer;
         }
 
+        .date-picker-container {
+            position: relative;
+            display: inline-block;
+        }
+
+        .date-picker-input {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            color: #f1f5f9;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 8px 12px;
+            cursor: pointer;
+            min-width: 180px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .date-picker-input:hover {
+            border-color: #135bec;
+        }
+
+        .date-picker-input.active {
+            border-color: #135bec;
+            box-shadow: 0 0 0 2px #135bec33;
+        }
+
+        .calendar-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            padding: 16px;
+            z-index: 1000;
+            min-width: 320px;
+            display: none;
+        }
+
+        .calendar-dropdown.show {
+            display: block;
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #334155;
+        }
+
+        .calendar-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #f1f5f9;
+        }
+
+        .calendar-legend {
+            display: flex;
+            gap: 12px;
+            font-size: 10px;
+            color: #64748b;
+            margin-bottom: 12px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .legend-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .legend-dot.available {
+            background: #10b981;
+        }
+
+        .legend-dot.unavailable {
+            background: #475569;
+        }
+
+        .legend-dot.selected {
+            background: #135bec;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+        }
+
+        .calendar-day-header {
+            text-align: center;
+            font-size: 10px;
+            font-weight: 700;
+            color: #64748b;
+            padding: 8px 4px;
+        }
+
+        .calendar-day {
+            aspect-ratio: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            background: #0f172a;
+            border: 1px solid #1e293b;
+        }
+
+        .calendar-day.available {
+            background: #10b9811a;
+            border-color: #10b98133;
+            color: #10b981;
+        }
+
+        .calendar-day.available:hover {
+            background: #10b98133;
+            border-color: #10b981;
+            transform: scale(1.05);
+        }
+
+        .calendar-day.unavailable {
+            background: #0f172a;
+            border-color: #1e293b;
+            color: #475569;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .calendar-day.selected {
+            background: #135bec !important;
+            border-color: #135bec !important;
+            color: white !important;
+            transform: scale(1.1);
+        }
+
+        .calendar-day.today {
+            border: 2px solid #f59e0b;
+        }
+
+        .day-number {
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .day-label {
+            font-size: 8px;
+            opacity: 0.7;
+            margin-top: 2px;
+        }
+
         .divider {
             width: 1px;
             height: 32px;
@@ -565,7 +732,40 @@
 
                 <div class="filter-bar">
                     <div class="filter-group">
-                        <input type="date" class="date-picker" id="date-picker">
+                        <div class="date-picker-container">
+                            <div class="date-picker-input" onclick="toggleCalendar()" id="date-display">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                                </svg>
+                                <span id="selected-date-text">Loading...</span>
+                            </div>
+                            <div class="calendar-dropdown" id="calendar-dropdown">
+                                <div class="calendar-header">
+                                    <div class="calendar-title">Select Trading Day</div>
+                                    <span id="date-count" style="font-size: 11px; color: #10b981;"></span>
+                                </div>
+                                <div class="calendar-legend">
+                                    <div class="legend-item">
+                                        <div class="legend-dot available"></div>
+                                        <span>Available</span>
+                                    </div>
+                                    <div class="legend-item">
+                                        <div class="legend-dot unavailable"></div>
+                                        <span>No Data</span>
+                                    </div>
+                                    <div class="legend-item">
+                                        <div class="legend-dot selected"></div>
+                                        <span>Selected</span>
+                                    </div>
+                                </div>
+                                <div class="calendar-grid" id="calendar-grid">
+                                    <!-- Calendar will be generated here -->
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div class="divider"></div>
                     <div class="filter-label">Intraday OI Activity</div>
@@ -632,7 +832,16 @@
         let selectedDate = null;
         let selectedTime = null;
         let availableTimes = [];
+        let availableDates = [];  // Store available dates from API
         let currentData = null;  // Store current data for export
+
+        // Helper function to format date as YYYY-MM-DD in local timezone
+        function formatLocalDate(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
 
         // Check if a date is a trading day (Monday-Friday)
         function isTradingDay(date) {
@@ -649,19 +858,141 @@
             return newDate;
         }
 
+        // Toggle calendar dropdown
+        function toggleCalendar() {
+            const dropdown = document.getElementById('calendar-dropdown');
+            const input = document.getElementById('date-display');
+            dropdown.classList.toggle('show');
+            input.classList.toggle('active');
+        }
+
+        // Generate calendar
+        function generateCalendar() {
+            const grid = document.getElementById('calendar-grid');
+            const dateCount = document.getElementById('date-count');
+
+            grid.innerHTML = '';
+
+            // Add day headers
+            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            days.forEach(day => {
+                const header = document.createElement('div');
+                header.className = 'calendar-day-header';
+                header.textContent = day;
+                grid.appendChild(header);
+            });
+
+            // Get date range (last 35 days)
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const todayStr = formatLocalDate(today);
+
+            const endDate = new Date(today);
+            const startDate = new Date(today);
+            startDate.setDate(startDate.getDate() - 34);
+
+            const firstDay = new Date(startDate);
+            firstDay.setDate(firstDay.getDate() - firstDay.getDay());
+
+            // Generate calendar days
+            const currentDate = new Date(firstDay);
+            for (let i = 0; i < 35; i++) {
+                const dateStr = formatLocalDate(currentDate);
+                const dayElement = document.createElement('div');
+                dayElement.className = 'calendar-day';
+
+                const dayNumber = document.createElement('div');
+                dayNumber.className = 'day-number';
+                dayNumber.textContent = currentDate.getDate();
+                dayElement.appendChild(dayNumber);
+
+                const hasData = availableDates.includes(dateStr);
+                const isToday = dateStr === todayStr;
+                const isSelected = dateStr === selectedDate;
+
+                if (isToday) dayElement.classList.add('today');
+                if (isSelected) dayElement.classList.add('selected');
+
+                if (hasData) {
+                    dayElement.classList.add('available');
+                    dayElement.onclick = () => selectCalendarDate(dateStr);
+                } else {
+                    dayElement.classList.add('unavailable');
+                }
+
+                if (currentDate < startDate || currentDate > endDate) {
+                    dayElement.style.opacity = '0.3';
+                }
+
+                grid.appendChild(dayElement);
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+
+            if (availableDates.length > 0) {
+                dateCount.textContent = `${availableDates.length} ${availableDates.length === 1 ? 'day' : 'days'} available`;
+            } else {
+                dateCount.textContent = 'No data available';
+            }
+        }
+
+        // Select date from calendar
+        function selectCalendarDate(dateStr) {
+            selectedDate = dateStr;
+            updateDateDisplay();
+            generateCalendar();
+            toggleCalendar();
+            loadAvailableTimes();
+        }
+
+        // Update date display
+        function updateDateDisplay() {
+            const displayText = document.getElementById('selected-date-text');
+            if (selectedDate) {
+                const dateObj = new Date(selectedDate + 'T00:00:00');
+                const dayOfWeek = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
+                displayText.textContent = `${selectedDate} (${dayOfWeek})`;
+            } else {
+                displayText.textContent = 'Latest Date';
+            }
+        }
+
+        // Load available dates
+        async function loadAvailableDates() {
+            try {
+                const response = await fetch(`${API_BASE}/available-dates`);
+                availableDates = await response.json();
+
+                // Set most recent trading day as default
+                if (!selectedDate && availableDates.length > 0) {
+                    selectedDate = availableDates[0];
+                }
+
+                generateCalendar();
+                updateDateDisplay();
+            } catch (error) {
+                console.error('Error loading available dates:', error);
+                document.getElementById('selected-date-text').textContent = 'Error loading dates';
+            }
+        }
+
+        // Close calendar when clicking outside
+        document.addEventListener('click', function(event) {
+            const container = document.querySelector('.date-picker-container');
+            const dropdown = document.getElementById('calendar-dropdown');
+            if (container && !container.contains(event.target)) {
+                dropdown.classList.remove('show');
+                document.getElementById('date-display').classList.remove('active');
+            }
+        });
+
         // Initialize
         window.addEventListener('load', async () => {
-            // Set today's date or most recent trading day
-            const today = new Date();
-            const tradingDay = getMostRecentTradingDay(today);
-            document.getElementById('date-picker').valueAsDate = tradingDay;
-            selectedDate = formatDate(tradingDay);
-
+            await loadAvailableDates();
             await loadAvailableTimes();
         });
 
         function formatDate(date) {
-            return date.toISOString().split('T')[0];
+            return formatLocalDate(date);
         }
 
         async function loadAvailableTimes() {
