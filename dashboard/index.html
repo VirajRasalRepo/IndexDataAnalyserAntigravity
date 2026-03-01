@@ -263,6 +263,29 @@
             color: white;
         }
 
+        .date-select {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            color: #f1f5f9;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 8px 12px;
+            cursor: pointer;
+            min-width: 150px;
+            transition: all 0.2s;
+        }
+
+        .date-select:hover {
+            border-color: #135bec;
+        }
+
+        .date-select:focus {
+            outline: none;
+            border-color: #135bec;
+            box-shadow: 0 0 0 2px #135bec33;
+        }
+
         /* TABLE */
         .table-wrapper {
             background: #1e293b66;
@@ -585,7 +608,13 @@
         <div class="main-content">
             <div class="header-bar">
                 <div style="font-size: 18px; font-weight: 700; color: #f1f5f9;">OI Analysis Dashboard</div>
-                <div class="header-actions">
+                <div class="header-actions" style="gap: 12px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <label for="date-selector" style="font-size: 14px; font-weight: 600; color: #94a3b8;">Date:</label>
+                        <select id="date-selector" class="date-select" onchange="loadDataForDate()">
+                            <option value="">Loading...</option>
+                        </select>
+                    </div>
                     <button class="btn btn-secondary" onclick="jumpToLatest()">Jump to Latest</button>
                 </div>
             </div>
@@ -655,13 +684,19 @@
         const API_BASE = 'http://localhost:5000/api';
         let refreshInterval;
         let currentData = null;
+        let selectedDate = null;  // Track selected date
+        let availableDates = [];   // Store available dates
 
         async function fetchData() {
             try {
                 const strikeCount = 15;  // Fixed to 15 strikes
 
-                // Fetch OI difference data
-                const response = await fetch(`${API_BASE}/oi-difference-live?strike_count=${strikeCount}`);
+                // Fetch OI difference data (with optional date parameter)
+                let apiUrl = `${API_BASE}/oi-difference-live?strike_count=${strikeCount}`;
+                if (selectedDate) {
+                    apiUrl += `&date=${selectedDate}`;
+                }
+                const response = await fetch(apiUrl);
                 const data = await response.json();
 
                 if (data.error) {
@@ -834,11 +869,40 @@
             scrollable.scrollLeft = scrollable.scrollWidth;
         }
 
+        async function loadAvailableDates() {
+            try {
+                const response = await fetch(`${API_BASE}/available-dates`);
+                availableDates = await response.json();
+                populateDateSelector();
+            } catch (error) {
+                console.error('Error loading available dates:', error);
+                document.getElementById('date-selector').innerHTML = '<option value="">Error loading dates</option>';
+            }
+        }
+
+        function populateDateSelector() {
+            const selector = document.getElementById('date-selector');
+            selector.innerHTML = '<option value="">Latest Date</option>';
+            availableDates.forEach(date => {
+                const option = document.createElement('option');
+                option.value = date;
+                option.textContent = date;
+                selector.appendChild(option);
+            });
+        }
+
+        function loadDataForDate() {
+            const selector = document.getElementById('date-selector');
+            selectedDate = selector.value || null;
+            fetchData();
+        }
+
         function startAutoRefresh() {
             refreshInterval = setInterval(fetchData, 5000); // 5 seconds for near real-time updates
         }
 
         window.addEventListener('load', async () => {
+            await loadAvailableDates();  // Load and populate date selector
             await fetchData();
             startAutoRefresh();
         });
