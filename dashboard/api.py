@@ -1254,6 +1254,7 @@ def available_times():
 
 
 @app.route('/')
+@app.route('/index.html')
 def index():
     """Serve the main dashboard page."""
     from flask import send_file
