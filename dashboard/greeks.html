@@ -1,0 +1,1790 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Greeks Dashboard - OI Analytics</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0d1117;
+            color: #f1f5f9;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .dashboard {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* SIDEBAR - From existing dashboards */
+        .sidebar {
+            width: 256px;
+            background: #101622;
+            border-right: 1px solid #1e293b;
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s ease;
+        }
+
+        .sidebar.collapsed {
+            width: 64px;
+        }
+
+        .sidebar.collapsed .logo-text,
+        .sidebar.collapsed .nav-link span,
+        .sidebar.collapsed .section-header {
+            display: none;
+        }
+
+        .sidebar.collapsed .nav-link {
+            justify-content: center;
+            padding: 8px;
+        }
+
+        .sidebar-header {
+            padding: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .sidebar-toggle {
+            width: 32px;
+            height: 32px;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            color: #94a3b8;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .sidebar-toggle:hover {
+            background: #334155;
+            color: #135bec;
+            border-color: #135bec;
+        }
+
+        .sidebar-toggle svg {
+            transition: transform 0.3s;
+        }
+
+        .sidebar.collapsed .sidebar-toggle svg {
+            transform: rotate(180deg);
+        }
+
+        .logo-icon {
+            width: 30px;
+            height: 30px;
+            background: #135bec;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px;
+        }
+
+        .logo-text {
+            font-size: 18px;
+            font-weight: 700;
+            color: #f1f5f9;
+        }
+
+        .nav-menu {
+            flex: 1;
+            padding: 0 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            overflow-y: auto;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            text-decoration: none;
+            color: #94a3b8;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .nav-link:hover {
+            background: #135bec1a;
+            color: #135bec;
+        }
+
+        .nav-link.active {
+            background: #135bec1a;
+            color: #135bec;
+        }
+
+        .section-header {
+            padding: 16px 12px 8px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #94a3b8;
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+        }
+
+        /* MAIN CONTENT */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: #0d1117;
+        }
+
+        /* HEADER */
+        .header-bar {
+            height: 64px;
+            background: #0d1117;
+            border-bottom: 1px solid #0f172a;
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+        }
+
+        .header-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #f1f5f9;
+        }
+
+        .header-filters {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex: 1;
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .filter-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #64748b;
+        }
+
+        .filter-select {
+            background: #1a2235;
+            border: 1px solid #1a2235;
+            border-radius: 8px;
+            color: #f1f5f9;
+            font-size: 14px;
+            padding: 8px 12px;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer;
+        }
+
+        .filter-select:focus {
+            outline: none;
+            border-color: #4f46e5;
+        }
+
+        .apply-button {
+            background: #4f46e5;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 24px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.2s;
+        }
+
+        .apply-button:hover {
+            background: #4338ca;
+        }
+
+        /* CONTENT AREA */
+        .content-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+        }
+
+        .content-container {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        /* METRICS ROW */
+        .metrics-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+        }
+
+        .metric-card {
+            background: #0f172a;
+            border: 1px solid #0f172a;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 1px 1.75px rgba(0, 0, 0, 0.05);
+        }
+
+        .metric-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+
+        .metric-label {
+            font-size: 12px;
+            font-weight: 500;
+            color: #64748b;
+            line-height: 1.33;
+        }
+
+        .metric-badge {
+            padding: 2px 8px;
+            border-radius: 9999px;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .metric-badge.green {
+            background: rgba(34, 197, 94, 0.1);
+            color: #22c55e;
+        }
+
+        .metric-badge.red {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+        }
+
+        .metric-value {
+            font-size: 30px;
+            font-weight: 700;
+            color: #f1f5f9;
+            letter-spacing: -0.75px;
+            line-height: 1.2;
+            margin-bottom: 8px;
+        }
+
+        .metric-bar-container {
+            background: #0f172a;
+            height: 4px;
+            border-radius: 9999px;
+            overflow: hidden;
+        }
+
+        .metric-bar {
+            height: 100%;
+            border-radius: 9999px;
+        }
+
+        .metric-bar.green {
+            background: #22c55e;
+        }
+
+        .metric-bar.red {
+            background: #ef4444;
+        }
+
+        .metric-bar.purple {
+            background: #4f46e5;
+        }
+
+        /* ALERT BANNER */
+        .alert-banner {
+            background: rgba(245, 158, 11, 0.2);
+            border: 1px solid rgba(245, 158, 11, 0.4);
+            border-radius: 8px;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .alert-icon {
+            color: #f59e0b;
+            flex-shrink: 0;
+        }
+
+        .alert-text {
+            font-size: 12px;
+            font-weight: 700;
+            color: #f59e0b;
+            letter-spacing: 0.3px;
+        }
+
+        /* MAIN GRID LAYOUT */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 357px;
+            gap: 16px;
+        }
+
+        /* GREEKS MONITOR TABLE */
+        .greeks-panel {
+            background: #0f172a;
+            border: 1px solid #0f172a;
+            border-radius: 12px;
+            box-shadow: 0 1px 1.75px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+        }
+
+        .panel-header {
+            background: rgba(22, 28, 42, 0.5);
+            border-bottom: 1px solid #0f172a;
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #f1f5f9;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .live-indicator {
+            width: 6px;
+            height: 6px;
+            background: #22c55e;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .panel-action {
+            font-size: 12px;
+            font-weight: 600;
+            color: #4f46e5;
+            cursor: pointer;
+        }
+
+        .table-container {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .greeks-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .greeks-table thead {
+            position: sticky;
+            top: 0;
+            background: rgba(13, 17, 23, 0.2);
+            z-index: 1;
+        }
+
+        .greeks-table th {
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 10px;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #0f172a;
+        }
+
+        .greeks-table td {
+            padding: 12px 16px;
+            font-size: 12px;
+            color: #f1f5f9;
+            border-bottom: 1px solid #0f172a;
+        }
+
+        .greeks-table tbody tr:hover {
+            background: rgba(79, 70, 229, 0.05);
+        }
+
+        .strike-label {
+            font-weight: 700;
+            color: #f1f5f9;
+        }
+
+        .value-positive {
+            color: #22c55e;
+        }
+
+        .value-negative {
+            color: #ef4444;
+        }
+
+        .alert-badge {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 9px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .alert-badge.gamma {
+            background: rgba(168, 85, 247, 0.2);
+            color: #a855f7;
+        }
+
+        .alert-badge.theta {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+
+        /* SIDE PANELS */
+        .side-panels {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .side-panel {
+            background: #0f172a;
+            border: 1px solid #0f172a;
+            border-radius: 12px;
+            box-shadow: 0 1px 1.75px rgba(0, 0, 0, 0.05);
+        }
+
+        .side-panel-header {
+            padding: 16px;
+            border-bottom: 1px solid #0f172a;
+        }
+
+        .side-panel-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #f1f5f9;
+        }
+
+        .side-panel-content {
+            padding: 16px;
+        }
+
+        .trend-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+        }
+
+        .trend-label {
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+        .trend-value {
+            font-size: 14px;
+            font-weight: 700;
+            color: #f1f5f9;
+        }
+
+        .alert-item {
+            padding: 12px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            font-size: 12px;
+        }
+
+        .alert-item.danger {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+            font-weight: 600;
+        }
+
+        .alert-item.warning {
+            background: rgba(245, 158, 11, 0.1);
+            color: #f59e0b;
+            font-weight: 600;
+        }
+
+        .alert-item.info {
+            background: rgba(79, 70, 229, 0.1);
+            color: #4f46e5;
+            font-weight: 600;
+        }
+
+        .lotto-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            font-size: 12px;
+        }
+
+        .lotto-strike {
+            font-weight: 700;
+            color: #f1f5f9;
+        }
+
+        .lotto-badge {
+            padding: 2px 8px;
+            border-radius: 9999px;
+            font-size: 10px;
+            font-weight: 700;
+            background: rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+        }
+
+        /* SIGNALS SECTION */
+        .signals-panel {
+            background: #0f172a;
+            border: 1px solid #0f172a;
+            border-radius: 12px;
+            box-shadow: 0 1px 1.75px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+        }
+
+        .signals-header {
+            background: rgba(79, 70, 229, 0.2);
+            border-bottom: 1px solid #0f172a;
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .signals-badge {
+            padding: 2px 8px;
+            border-radius: 9999px;
+            background: #4f46e5;
+            color: white;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .signals-grid {
+            padding: 16px;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+        }
+
+        .signal-card {
+            padding: 16px;
+            border-radius: 12px;
+            border: 1px solid transparent;
+        }
+
+        .signal-card.entry {
+            background: rgba(34, 197, 94, 0.1);
+            border-color: rgba(34, 197, 94, 0.3);
+        }
+
+        .signal-card.exit {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+
+        .signal-card.caution {
+            background: rgba(245, 158, 11, 0.1);
+            border-color: rgba(245, 158, 11, 0.3);
+        }
+
+        .signal-card.gamma {
+            background: rgba(168, 85, 247, 0.1);
+            border-color: rgba(168, 85, 247, 0.3);
+        }
+
+        .signal-type {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .signal-type.entry { color: #22c55e; }
+        .signal-type.exit { color: #ef4444; }
+        .signal-type.caution { color: #f59e0b; }
+        .signal-type.gamma { color: #a855f7; }
+
+        .signal-strike {
+            font-size: 16px;
+            font-weight: 700;
+            color: #f1f5f9;
+            margin-bottom: 4px;
+        }
+
+        .signal-details {
+            font-size: 11px;
+            color: #94a3b8;
+        }
+
+        /* FOOTER */
+        .footer-bar {
+            height: 32px;
+            background: #0f1420;
+            border-top: 1px solid #0f172a;
+            padding: 0 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .footer-status {
+            display: flex;
+            gap: 24px;
+            align-items: center;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            color: #64748b;
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #22c55e;
+        }
+
+        .footer-info {
+            font-size: 10px;
+            font-weight: 700;
+            color: #64748b;
+        }
+
+        /* SCROLLBAR STYLING */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #0d1117;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #334155;
+        }
+
+        /* DATE PICKER */
+        .date-picker-container {
+            position: relative;
+        }
+
+        .date-picker-input {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #1a2235;
+            border: 1px solid #1a2235;
+            border-radius: 8px;
+            padding: 8px 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-width: 200px;
+        }
+
+        .date-picker-input:hover {
+            border-color: #4f46e5;
+            background: #1e2a3a;
+        }
+
+        .date-picker-input svg {
+            color: #94a3b8;
+            flex-shrink: 0;
+        }
+
+        .date-picker-input span {
+            font-size: 14px;
+            font-weight: 600;
+            color: #f1f5f9;
+        }
+
+        .calendar-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            z-index: 1000;
+            display: none;
+            min-width: 320px;
+        }
+
+        .calendar-dropdown.show {
+            display: block;
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #334155;
+        }
+
+        .calendar-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #f1f5f9;
+        }
+
+        .month-navigation {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .month-nav-btn {
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .month-nav-btn:hover {
+            background: #334155;
+            color: #4f46e5;
+        }
+
+        .month-display {
+            font-size: 13px;
+            font-weight: 600;
+            color: #f1f5f9;
+            min-width: 120px;
+            text-align: center;
+        }
+
+        .calendar-legend {
+            display: flex;
+            gap: 12px;
+            font-size: 10px;
+            color: #64748b;
+            margin-bottom: 12px;
+            justify-content: center;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .legend-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .legend-dot.available {
+            background: #10b981;
+        }
+
+        .legend-dot.unavailable {
+            background: #334155;
+        }
+
+        .legend-dot.selected {
+            background: #4f46e5;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+        }
+
+        .calendar-day-header {
+            text-align: center;
+            font-size: 11px;
+            font-weight: 600;
+            color: #64748b;
+            padding: 8px 4px;
+        }
+
+        .calendar-day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 500;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #161b22;
+            color: #64748b;
+        }
+
+        .calendar-day.available {
+            background: #10b98120;
+            color: #10b981;
+            cursor: pointer;
+        }
+
+        .calendar-day.available:hover {
+            background: #10b98140;
+            transform: scale(1.05);
+        }
+
+        .calendar-day.selected {
+            background: #4f46e5;
+            color: white;
+            font-weight: 700;
+        }
+
+        .calendar-day.today {
+            border: 2px solid #4f46e5;
+        }
+
+        .time-selector {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #334155;
+        }
+
+        .time-selector-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #94a3b8;
+            margin-bottom: 8px;
+        }
+
+        .time-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 4px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .time-option {
+            padding: 6px 8px;
+            font-size: 11px;
+            font-weight: 500;
+            text-align: center;
+            background: #161b22;
+            color: #64748b;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .time-option.available {
+            background: #10b98120;
+            color: #10b981;
+        }
+
+        .time-option.available:hover {
+            background: #10b98140;
+        }
+
+        .time-option.selected {
+            background: #4f46e5;
+            color: white;
+            font-weight: 700;
+        }
+
+        .divider {
+            width: 1px;
+            height: 20px;
+            background: #334155;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="dashboard">
+        <!-- SIDEBAR -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-container">
+                    <div class="logo-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M3 3v18h18"></path>
+                            <path d="m19 9-5 5-4-4-3 3"></path>
+                        </svg>
+                    </div>
+                    <div class="logo-text">OI Analysis</div>
+                </div>
+                <button class="sidebar-toggle" onclick="toggleSidebar()" title="Toggle Sidebar">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                </button>
+            </div>
+            <div class="nav-menu">
+                <a href="index.html" class="nav-link">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="14" width="7" height="7"></rect>
+                        <rect x="3" y="14" width="7" height="7"></rect>
+                    </svg>
+                    <span>Dashboard</span>
+                </a>
+                <a href="option_chain.html" class="nav-link">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="1" x2="12" y2="23"></line>
+                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                    </svg>
+                    <span>Option Chain</span>
+                </a>
+                <a href="#" class="nav-link">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 20V10"></path>
+                        <path d="M12 20V4"></path>
+                        <path d="M6 20v-6"></path>
+                    </svg>
+                    <span>OI Multi-Strike</span>
+                </a>
+                <a href="greeks.html" class="nav-link active">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path
+                            d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
+                        </path>
+                        <polyline points="7.5 4.21 12 6.81 16.5 4.21"></polyline>
+                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                        <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                    </svg>
+                    <span>Greeks Dashboard</span>
+                </a>
+
+                <div class="section-header">Reports</div>
+                <a href="historical_data.html" class="nav-link">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
+                    </svg>
+                    <span>Historical Data</span>
+                </a>
+                <a href="#" class="nav-link">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                    </svg>
+                    <span>Flash Signals</span>
+                </a>
+
+                <div class="section-header">Settings</div>
+                <a href="api_credentials.html" class="nav-link">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                    <span>API Credentials</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- MAIN CONTENT -->
+        <div class="main-content">
+            <!-- HEADER -->
+            <div class="header-bar">
+                <div class="header-title">Greeks Dashboard - Historical View</div>
+                <div class="header-filters">
+                    <div class="date-picker-container">
+                        <div class="date-picker-input" onclick="toggleCalendar()" id="date-display">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                <line x1="16" y1="2" x2="16" y2="6"></line>
+                                <line x1="8" y1="2" x2="8" y2="6"></line>
+                                <line x1="3" y1="10" x2="21" y2="10"></line>
+                            </svg>
+                            <span id="selected-date-text">Loading...</span>
+                        </div>
+                        <div class="calendar-dropdown" id="calendar-dropdown">
+                            <div class="calendar-header">
+                                <div class="calendar-title">Select Trading Day</div>
+                                <div class="month-navigation">
+                                    <button class="month-nav-btn" onclick="previousMonth()" title="Previous Month">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                            <polyline points="15 18 9 12 15 6"></polyline>
+                                        </svg>
+                                    </button>
+                                    <span class="month-display" id="month-display">Loading...</span>
+                                    <button class="month-nav-btn" onclick="nextMonth()" title="Next Month">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                            <polyline points="9 18 15 12 9 6"></polyline>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                            <div style="font-size: 11px; color: #10b981; margin-bottom: 8px; text-align: center;" id="date-count"></div>
+                            <div class="calendar-legend">
+                                <div class="legend-item">
+                                    <div class="legend-dot available"></div>
+                                    <span>Available</span>
+                                </div>
+                                <div class="legend-item">
+                                    <div class="legend-dot unavailable"></div>
+                                    <span>No Data</span>
+                                </div>
+                                <div class="legend-item">
+                                    <div class="legend-dot selected"></div>
+                                    <span>Selected</span>
+                                </div>
+                            </div>
+                            <div class="calendar-grid" id="calendar-grid">
+                                <!-- Calendar days will be generated here -->
+                            </div>
+                            <div class="time-selector">
+                                <div class="time-selector-label">Select Time</div>
+                                <div class="time-grid" id="time-grid">
+                                    <!-- Time options will be generated here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="divider"></div>
+                    <div class="filter-label">NIFTY 50 Only</div>
+                    <div class="divider"></div>
+                    <div class="filter-label">Auto Expiry: <span id="expiry-display" style="color: #4f46e5; font-weight: 700;">--</span></div>
+                </div>
+            </div>
+
+            <!-- CONTENT AREA -->
+            <div class="content-area">
+                <div class="content-container">
+                    <!-- METRICS ROW -->
+                    <div class="metrics-row">
+                        <!-- NIFTY SPOT -->
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <div class="metric-label">NIFTY 50</div>
+                                <div class="metric-badge green" id="spotBadge">+0.8%</div>
+                            </div>
+                            <div class="metric-value" id="spotValue">Loading...</div>
+                            <div class="metric-bar-container">
+                                <div class="metric-bar green" id="spotBar" style="width: 75%"></div>
+                            </div>
+                        </div>
+
+                        <!-- INDIA VIX -->
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <div class="metric-label">INDIA VIX</div>
+                                <div class="metric-badge red" id="vixBadge">-2.4%</div>
+                            </div>
+                            <div class="metric-value" id="vixValue">Loading...</div>
+                            <div class="metric-bar-container">
+                                <div class="metric-bar red" id="vixBar" style="width: 25%"></div>
+                            </div>
+                        </div>
+
+                        <!-- NET DELTA FLOW -->
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <div class="metric-label">NET DELTA FLOW</div>
+                                <div class="metric-badge green" id="deltaFlowBadge">+78%</div>
+                            </div>
+                            <div class="metric-value" id="deltaFlowValue">Loading...</div>
+                            <div class="metric-bar-container">
+                                <div class="metric-bar purple" id="deltaFlowBar" style="width: 90%"></div>
+                            </div>
+                        </div>
+
+                        <!-- IV RANK -->
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <div class="metric-label">IV RANK</div>
+                                <div class="metric-badge red" id="ivRankBadge">High: 24.5</div>
+                            </div>
+                            <div class="metric-value" id="ivRankValue">Loading...</div>
+                            <div class="metric-bar-container">
+                                <div class="metric-bar red" style="width: 24.5%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ALERT BANNER -->
+                    <div class="alert-banner" id="alertBanner" style="display: none;">
+                        <div class="alert-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+                            </svg>
+                        </div>
+                        <div class="alert-text" id="alertText">PCR-DELTA DIVERGENCE — Volatility spike likely</div>
+                    </div>
+
+                    <!-- MAIN GRID -->
+                    <div class="main-grid">
+                        <!-- GREEKS MONITOR TABLE -->
+                        <div class="greeks-panel">
+                            <div class="panel-header">
+                                <div class="panel-title">
+                                    <div class="live-indicator"></div>
+                                    Greeks Monitor — Live Feed
+                                </div>
+                                <div class="panel-action" onclick="fetchGreeksData()">Refresh</div>
+                            </div>
+                            <div class="table-container">
+                                <table class="greeks-table">
+                                    <thead>
+                                        <tr>
+                                            <th>STRIKE</th>
+                                            <th>TYPE</th>
+                                            <th>LTP</th>
+                                            <th>IV</th>
+                                            <th>DELTA</th>
+                                            <th>GAMMA</th>
+                                            <th>THETA</th>
+                                            <th>EFF</th>
+                                            <th>ALERTS</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="greeksTableBody">
+                                        <tr><td colspan="9" style="text-align: center; padding: 40px; color: #64748b;">Loading Greeks data...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- SIDE PANELS -->
+                        <div class="side-panels">
+                            <!-- DAILY SNAPSHOT -->
+                            <div class="side-panel">
+                                <div class="side-panel-header">
+                                    <div class="side-panel-title">Daily Snapshot & Trends</div>
+                                </div>
+                                <div class="side-panel-content">
+                                    <div class="trend-item">
+                                        <div class="trend-label">PCR</div>
+                                        <div class="trend-value value-positive" id="pcrValue">--</div>
+                                    </div>
+                                    <div class="trend-item">
+                                        <div class="trend-label">DTE</div>
+                                        <div class="trend-value" id="dteValue">-- days</div>
+                                    </div>
+                                    <div class="trend-item">
+                                        <div class="trend-label">Market Bias</div>
+                                        <div class="trend-value" id="marketBias">--</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- LIVE ALERTS -->
+                            <div class="side-panel" style="max-height: 300px;">
+                                <div class="side-panel-header">
+                                    <div class="side-panel-title">Live Alerts</div>
+                                </div>
+                                <div class="side-panel-content">
+                                    <div id="liveAlertsContainer">
+                                        <div style="text-align: center; color: #64748b; font-size: 12px; padding: 20px;">No alerts</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- LOTTO TRACKER -->
+                            <div class="side-panel">
+                                <div class="side-panel-header" style="background: rgba(79, 70, 229, 0.2); border-bottom-color: #0f172a;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <div class="side-panel-title">Lotto Tracker</div>
+                                        <div class="signals-badge">GAMMA HUNTING</div>
+                                    </div>
+                                </div>
+                                <div class="side-panel-content">
+                                    <div id="lottoContainer">
+                                        <div style="text-align: center; color: #64748b; font-size: 12px; padding: 20px;">No lotto strikes</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ENTRY/EXIT SIGNALS -->
+                    <div class="signals-panel">
+                        <div class="signals-header">
+                            <div class="panel-title">Entry / Exit Signals</div>
+                            <div class="panel-action">View All →</div>
+                        </div>
+                        <div class="signals-grid" id="signalsGrid">
+                            <div style="grid-column: 1 / -1; text-align: center; color: #64748b; font-size: 12px; padding: 20px;">Loading signals...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FOOTER -->
+            <div class="footer-bar">
+                <div class="footer-status">
+                    <div class="status-item">
+                        <div class="status-dot"></div>
+                        NSE FEED: CONNECTED
+                    </div>
+                    <div class="status-item">
+                        <div class="status-dot"></div>
+                        API LATENCY: <span id="apiLatency">--</span>ms
+                    </div>
+                </div>
+                <div class="footer-info">
+                    Last Sync: <span id="lastSync">--:--:--</span> | IndexDataAnalyser v2.4.0-PRO
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API Configuration - For local file:// access
+        const API_BASE = 'http://localhost:5000/api';
+
+        // Auto-refresh interval
+        let refreshInterval;
+
+        // Calendar state
+        let currentDate = new Date();
+        let selectedDate = null;
+        let selectedTime = null;
+        let availableDates = [];
+        let availableTimes = [];
+        let currentMonth = new Date().getMonth();
+        let currentYear = new Date().getFullYear();
+
+        // Toggle sidebar
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('collapsed');
+            const isCollapsed = sidebar.classList.contains('collapsed');
+            localStorage.setItem('sidebarCollapsed', isCollapsed);
+        }
+
+        // Restore sidebar state
+        (function() {
+            const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+            if (isCollapsed) {
+                document.getElementById('sidebar').classList.add('collapsed');
+            }
+        })();
+
+        // Toggle calendar dropdown
+        function toggleCalendar() {
+            const dropdown = document.getElementById('calendar-dropdown');
+            dropdown.classList.toggle('show');
+        }
+
+        // Close calendar when clicking outside
+        document.addEventListener('click', function(event) {
+            const calendar = document.getElementById('calendar-dropdown');
+            const dateDisplay = document.getElementById('date-display');
+
+            if (!calendar.contains(event.target) && !dateDisplay.contains(event.target)) {
+                calendar.classList.remove('show');
+            }
+        });
+
+        // Fetch available dates from API
+        async function fetchAvailableDates() {
+            try {
+                const response = await fetch(`${API_BASE}/available-dates`);
+                if (response.ok) {
+                    const data = await response.json();
+                    availableDates = data.dates || [];
+
+                    // Auto-select today's date if available, otherwise select most recent date
+                    if (availableDates.length > 0) {
+                        const today = new Date().toISOString().split('T')[0];
+
+                        // Check if today has data
+                        if (availableDates.includes(today)) {
+                            selectedDate = today;
+                        } else if (!selectedDate || !availableDates.includes(selectedDate)) {
+                            // Use most recent date if selectedDate is null or not in available dates
+                            selectedDate = availableDates[0];
+                        }
+                    }
+
+                    renderCalendar();
+                }
+            } catch (error) {
+                console.error('Error fetching available dates:', error);
+                // Use current date as fallback
+                const today = new Date().toISOString().split('T')[0];
+                availableDates = [today];
+                selectedDate = today;
+                renderCalendar();
+            }
+        }
+
+        // Fetch available times for selected date
+        async function fetchAvailableTimes(date) {
+            // Guard: Don't fetch if date is invalid
+            if (!date || date === 'null' || date === 'undefined') {
+                console.warn('fetchAvailableTimes called with invalid date:', date);
+                availableTimes = [];
+                renderTimeGrid();
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/available-times?date=${date}`);
+                if (response.ok) {
+                    const data = await response.json();
+
+                    // Handle both response formats: {times: [...]} or just [...]
+                    availableTimes = data.times || data;
+
+                    if (Array.isArray(availableTimes)) {
+                        renderTimeGrid();
+                    } else {
+                        console.error('Invalid times data:', availableTimes);
+                        availableTimes = [];
+                        renderTimeGrid();
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching available times:', error);
+                availableTimes = [];
+                renderTimeGrid();
+            }
+        }
+
+        // Render calendar
+        function renderCalendar() {
+            const grid = document.getElementById('calendar-grid');
+            const monthDisplay = document.getElementById('month-display');
+            const dateCount = document.getElementById('date-count');
+
+            // Update month display
+            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                               'July', 'August', 'September', 'October', 'November', 'December'];
+            monthDisplay.textContent = `${monthNames[currentMonth]} ${currentYear}`;
+
+            // Count available dates in current month
+            const availableInMonth = availableDates.filter(date => {
+                const d = new Date(date);
+                return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+            }).length;
+            dateCount.textContent = `${availableInMonth} day${availableInMonth !== 1 ? 's' : ''} available`;
+
+            // Clear grid
+            grid.innerHTML = '';
+
+            // Add day headers
+            const dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            dayHeaders.forEach(day => {
+                const header = document.createElement('div');
+                header.className = 'calendar-day-header';
+                header.textContent = day;
+                grid.appendChild(header);
+            });
+
+            // Get first day of month
+            const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+            // Add empty cells for days before month starts
+            for (let i = 0; i < firstDay; i++) {
+                const emptyDay = document.createElement('div');
+                emptyDay.className = 'calendar-day';
+                grid.appendChild(emptyDay);
+            }
+
+            // Add day cells
+            const today = new Date().toISOString().split('T')[0];
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const dayCell = document.createElement('div');
+                dayCell.className = 'calendar-day';
+                dayCell.textContent = day;
+
+                const isAvailable = availableDates.includes(dateStr);
+                const isSelected = selectedDate === dateStr;
+                const isToday = dateStr === today;
+
+                if (isAvailable) {
+                    dayCell.classList.add('available');
+                }
+                if (isSelected) {
+                    dayCell.classList.add('selected');
+                }
+                if (isToday) {
+                    dayCell.classList.add('today');
+                }
+
+                if (isAvailable) {
+                    dayCell.onclick = () => selectDate(dateStr);
+                }
+
+                grid.appendChild(dayCell);
+            }
+        }
+
+        // Select date
+        function selectDate(date) {
+            selectedDate = date;
+            selectedTime = null;
+
+            // Update date display
+            const dateObj = new Date(date);
+            const options = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
+            document.getElementById('selected-date-text').textContent = dateObj.toLocaleDateString('en-US', options);
+
+            // Fetch available times for this date
+            fetchAvailableTimes(date);
+
+            // Re-render calendar to show selection
+            renderCalendar();
+        }
+
+        // Render time grid
+        function renderTimeGrid() {
+            const grid = document.getElementById('time-grid');
+            grid.innerHTML = '';
+
+            if (availableTimes.length === 0) {
+                grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #64748b; padding: 16px; font-size: 11px;">No data available for this date</div>';
+                return;
+            }
+
+            availableTimes.forEach(time => {
+                const timeCell = document.createElement('div');
+                timeCell.className = 'time-option available';
+                timeCell.textContent = time;
+
+                if (selectedTime === time) {
+                    timeCell.classList.add('selected');
+                }
+
+                timeCell.onclick = () => selectTime(time);
+                grid.appendChild(timeCell);
+            });
+        }
+
+        // Select time
+        function selectTime(time) {
+            selectedTime = time;
+            renderTimeGrid();
+
+            // Fetch data for selected date and time
+            fetchGreeksData();
+
+            // Close calendar dropdown
+            document.getElementById('calendar-dropdown').classList.remove('show');
+        }
+
+        // Navigate to previous month
+        function previousMonth() {
+            currentMonth--;
+            if (currentMonth < 0) {
+                currentMonth = 11;
+                currentYear--;
+            }
+            renderCalendar();
+        }
+
+        // Navigate to next month
+        function nextMonth() {
+            currentMonth++;
+            if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++;
+            }
+            renderCalendar();
+        }
+
+        // Fetch Greeks data from API
+        async function fetchGreeksData() {
+            const startTime = performance.now();
+
+            try {
+                // Build URL with date and time parameters
+                let url = `${API_BASE}/greeks-pro`;
+                const params = new URLSearchParams();
+
+                if (selectedDate) {
+                    params.append('date', selectedDate);
+                }
+                if (selectedTime) {
+                    params.append('time', selectedTime);
+                }
+
+                if (params.toString()) {
+                    url += '?' + params.toString();
+                }
+
+                const response = await fetch(url);
+                const endTime = performance.now();
+                const latency = Math.round(endTime - startTime);
+
+                document.getElementById('apiLatency').textContent = latency;
+
+                if (response.ok) {
+                    const data = await response.json();
+                    updateDashboard(data);
+                    updateLastSync();
+
+                    // Update expiry display
+                    if (data.expiry) {
+                        document.getElementById('expiry-display').textContent = data.expiry;
+                    }
+                } else {
+                    const error = await response.json();
+                    console.error('API Error:', error);
+                    showError(error.message || 'No data available');
+                }
+            } catch (error) {
+                console.error('Fetch error:', error);
+                showError('Connection error. Is the API running?');
+            }
+        }
+
+        // Update dashboard with fetched data
+        function updateDashboard(data) {
+            // Update metrics
+            if (data.spot) {
+                document.getElementById('spotValue').textContent = data.spot.toFixed(2);
+            }
+            if (data.vix) {
+                document.getElementById('vixValue').textContent = data.vix.toFixed(2);
+                if (data.vix_change_pct !== undefined) {
+                    const badge = document.getElementById('vixBadge');
+                    badge.textContent = (data.vix_change_pct > 0 ? '+' : '') + data.vix_change_pct.toFixed(1) + '%';
+                    badge.className = 'metric-badge ' + (data.vix_change_pct > 0 ? 'red' : 'green');
+                }
+            }
+            if (data.trend_intensity) {
+                const netDelta = data.trend_intensity.net_delta_flow || 0;
+                document.getElementById('deltaFlowValue').textContent = (netDelta > 0 ? '+' : '') + (netDelta / 1000000).toFixed(1) + 'M';
+                document.getElementById('marketBias').textContent = data.trend_intensity.market_bias || 'NEUTRAL';
+                document.getElementById('marketBias').className = 'trend-value ' + (data.trend_intensity.market_bias === 'BULLISH' ? 'value-positive' : data.trend_intensity.market_bias === 'BEARISH' ? 'value-negative' : '');
+            }
+            if (data.iv_rank !== undefined) {
+                document.getElementById('ivRankValue').textContent = data.iv_rank.toFixed(1) + '%';
+            }
+            if (data.dte !== undefined) {
+                document.getElementById('dteValue').textContent = data.dte + ' days';
+            }
+
+            // Update PCR divergence alert
+            if (data.pcr_divergence && data.pcr_divergence.is_divergent) {
+                document.getElementById('alertBanner').style.display = 'flex';
+                document.getElementById('alertText').textContent = `PCR-DELTA DIVERGENCE — ${data.pcr_divergence.interpretation}`;
+            } else {
+                document.getElementById('alertBanner').style.display = 'none';
+            }
+
+            // Update PCR value
+            if (data.pcr_divergence && data.pcr_divergence.pcr !== undefined) {
+                document.getElementById('pcrValue').textContent = data.pcr_divergence.pcr.toFixed(2);
+            }
+
+            // Update Greeks table
+            updateGreeksTable(data.ce_all || [], data.pe_all || []);
+
+            // Update alerts
+            updateAlerts(data.alerts || []);
+
+            // Update lotto strikes
+            updateLottoStrikes(data.lotto_strikes || []);
+
+            // Update signals
+            updateSignals(data.entry_signals || []);
+        }
+
+        // Update Greeks table
+        function updateGreeksTable(ceStrikes, peStrikes) {
+            const tbody = document.getElementById('greeksTableBody');
+
+            if (ceStrikes.length === 0 && peStrikes.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 40px; color: #64748b;">No data available</td></tr>';
+                return;
+            }
+
+            let html = '';
+            const allStrikes = [...ceStrikes.slice(0, 10), ...peStrikes.slice(0, 10)];
+
+            allStrikes.forEach(strike => {
+                const alerts = [];
+                if (strike.alert_theta_trap) alerts.push('<span class="alert-badge theta">THETA</span>');
+                if (strike.alert_gamma_blast) alerts.push('<span class="alert-badge gamma">GAMMA</span>');
+
+                html += `
+                    <tr>
+                        <td class="strike-label">${strike.strike_price}</td>
+                        <td>${strike.option_type}</td>
+                        <td>${strike.ltp ? strike.ltp.toFixed(2) : '--'}</td>
+                        <td>${strike.iv ? (strike.iv * 100).toFixed(1) + '%' : '--'}</td>
+                        <td class="${strike.delta > 0 ? 'value-positive' : 'value-negative'}">${strike.delta ? strike.delta.toFixed(3) : '--'}</td>
+                        <td>${strike.gamma ? strike.gamma.toFixed(4) : '--'}</td>
+                        <td class="value-negative">${strike.theta ? strike.theta.toFixed(2) : '--'}</td>
+                        <td class="value-positive">${strike.efficiency ? strike.efficiency.toFixed(2) : '--'}</td>
+                        <td>${alerts.join(' ') || '--'}</td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = html;
+        }
+
+        // Update live alerts
+        function updateAlerts(alerts) {
+            const container = document.getElementById('liveAlertsContainer');
+
+            if (alerts.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: #64748b; font-size: 12px; padding: 20px;">No alerts</div>';
+                return;
+            }
+
+            let html = '';
+            alerts.slice(0, 5).forEach(alert => {
+                const className = alert.severity === 'high' ? 'danger' : alert.severity === 'medium' ? 'warning' : 'info';
+                html += `<div class="alert-item ${className}">${alert.message}</div>`;
+            });
+
+            container.innerHTML = html;
+        }
+
+        // Update lotto strikes
+        function updateLottoStrikes(lottoStrikes) {
+            const container = document.getElementById('lottoContainer');
+
+            if (lottoStrikes.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: #64748b; font-size: 12px; padding: 20px;">No lotto strikes</div>';
+                return;
+            }
+
+            let html = '';
+            lottoStrikes.slice(0, 5).forEach(strike => {
+                html += `
+                    <div class="lotto-item">
+                        <div>
+                            <div class="lotto-strike">${strike.strike_price} ${strike.option_type}</div>
+                            <div style="font-size: 10px; color: #64748b;">Γ: ${strike.gamma ? strike.gamma.toFixed(4) : '--'}</div>
+                        </div>
+                        <div class="lotto-badge">${strike.efficiency ? strike.efficiency.toFixed(2) : '--'}</div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        // Update entry/exit signals
+        function updateSignals(signals) {
+            const grid = document.getElementById('signalsGrid');
+
+            if (signals.length === 0) {
+                grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: #64748b; font-size: 12px; padding: 20px;">No signals available</div>';
+                return;
+            }
+
+            let html = '';
+            signals.slice(0, 4).forEach(signal => {
+                const type = signal.type.toLowerCase().replace('_', '');
+                html += `
+                    <div class="signal-card ${type}">
+                        <div class="signal-type ${type}">${signal.type}</div>
+                        <div class="signal-strike">${signal.strike_price} ${signal.option_type}</div>
+                        <div class="signal-details">${signal.reason}</div>
+                    </div>
+                `;
+            });
+
+            grid.innerHTML = html;
+        }
+
+        // Update last sync time
+        function updateLastSync() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('en-US', { hour12: false });
+            document.getElementById('lastSync').textContent = timeStr;
+        }
+
+        // Show error message
+        function showError(message) {
+            const tbody = document.getElementById('greeksTableBody');
+            tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 40px; color: #ef4444;">${message}</td></tr>`;
+        }
+
+        // Initialize
+        (async function init() {
+            // Set current month/year for calendar display
+            const today = new Date();
+            currentMonth = today.getMonth();
+            currentYear = today.getFullYear();
+
+            // Fetch available dates and initialize calendar (this will set selectedDate)
+            await fetchAvailableDates();
+
+            // Fetch available times for the selected date (now guaranteed to be set by fetchAvailableDates)
+            if (selectedDate) {
+                // Update date display
+                const dateObj = new Date(selectedDate);
+                const options = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
+                document.getElementById('selected-date-text').textContent = dateObj.toLocaleDateString('en-US', options);
+
+                await fetchAvailableTimes(selectedDate);
+
+                // Auto-select latest time if available
+                if (availableTimes.length > 0) {
+                    selectedTime = availableTimes[availableTimes.length - 1];
+                    renderTimeGrid();
+                    fetchGreeksData();
+                }
+            }
+
+            // Disable auto-refresh for historical view
+            // Users manually select date/time instead
+        })();
+    </script>
+</body>
+
+</html>
