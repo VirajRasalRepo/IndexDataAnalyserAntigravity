@@ -328,6 +328,35 @@
             background: #4f46e5;
         }
 
+        /* IV ENVIRONMENT (PERCENTILE) STYLES */
+        .iv-percentile-bar-wrapper {
+            position: relative;
+            margin-top: 12px;
+        }
+
+        .iv-percentile-bar-track {
+            position: relative;
+            background: #1e293b;
+            height: 8px;
+            border-radius: 9999px;
+            overflow: visible;
+        }
+
+        .iv-percentile-bar-fill {
+            height: 100%;
+            border-radius: 9999px;
+            transition: width 0.3s ease, background-color 0.3s ease;
+        }
+
+        .iv-percentile-marker {
+            position: absolute;
+            top: 0;
+            width: 1px;
+            height: 8px;
+            background: #475569;
+            opacity: 0.6;
+        }
+
         /* ALERT BANNER */
         .alert-banner {
             background: rgba(245, 158, 11, 0.2);
@@ -945,10 +974,60 @@
             height: 20px;
             background: #334155;
         }
+
+        /* LOADING OVERLAY */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            backdrop-filter: blur(4px);
+        }
+
+        .loading-spinner {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .spinner-ring {
+            width: 48px;
+            height: 48px;
+            border: 4px solid #1e293b;
+            border-top-color: #4f46e5;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 14px;
+            font-weight: 500;
+            color: #94a3b8;
+            letter-spacing: 0.3px;
+        }
     </style>
 </head>
 
 <body>
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay" style="display: none;">
+        <div class="loading-spinner">
+            <div class="spinner-ring"></div>
+            <div class="loading-text">Loading Greeks Data...</div>
+        </div>
+    </div>
+
     <div class="dashboard">
         <!-- SIDEBAR -->
         <div class="sidebar" id="sidebar">
@@ -1142,15 +1221,51 @@
                             </div>
                         </div>
 
-                        <!-- IV RANK -->
+                        <!-- IV ENVIRONMENT (Rank + Percentile) -->
                         <div class="metric-card">
                             <div class="metric-header">
-                                <div class="metric-label">IV RANK</div>
-                                <div class="metric-badge red" id="ivRankBadge">High: 24.5</div>
+                                <div class="metric-label">IV ENVIRONMENT</div>
+                                <div class="metric-badge" id="ivEnvBadge">Loading...</div>
                             </div>
-                            <div class="metric-value" id="ivRankValue">Loading...</div>
-                            <div class="metric-bar-container">
-                                <div class="metric-bar red" style="width: 24.5%"></div>
+
+                            <!-- Dual Row: Rank vs Percentile -->
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                                <!-- IV Rank (left, de-emphasized) -->
+                                <div>
+                                    <div style="font-size: 10px; color: #64748b; margin-bottom: 4px;">IV RANK (52W)</div>
+                                    <div style="font-size: 18px; font-weight: 600; color: #94a3b8;" id="ivRankValue">--</div>
+                                </div>
+                                <!-- IV Percentile (right, PRIMARY) -->
+                                <div>
+                                    <div style="font-size: 10px; color: #64748b; margin-bottom: 4px;">IV PERCENTILE ⭐</div>
+                                    <div style="font-size: 24px; font-weight: 700; color: #f1f5f9;" id="ivPercentileValue">--</div>
+                                </div>
+                            </div>
+
+                            <!-- Percentile Bar with 25/50/75 markers -->
+                            <div class="iv-percentile-bar-wrapper">
+                                <div class="iv-percentile-bar-track">
+                                    <div class="iv-percentile-bar-fill" id="ivPercentileBar" style="width: 0%"></div>
+                                    <div class="iv-percentile-marker" style="left: 25%"></div>
+                                    <div class="iv-percentile-marker" style="left: 50%"></div>
+                                    <div class="iv-percentile-marker" style="left: 75%"></div>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; margin-top: 4px; font-size: 9px; color: #475569;">
+                                    <span>0</span>
+                                    <span>25</span>
+                                    <span>50</span>
+                                    <span>75</span>
+                                    <span>100</span>
+                                </div>
+                            </div>
+
+                            <!-- Environment Label -->
+                            <div style="font-size: 11px; color: #64748b; margin-top: 8px; text-align: center;" id="ivEnvironmentLabel">--</div>
+
+                            <!-- Divergence Warning Box (hidden by default) -->
+                            <div id="ivDivergenceBox" style="display: none; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 6px; padding: 8px; margin-top: 8px;">
+                                <div style="font-size: 10px; font-weight: 700; color: #f59e0b; margin-bottom: 2px;">⚠️ RANK MISLEADING</div>
+                                <div style="font-size: 9px; color: #fbbf24;" id="ivDivergenceText">Rank vs Percentile diverge by >20 pts</div>
                             </div>
                         </div>
                     </div>
@@ -1358,6 +1473,19 @@
             dropdown.classList.toggle('show');
         }
 
+        // Helper functions for loading overlay
+        function showLoading(message = 'Loading...') {
+            const loadingOverlay = document.getElementById('loading-overlay');
+            const loadingText = loadingOverlay.querySelector('.loading-text');
+            loadingText.textContent = message;
+            loadingOverlay.style.display = 'flex';
+        }
+
+        function hideLoading() {
+            const loadingOverlay = document.getElementById('loading-overlay');
+            loadingOverlay.style.display = 'none';
+        }
+
         // Close calendar when clicking outside
         document.addEventListener('click', function(event) {
             const calendar = document.getElementById('calendar-dropdown');
@@ -1370,6 +1498,7 @@
 
         // Fetch available dates from API
         async function fetchAvailableDates() {
+            showLoading('Loading Calendar...');
             try {
                 const response = await fetch(`${API_BASE}/available-dates`);
                 if (response.ok) {
@@ -1398,6 +1527,8 @@
                 availableDates = [today];
                 selectedDate = today;
                 renderCalendar();
+            } finally {
+                hideLoading();
             }
         }
 
@@ -1411,6 +1542,7 @@
                 return;
             }
 
+            // Note: Loading indicator is shown inline in time grid by selectDate()
             try {
                 const response = await fetch(`${API_BASE}/available-times?date=${date}`);
                 if (response.ok) {
@@ -1498,7 +1630,10 @@
                 }
 
                 if (isAvailable) {
-                    dayCell.onclick = () => selectDate(dateStr);
+                    dayCell.onclick = (event) => {
+                        event.stopPropagation();
+                        selectDate(dateStr);
+                    };
                 }
 
                 grid.appendChild(dayCell);
@@ -1515,11 +1650,31 @@
             const options = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
             document.getElementById('selected-date-text').textContent = dateObj.toLocaleDateString('en-US', options);
 
+            // Show loading in time grid immediately
+            showTimeGridLoading();
+
             // Fetch available times for this date
             fetchAvailableTimes(date);
 
             // Re-render calendar to show selection
             renderCalendar();
+
+            // Ensure calendar stays open after date selection
+            const dropdown = document.getElementById('calendar-dropdown');
+            dropdown.classList.add('show');
+        }
+
+        // Show loading in time grid
+        function showTimeGridLoading() {
+            const grid = document.getElementById('time-grid');
+            grid.innerHTML = `
+                <div style="grid-column: 1 / -1; text-align: center; padding: 24px;">
+                    <div style="display: inline-flex; align-items: center; gap: 8px; color: #64748b; font-size: 11px;">
+                        <div style="width: 16px; height: 16px; border: 2px solid #1e293b; border-top-color: #4f46e5; border-radius: 50%; animation: spin 0.6s linear infinite;"></div>
+                        <span>Loading available times...</span>
+                    </div>
+                </div>
+            `;
         }
 
         // Render time grid
@@ -1547,12 +1702,18 @@
         }
 
         // Select time
-        function selectTime(time) {
+        async function selectTime(time) {
             selectedTime = time;
             renderTimeGrid();
 
+            // Show loading for user-initiated time selection
+            showLoading('Loading Greeks Data...');
+
             // Fetch data for selected date and time
-            fetchGreeksData();
+            await fetchGreeksData();
+
+            // Hide loading after data is loaded
+            hideLoading();
 
             // Close calendar dropdown
             document.getElementById('calendar-dropdown').classList.remove('show');
@@ -1580,6 +1741,7 @@
 
         // Fetch Greeks data from API
         async function fetchGreeksData() {
+            // Note: No loading overlay here - only show during user-initiated time selection
             const startTime = performance.now();
 
             try {
@@ -1624,6 +1786,59 @@
             }
         }
 
+        // Render IV Environment (Rank + Percentile)
+        function renderIVEnvironment(ivEnvData, ivBias) {
+            if (!ivEnvData) return;
+
+            const rank = ivEnvData.iv_rank !== null ? ivEnvData.iv_rank : 0;
+            const percentile = ivEnvData.iv_percentile !== null ? ivEnvData.iv_percentile : 0;
+            const environment = ivEnvData.environment || 'UNKNOWN';
+            const hasDivergence = ivEnvData.divergence || false;
+            const divergenceMagnitude = ivEnvData.gap || 0;
+
+            // Update values
+            document.getElementById('ivRankValue').textContent = rank.toFixed(1) + '%';
+            document.getElementById('ivPercentileValue').textContent = percentile.toFixed(1) + '%';
+            document.getElementById('ivEnvironmentLabel').textContent = environment;
+
+            // Update percentile bar color based on percentile value
+            const bar = document.getElementById('ivPercentileBar');
+            bar.style.width = percentile + '%';
+            if (percentile < 25) {
+                bar.style.background = '#22c55e';  // green - low IV
+            } else if (percentile > 75) {
+                bar.style.background = '#ef4444';  // red - high IV
+            } else {
+                bar.style.background = '#4f46e5';  // purple - medium IV
+            }
+
+            // Update badge based on IV bias
+            const badge = document.getElementById('ivEnvBadge');
+            if (ivBias === 'BUY_FAVOURED') {
+                badge.textContent = 'BUY FAVOURED';
+                badge.className = 'metric-badge green';
+            } else if (ivBias === 'SELL_FAVOURED') {
+                badge.textContent = 'SELL FAVOURED';
+                badge.className = 'metric-badge red';
+            } else if (ivBias === 'NEUTRAL') {
+                badge.textContent = 'NEUTRAL';
+                badge.className = 'metric-badge neutral';
+            } else {
+                badge.textContent = 'UNKNOWN';
+                badge.className = 'metric-badge';
+            }
+
+            // Show/hide divergence warning
+            const divergenceBox = document.getElementById('ivDivergenceBox');
+            if (hasDivergence) {
+                divergenceBox.style.display = 'block';
+                document.getElementById('ivDivergenceText').textContent =
+                    `Rank vs Percentile diverge by ${Math.abs(divergenceMagnitude).toFixed(0)} pts — Use Percentile`;
+            } else {
+                divergenceBox.style.display = 'none';
+            }
+        }
+
         // Update dashboard with fetched data
         function updateDashboard(data) {
             // Update metrics
@@ -1644,8 +1859,9 @@
                 document.getElementById('marketBias').textContent = data.trend_intensity.market_bias || 'NEUTRAL';
                 document.getElementById('marketBias').className = 'trend-value ' + (data.trend_intensity.market_bias === 'BULLISH' ? 'value-positive' : data.trend_intensity.market_bias === 'BEARISH' ? 'value-negative' : '');
             }
-            if (data.iv_rank !== undefined) {
-                document.getElementById('ivRankValue').textContent = data.iv_rank.toFixed(1) + '%';
+            // Update IV Environment (Rank + Percentile)
+            if (data.iv_environment) {
+                renderIVEnvironment(data.iv_environment, data.iv_bias);
             }
             if (data.dte !== undefined) {
                 document.getElementById('dteValue').textContent = data.dte + ' days';
@@ -1697,7 +1913,7 @@
             // Update Straddle Premium
             if (data.straddle_premium) {
                 const straddleVal = data.straddle_premium.straddle_premium || 0;
-                const moveP ct = data.straddle_premium.expected_move_pct || 0;
+                const movePct = data.straddle_premium.expected_move_pct || 0;
 
                 document.getElementById('straddleValue').textContent = '₹' + straddleVal.toFixed(0);
                 document.getElementById('straddleMove').textContent = `Expected: ±${movePct.toFixed(2)}% (±${data.straddle_premium.expected_move_points?.toFixed(0)} pts)`;

@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.database import DatabaseManager
 from core.config import Config
-from core.greeks_processor import process_greeks_from_db, calc_iv_rank
+from core.greeks_processor import process_greeks_from_db, calc_iv_rank, calc_iv_percentile, get_iv_trading_bias
 
 # Configure logging
 logging.basicConfig(
@@ -968,18 +968,11 @@ def greeks_pro():
             ce_oi = decimal_to_float(pcr_row[1] or 1)
             pcr = pe_oi / ce_oi if ce_oi > 0 else 1.0
 
-            # Get IV Rank (52-week VIX range)
-            cursor.execute("""
-                SELECT MIN(india_vix_ltp) as iv_low, MAX(india_vix_ltp) as iv_high
-                FROM market_feed_realtime
-                WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 365 DAY)
-            """)
-            iv_row = cursor.fetchone()
-            iv_rank = calc_iv_rank(
-                vix_current,
-                decimal_to_float(iv_row[1] or 20),
-                decimal_to_float(iv_row[0] or 10)
-            ) or 50.0
+            # Get IV Environment (Rank + Percentile)
+            with DatabaseManager.get_connection() as conn:
+                iv_data = calc_iv_percentile(vix_current, conn)
+            iv_rank = iv_data.get("iv_rank") or 50.0  # backward compat
+            iv_bias = get_iv_trading_bias(iv_data)
 
         # Get expiry date from Dhan API (auto-detect next Tuesday)
         from datetime import datetime as dt
@@ -1073,7 +1066,9 @@ def greeks_pro():
             'alerts': processed['alerts'],
             'entry_signals': signals,
             'portfolio': portfolio,
-            'iv_rank': iv_rank,
+            'iv_rank': iv_rank,           # backward compat — existing charts use this
+            'iv_environment': iv_data,     # NEW — full percentile object
+            'iv_bias': iv_bias,           # NEW — BUY_FAVOURED | SELL_FAVOURED | NEUTRAL
         }
 
         return jsonify(response)

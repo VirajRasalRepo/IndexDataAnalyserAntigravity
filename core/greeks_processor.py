@@ -141,6 +141,193 @@ def calc_iv_rank(current_iv: float, iv_52w_high: float, iv_52w_low: float) -> Op
     return round(rank, 2)
 
 
+def calc_iv_percentile(current_vix: float, conn) -> dict:
+    """
+    Computes IV Rank AND IV Percentile from existing
+    market_feed_realtime table. No schema changes required.
+
+    IV Rank       = Where today's VIX sits in 52W high-low range
+    IV Percentile = % of historical days where VIX was BELOW today
+
+    Critical insight: When Rank and Percentile disagree by >20pts,
+    IV Rank is actively misleading. Always trust Percentile.
+    """
+    cursor = conn.cursor()
+
+    # PRIMARY: Get one closing VIX per trading day (15:20-15:31 window)
+    try:
+        cursor.execute("""
+            SELECT
+                DATE(timestamp)  AS trading_date,
+                AVG(india_vix_ltp)         AS closing_vix
+            FROM market_feed_realtime
+            WHERE
+                TIME(timestamp) BETWEEN '15:20:00' AND '15:31:00'
+                AND india_vix_ltp IS NOT NULL
+                AND india_vix_ltp > 5.0
+            GROUP BY DATE(timestamp)
+            ORDER BY trading_date DESC
+            LIMIT 252
+        """)
+        rows = cursor.fetchall()
+        cursor.close()
+    except Exception as e:
+        try:
+            cursor.close()
+        except:
+            pass
+        rows = []
+
+    # FALLBACK: If closing window empty (e.g. during market hours testing)
+    # use full-day average per date instead
+    if len(rows) < 5:
+        try:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT
+                    DATE(timestamp) AS trading_date,
+                    AVG(india_vix_ltp)        AS avg_vix
+                FROM market_feed_realtime
+                WHERE
+                    india_vix_ltp IS NOT NULL
+                    AND india_vix_ltp > 5.0
+                GROUP BY DATE(timestamp)
+                ORDER BY trading_date DESC
+                LIMIT 252
+            """)
+            rows = cursor.fetchall()
+            cursor.close()
+        except Exception as e:
+            rows = []
+
+    # Not enough history yet
+    if len(rows) < 10:
+        return {
+            "current_vix":       round(current_vix, 2),
+            "iv_rank":           None,
+            "iv_percentile":     None,
+            "iv_52w_high":       None,
+            "iv_52w_low":        None,
+            "iv_median":         None,
+            "environment":       "BUILDING DATA",
+            "action":            f"Need 10+ trading days ({len(rows)} collected so far)",
+            "color":             "grey",
+            "divergence":        False,
+            "gap":               0,
+            "divergence_note":   "",
+            "divergence_action": "",
+            "data_points":       len(rows),
+            "sufficient_data":   False,
+            "bands":             {},
+        }
+
+    daily_vix  = [float(r[1]) for r in rows if r[1] is not None]
+    sorted_vix = sorted(daily_vix)
+    n          = len(daily_vix)
+
+    # ── IV Rank ──────────────────────────────────────────────
+    iv_high = max(daily_vix)
+    iv_low  = min(daily_vix)
+    iv_rank = round(
+        (current_vix - iv_low) / (iv_high - iv_low) * 100
+        if iv_high != iv_low else 50.0, 2
+    )
+    iv_rank = max(0.0, min(100.0, iv_rank))
+
+    # ── IV Percentile ─────────────────────────────────────────
+    # % of historical days where VIX was BELOW today's level
+    days_below    = sum(1 for v in daily_vix if v < current_vix)
+    iv_percentile = round((days_below / n) * 100, 2)
+
+    # ── Environment (always based on Percentile — more accurate) ──
+    if iv_percentile < 25:
+        environment = "CHEAP IV"
+        action      = "Good to BUY options — IV historically low"
+        color       = "green"
+    elif iv_percentile > 75:
+        environment = "EXPENSIVE IV"
+        action      = "Prefer SELLING premium — IV historically high"
+        color       = "red"
+    else:
+        environment = "FAIR IV"
+        action      = "Neutral — monitor for directional breakout"
+        color       = "yellow"
+
+    # ── Rank vs Percentile Divergence ─────────────────────────
+    # The KEY signal most dashboards miss entirely.
+    # When gap > 20pts, IV Rank is lying to the trader.
+    gap        = abs(iv_rank - iv_percentile)
+    divergence = gap > 20.0
+    divergence_note   = ""
+    divergence_action = ""
+
+    if divergence:
+        if iv_rank > iv_percentile:
+            divergence_note = (
+                f"IV Rank ({iv_rank}%) overstates expensiveness. "
+                f"Only {iv_percentile}% of days had lower VIX — "
+                f"today is more normal than the 52W range implies."
+            )
+            divergence_action = (
+                "Buying options is safer than IV Rank suggests. "
+                "Trust Percentile over Rank today."
+            )
+        else:
+            divergence_note = (
+                f"IV Rank ({iv_rank}%) understates expensiveness. "
+                f"{iv_percentile}% of days had lower VIX historically — "
+                f"IV is actually EXPENSIVE despite appearing moderate."
+            )
+            divergence_action = (
+                "AVOID buying options. IV Rank is misleading. "
+                "IV Percentile shows premium is historically high."
+            )
+
+    # ── Percentile band thresholds for bar display ────────────
+    def pct_val(p):
+        return round(sorted_vix[min(int(p / 100 * n), n - 1)], 2)
+
+    return {
+        "current_vix":       round(current_vix, 2),
+        "iv_rank":           iv_rank,
+        "iv_percentile":     iv_percentile,
+        "iv_52w_high":       round(iv_high, 2),
+        "iv_52w_low":        round(iv_low, 2),
+        "iv_median":         round(sorted_vix[n // 2], 2),
+        "environment":       environment,
+        "action":            action,
+        "color":             color,
+        "divergence":        divergence,
+        "gap":               round(gap, 2),
+        "divergence_note":   divergence_note,
+        "divergence_action": divergence_action,
+        "data_points":       n,
+        "sufficient_data":   True,
+        "bands": {
+            "p10": pct_val(10),
+            "p25": pct_val(25),
+            "p50": pct_val(50),
+            "p75": pct_val(75),
+            "p90": pct_val(90),
+        },
+    }
+
+
+def get_iv_trading_bias(iv_data: dict) -> str:
+    """
+    Single trading bias for entry signal filtering.
+    Returns: BUY_FAVOURED | SELL_FAVOURED | NEUTRAL | UNKNOWN
+    """
+    if not iv_data.get("sufficient_data"):
+        return "UNKNOWN"
+    pct = iv_data["iv_percentile"]
+    if pct < 25:
+        return "BUY_FAVOURED"
+    elif pct > 75:
+        return "SELL_FAVOURED"
+    return "NEUTRAL"
+
+
 def calc_theta_trap(theta: float, ltp: float) -> bool:
     """Theta > 15% of premium per hour = time killing this position."""
     if ltp < 0.5:
