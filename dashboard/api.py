@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.database import DatabaseManager
 from core.config import Config
+from core.greeks_processor import process_greeks_from_db, calc_iv_rank
 
 # Configure logging
 logging.basicConfig(
@@ -47,7 +48,11 @@ def is_trading_day(date_obj):
     if date_obj.weekday() >= 5:
         return False
 
-    # TODO: Add Indian market holiday calendar check here if needed
+    # Check if market holiday
+    date_str = date_obj.strftime('%Y-%m-%d')
+    if date_str in Config.MARKET_HOLIDAYS:
+        return False
+
     return True
 
 
@@ -647,21 +652,30 @@ def export_full_day():
 
 @app.route('/api/available-dates', methods=['GET'])
 def get_available_dates():
-    """Get list of dates with available data."""
+    """Get list of dates with available data (only trading days with data in market hours)."""
     try:
         with DatabaseManager.get_cursor() as cursor:
-            # Get distinct dates with market hours data
+            # Get distinct dates with data in market hours only
             cursor.execute(f"""
                 SELECT DISTINCT Date
                 FROM nifty_oc_historical
-                WHERE TIME_TO_SEC(Time) >= {MARKET_OPEN_TIME}
+                WHERE ce_oi IS NOT NULL
+                  AND TIME_TO_SEC(Time) >= {MARKET_OPEN_TIME}
                   AND TIME_TO_SEC(Time) <= {MARKET_CLOSE_TIME}
                 ORDER BY Date DESC
-                LIMIT 30
+                LIMIT 90
             """)
 
-            dates = [str(row[0]) for row in cursor.fetchall()]
-            return jsonify(dates)
+            all_dates = [str(row[0]) for row in cursor.fetchall()]
+
+            # Filter to only include trading days (exclude weekends and holidays)
+            trading_dates = [date_str for date_str in all_dates if is_trading_day(date_str)]
+
+            return jsonify({
+                'status': 'success',
+                'dates': trading_dates,
+                'count': len(trading_dates)
+            })
 
     except Exception as e:
         logger.error(f"Error fetching available dates: {e}", exc_info=True)
@@ -698,8 +712,9 @@ def get_available_times():
     try:
         date_str = request.args.get('date')  # Format: YYYY-MM-DD
 
-        if not date_str:
-            return jsonify({'error': 'Date parameter required'}), 400
+        # Handle missing or invalid date parameter
+        if not date_str or date_str == 'null' or date_str == 'undefined':
+            return jsonify({'error': 'Valid date parameter required'}), 400
 
         # Check if trading day
         if not is_trading_day(date_str):
@@ -747,6 +762,503 @@ def get_available_times():
     except Exception as e:
         logger.error(f"Error fetching available times: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/credentials', methods=['GET'])
+def get_credentials():
+    """Get current API credentials from .env file."""
+    try:
+        env_path = Path(__file__).parent.parent / '.env'
+
+        if not env_path.exists():
+            return jsonify({
+                'client_id': '',
+                'access_token': ''
+            })
+
+        # Read .env file
+        with open(env_path, 'r') as f:
+            lines = f.readlines()
+
+        client_id = ''
+        access_token = ''
+
+        for line in lines:
+            line = line.strip()
+            if line.startswith('DHAN_CLIENT_ID='):
+                client_id = line.split('=', 1)[1]
+            elif line.startswith('DHAN_ACCESS_TOKEN='):
+                access_token = line.split('=', 1)[1]
+
+        return jsonify({
+            'client_id': client_id,
+            'access_token': access_token
+        })
+
+    except Exception as e:
+        logger.error(f"Error reading credentials: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/credentials', methods=['POST'])
+def update_credentials():
+    """Update API credentials in .env file."""
+    try:
+        data = request.get_json()
+
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+
+        client_id = data.get('client_id', '').strip()
+        access_token = data.get('access_token', '').strip()
+
+        if not client_id or not access_token:
+            return jsonify({'error': 'Both client_id and access_token are required'}), 400
+
+        env_path = Path(__file__).parent.parent / '.env'
+
+        # Read existing .env file
+        if env_path.exists():
+            with open(env_path, 'r') as f:
+                lines = f.readlines()
+        else:
+            lines = []
+
+        # Update credentials
+        updated_lines = []
+        client_id_updated = False
+        access_token_updated = False
+
+        for line in lines:
+            if line.strip().startswith('DHAN_CLIENT_ID='):
+                updated_lines.append(f'DHAN_CLIENT_ID={client_id}\n')
+                client_id_updated = True
+            elif line.strip().startswith('DHAN_ACCESS_TOKEN='):
+                updated_lines.append(f'DHAN_ACCESS_TOKEN={access_token}\n')
+                access_token_updated = True
+            else:
+                updated_lines.append(line)
+
+        # Add credentials if they don't exist
+        if not client_id_updated:
+            updated_lines.insert(0, f'DHAN_CLIENT_ID={client_id}\n')
+        if not access_token_updated:
+            updated_lines.insert(1, f'DHAN_ACCESS_TOKEN={access_token}\n')
+
+        # Write back to .env file
+        with open(env_path, 'w') as f:
+            f.writelines(updated_lines)
+
+        logger.info("API credentials updated successfully")
+
+        return jsonify({
+            'success': True,
+            'message': 'Credentials updated successfully. Please restart main.py to apply changes.'
+        })
+
+    except Exception as e:
+        logger.error(f"Error updating credentials: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+# ═══════════════════════════════════════════════════════════════
+# GREEKS ANALYTICS ENDPOINTS
+# ═══════════════════════════════════════════════════════════════
+
+# In-memory cache for Greeks data
+_greeks_cache = {
+    'data': None,
+    'timestamp': None,
+    'prev_snapshot': {}  # For velocity calculation
+}
+
+
+@app.route('/api/greeks-pro', methods=['GET'])
+def greeks_pro():
+    """
+    Main Greeks endpoint - returns comprehensive Greeks analytics.
+
+    Query Parameters:
+        date (optional): Date in YYYY-MM-DD format (default: today)
+        time (optional): Time in HH:MM:SS format (default: latest for date)
+
+    Returns:
+        JSON with:
+        - spot, dte, vix, vix_change_pct, expiry
+        - trend_intensity (market bias, delta flows)
+        - pcr_divergence
+        - ce_top5, pe_top5 (best efficiency strikes)
+        - ce_all, pe_all (top 10 each)
+        - lotto_strikes (Scalp + Gamma Blast)
+        - alerts (Theta Trap, Gamma Blast, etc.)
+        - entry_signals (ENTRY/EXIT/CAUTION)
+        - portfolio (net delta from User_ table)
+        - iv_rank
+    """
+    try:
+        # Get date and time parameters
+        target_date = request.args.get('date', None)
+        target_time = request.args.get('time', None)
+
+        with DatabaseManager.get_cursor() as cursor:
+            # Build query based on parameters
+            if target_date and target_time:
+                # Specific date and time
+                query = """
+                    SELECT *
+                    FROM nifty_oc_historical
+                    WHERE Date = %s AND Time = %s
+                """
+                cursor.execute(query, (target_date, target_time))
+            elif target_date:
+                # Latest time for specific date
+                query = """
+                    SELECT *
+                    FROM nifty_oc_historical
+                    WHERE Date = %s AND Time = (
+                        SELECT MAX(Time) FROM nifty_oc_historical WHERE Date = %s
+                    )
+                """
+                cursor.execute(query, (target_date, target_date))
+            else:
+                # Latest data for today (default)
+                query = """
+                    SELECT *
+                    FROM nifty_oc_historical
+                    WHERE Date = CURDATE() AND Time = (
+                        SELECT MAX(Time) FROM nifty_oc_historical WHERE Date = CURDATE()
+                    )
+                """
+                cursor.execute(query)
+
+            columns = [desc[0] for desc in cursor.description]
+            rows = cursor.fetchall()
+
+            if not rows:
+                date_msg = f" for {target_date}" if target_date else " for today"
+                return jsonify({'status': 'error', 'message': f'No data available{date_msg}'}), 404
+
+            db_rows = [dict(zip(columns, row)) for row in rows]
+
+            # Get spot price
+            spot = decimal_to_float(db_rows[0].get('Spot_price', 24500.0))
+
+            # Get VIX (current and previous)
+            cursor.execute("""
+                SELECT india_vix_ltp
+                FROM market_feed_realtime
+                ORDER BY timestamp DESC LIMIT 2
+            """)
+            vix_rows = cursor.fetchall()
+            vix_current = decimal_to_float(vix_rows[0][0]) if vix_rows else 14.0
+            vix_prev = decimal_to_float(vix_rows[1][0]) if len(vix_rows) > 1 else vix_current
+
+            # Calculate PCR
+            cursor.execute("""
+                SELECT
+                    SUM(pe_oi) as pe_oi_total,
+                    SUM(ce_oi) as ce_oi_total
+                FROM nifty_oc_historical
+                WHERE Date = CURDATE() AND Time = (
+                    SELECT MAX(Time) FROM nifty_oc_historical WHERE Date = CURDATE()
+                )
+            """)
+            pcr_row = cursor.fetchone()
+            pe_oi = decimal_to_float(pcr_row[0] or 1)
+            ce_oi = decimal_to_float(pcr_row[1] or 1)
+            pcr = pe_oi / ce_oi if ce_oi > 0 else 1.0
+
+            # Get IV Rank (52-week VIX range)
+            cursor.execute("""
+                SELECT MIN(india_vix_ltp) as iv_low, MAX(india_vix_ltp) as iv_high
+                FROM market_feed_realtime
+                WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 365 DAY)
+            """)
+            iv_row = cursor.fetchone()
+            iv_rank = calc_iv_rank(
+                vix_current,
+                decimal_to_float(iv_row[1] or 20),
+                decimal_to_float(iv_row[0] or 10)
+            ) or 50.0
+
+        # Get expiry date from Dhan API (auto-detect next Tuesday)
+        from datetime import datetime as dt
+        from dhanhq import dhanhq
+        from core import Utilities
+
+        # Initialize Dhan client
+        dhan = dhanhq(Config.DHAN_CLIENT_ID, Config.DHAN_ACCESS_TOKEN)
+        expiry_data = Utilities.get_expiry_list(dhan)
+        expiry_str = expiry_data[0] if isinstance(expiry_data, list) and len(expiry_data) > 0 else expiry_data
+        expiry_date = dt.strptime(expiry_str, '%Y-%m-%d').date() if expiry_str else dt.now().date()
+
+        # Process Greeks
+        processed = process_greeks_from_db(
+            db_rows=db_rows,
+            spot=spot,
+            expiry_date=expiry_date,
+            vix_current=vix_current,
+            vix_prev=vix_prev,
+            pcr=pcr,
+            prev_minute_greeks=_greeks_cache['prev_snapshot']
+        )
+
+        # Update cache for next velocity calculation
+        _greeks_cache['prev_snapshot'] = {
+            f"{r['strike_price']}_{r['option_type']}": r
+            for r in processed['ce_ranked'] + processed['pe_ranked']
+        }
+        _greeks_cache['data'] = processed
+        _greeks_cache['timestamp'] = datetime.now()
+
+        # Get portfolio net delta
+        portfolio = get_portfolio_net_delta()
+
+        # Generate entry signals
+        from core.greeks_processor import generate_entry_signals
+        signals = generate_entry_signals(processed, iv_rank)
+
+        # Lotto strikes (Scalp + Gamma Blast)
+        lotto = [r for r in processed['ce_ranked'] + processed['pe_ranked']
+                 if r.get('lotto_flag')]
+
+        # Build response
+        response = {
+            'status': 'ok',
+            'timestamp': processed['timestamp'],
+            'spot': processed['spot'],
+            'dte': processed['dte'],
+            'vix': processed['vix'],
+            'vix_change_pct': processed['vix_change_pct'],
+            'expiry': expiry_date.strftime('%Y-%m-%d'),
+            'trend_intensity': processed['trend_intensity'],
+            'pcr_divergence': processed['pcr_divergence'],
+            'ce_top5': processed['ce_ranked'][:5],
+            'pe_top5': processed['pe_ranked'][:5],
+            'ce_all': processed['ce_ranked'][:10],
+            'pe_all': processed['pe_ranked'][:10],
+            'lotto_strikes': lotto,
+            'alerts': processed['alerts'],
+            'entry_signals': signals,
+            'portfolio': portfolio,
+            'iv_rank': iv_rank,
+        }
+
+        return jsonify(response)
+
+    except Exception as e:
+        logger.error(f"/api/greeks-pro error: {e}", exc_info=True)
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@app.route('/api/greeks/portfolio', methods=['GET'])
+def greeks_portfolio():
+    """Get portfolio net delta from User_ table."""
+    try:
+        portfolio = get_portfolio_net_delta()
+        return jsonify(portfolio)
+    except Exception as e:
+        logger.error(f"/api/greeks/portfolio error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+def get_portfolio_net_delta():
+    """
+    Calculate portfolio net delta from User_ table.
+
+    Returns:
+        Dict with total_delta, delta_bias, pnl_estimate, open_trades, trades
+    """
+    try:
+        with DatabaseManager.get_cursor() as cursor:
+            cursor.execute("""
+                SELECT u.trade_id, u.strike_price, u.option_type,
+                       u.quantity, u.entry_price,
+                       CASE
+                           WHEN u.option_type = 'CE' THEN h.ce_delta
+                           WHEN u.option_type = 'PE' THEN h.pe_delta
+                       END as delta,
+                       CASE
+                           WHEN u.option_type = 'CE' THEN h.ce_theta
+                           WHEN u.option_type = 'PE' THEN h.pe_theta
+                       END as theta,
+                       CASE
+                           WHEN u.option_type = 'CE' THEN h.ce_gamma
+                           WHEN u.option_type = 'PE' THEN h.pe_gamma
+                       END as gamma,
+                       CASE
+                           WHEN u.option_type = 'CE' THEN h.ce_price
+                           WHEN u.option_type = 'PE' THEN h.pe_price
+                       END as current_ltp,
+                       CASE
+                           WHEN u.option_type = 'CE' THEN h.ce_alert_theta_trap
+                           WHEN u.option_type = 'PE' THEN h.pe_alert_theta_trap
+                       END as alert_theta_trap,
+                       CASE
+                           WHEN u.option_type = 'CE' THEN h.ce_alert_gamma_blast
+                           WHEN u.option_type = 'PE' THEN h.pe_alert_gamma_blast
+                       END as alert_gamma_blast
+                FROM User_ u
+                LEFT JOIN (
+                    SELECT strike_price,
+                           ce_delta, ce_theta, ce_gamma, ce_price,
+                           ce_alert_theta_trap, ce_alert_gamma_blast,
+                           pe_delta, pe_theta, pe_gamma, pe_price,
+                           pe_alert_theta_trap, pe_alert_gamma_blast
+                    FROM nifty_oc_historical
+                    WHERE Date = CURDATE() AND Time = (
+                        SELECT MAX(Time) FROM nifty_oc_historical WHERE Date = CURDATE()
+                    )
+                ) h ON h.strike_price = u.strike_price
+                WHERE u.status = 'OPEN'
+            """)
+
+            columns = [desc[0] for desc in cursor.description]
+            rows = cursor.fetchall()
+            trades = [dict(zip(columns, row)) for row in rows]
+
+        # Calculate totals
+        total_delta = sum(
+            decimal_to_float(t.get('delta', 0)) * decimal_to_float(t.get('quantity', 0))
+            for t in trades
+        )
+
+        pnl = sum(
+            (decimal_to_float(t.get('current_ltp', 0)) - decimal_to_float(t.get('entry_price', 0)))
+            * decimal_to_float(t.get('quantity', 0))
+            for t in trades
+        )
+
+        bias = ("NET LONG" if total_delta > 0.5 else
+                "NET SHORT" if total_delta < -0.5 else "NEAR NEUTRAL")
+
+        return {
+            'total_delta': round(total_delta, 4),
+            'delta_bias': bias,
+            'pnl_estimate': round(pnl, 2),
+            'open_trades': len(trades),
+            'trades': trades,
+        }
+
+    except Exception as e:
+        logger.error(f"get_portfolio_net_delta error: {e}")
+        return {
+            'error': str(e),
+            'total_delta': 0.0,
+            'trades': []
+        }
+
+
+@app.route('/api/greeks/signals', methods=['GET'])
+def greeks_signals():
+    """Get latest entry/exit signals."""
+    try:
+        if _greeks_cache['data'] is None:
+            return jsonify({'error': 'No Greeks data available. Call /api/greeks-pro first'}), 404
+
+        from core.greeks_processor import generate_entry_signals
+
+        # Get IV rank
+        with DatabaseManager.get_cursor() as cursor:
+            cursor.execute("""
+                SELECT MIN(india_vix_ltp) as iv_low, MAX(india_vix_ltp) as iv_high
+                FROM market_feed_realtime
+                WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 365 DAY)
+            """)
+            iv_row = cursor.fetchone()
+            cursor.execute("""
+                SELECT india_vix_ltp FROM market_feed_realtime
+                ORDER BY timestamp DESC LIMIT 1
+            """)
+            vix_current = decimal_to_float(cursor.fetchone()[0]) if cursor.rowcount > 0 else 14.0
+
+        iv_rank = calc_iv_rank(
+            vix_current,
+            decimal_to_float(iv_row[1] or 20),
+            decimal_to_float(iv_row[0] or 10)
+        ) or 50.0
+
+        signals = generate_entry_signals(_greeks_cache['data'], iv_rank)
+
+        return jsonify({'signals': signals})
+
+    except Exception as e:
+        logger.error(f"/api/greeks/signals error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/available-times', methods=['GET'])
+def available_times():
+    """
+    Get list of available times for a specific date.
+
+    Query Parameters:
+        date: Date in YYYY-MM-DD format (required)
+
+    Returns:
+        JSON with list of times in HH:MM:SS format
+    """
+    try:
+        target_date = request.args.get('date')
+        if not target_date:
+            return jsonify({'status': 'error', 'message': 'Date parameter required'}), 400
+
+        with DatabaseManager.get_cursor() as cursor:
+            cursor.execute("""
+                SELECT DISTINCT Time
+                FROM nifty_oc_historical
+                WHERE Date = %s AND ce_efficiency IS NOT NULL
+                ORDER BY Time ASC
+            """, (target_date,))
+            rows = cursor.fetchall()
+
+            times = [row[0].strftime('%H:%M:%S') if hasattr(row[0], 'strftime') else str(row[0]) for row in rows]
+
+            return jsonify({
+                'status': 'success',
+                'date': target_date,
+                'times': times,
+                'count': len(times)
+            })
+
+    except Exception as e:
+        logger.error(f"Error in available-times endpoint: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@app.route('/')
+def index():
+    """Serve the main dashboard page."""
+    from flask import send_file
+    return send_file('index.html')
+
+
+@app.route('/greeks.html')
+def greeks_dashboard():
+    """Serve the Greeks dashboard page."""
+    from flask import send_file
+    return send_file('greeks.html')
+
+
+@app.route('/option_chain.html')
+def option_chain():
+    """Serve the option chain page."""
+    from flask import send_file
+    return send_file('option_chain.html')
+
+
+@app.route('/historical_data.html')
+def historical_data():
+    """Serve the historical data page."""
+    from flask import send_file
+    return send_file('historical_data.html')
+
+
+@app.route('/api_credentials.html')
+def api_credentials():
+    """Serve the API credentials page."""
+    from flask import send_file
+    return send_file('api_credentials.html')
 
 
 if __name__ == '__main__':

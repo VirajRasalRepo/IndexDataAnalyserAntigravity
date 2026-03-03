@@ -33,16 +33,67 @@
             border-right: 1px solid #1e293b;
             display: flex;
             flex-direction: column;
+            transition: all 0.3s ease;
+        }
+
+        .sidebar.collapsed {
+            width: 64px;
+        }
+
+        .sidebar.collapsed .logo-text,
+        .sidebar.collapsed .nav-link span,
+        .sidebar.collapsed .section-header {
+            display: none;
+        }
+
+        .sidebar.collapsed .nav-link {
+            justify-content: center;
+            padding: 8px;
         }
 
         .sidebar-header {
             padding: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
         }
 
         .logo-container {
             display: flex;
             align-items: center;
             gap: 12px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .sidebar-toggle {
+            width: 32px;
+            height: 32px;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            color: #94a3b8;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .sidebar-toggle:hover {
+            background: #334155;
+            color: #135bec;
+            border-color: #135bec;
+        }
+
+        .sidebar-toggle svg {
+            transition: transform 0.3s;
+        }
+
+        .sidebar.collapsed .sidebar-toggle svg {
+            transform: rotate(180deg);
         }
 
         .logo-icon {
@@ -324,6 +375,40 @@
             font-size: 14px;
             font-weight: 700;
             color: #f1f5f9;
+        }
+
+        .month-navigation {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .month-nav-btn {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 4px;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #94a3b8;
+            transition: all 0.2s;
+        }
+
+        .month-nav-btn:hover {
+            background: #334155;
+            border-color: #135bec;
+            color: #135bec;
+        }
+
+        .month-display {
+            font-size: 13px;
+            font-weight: 600;
+            color: #f1f5f9;
+            min-width: 120px;
+            text-align: center;
         }
 
         .calendar-legend {
@@ -679,7 +764,7 @@
 
 <body>
     <div class="dashboard">
-        <div class="sidebar">
+        <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <div class="logo-container">
                     <div class="logo-icon">
@@ -691,6 +776,11 @@
                     </div>
                     <div class="logo-text">OI Analysis</div>
                 </div>
+                <button class="sidebar-toggle" onclick="toggleSidebar()" title="Toggle Sidebar">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                </button>
             </div>
             <div class="nav-menu">
                 <a href="index.html" class="nav-link active">
@@ -700,14 +790,14 @@
                         <rect x="14" y="14" width="7" height="7"></rect>
                         <rect x="3" y="14" width="7" height="7"></rect>
                     </svg>
-                    Dashboard
+                    <span>Dashboard</span>
                 </a>
                 <a href="option_chain.html" class="nav-link">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="12" y1="1" x2="12" y2="23"></line>
                         <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
                     </svg>
-                    Option Chain
+                    <span>Option Chain</span>
                 </a>
                 <a href="#" class="nav-link">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -715,9 +805,9 @@
                         <path d="M12 20V4"></path>
                         <path d="M6 20v-6"></path>
                     </svg>
-                    OI Multi-Strike
+                    <span>OI Multi-Strike</span>
                 </a>
-                <a href="#" class="nav-link">
+                <a href="greeks.html" class="nav-link">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path
                             d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
@@ -726,7 +816,7 @@
                         <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
                         <line x1="12" y1="22.08" x2="12" y2="12"></line>
                     </svg>
-                    Greeks Dashboard
+                    <span>Greeks Dashboard</span>
                 </a>
 
                 <div class="section-header">Reports</div>
@@ -738,13 +828,22 @@
                         <line x1="16" y1="17" x2="8" y2="17"></line>
                         <polyline points="10 9 9 9 8 9"></polyline>
                     </svg>
-                    Historical Data
+                    <span>Historical Data</span>
                 </a>
                 <a href="#" class="nav-link">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
                     </svg>
-                    Flash Signals
+                    <span>Flash Signals</span>
+                </a>
+
+                <div class="section-header">Settings</div>
+                <a href="api_credentials.html" class="nav-link">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                    <span>API Credentials</span>
                 </a>
             </div>
         </div>
@@ -769,8 +868,21 @@
                             <div class="calendar-dropdown" id="calendar-dropdown">
                                 <div class="calendar-header">
                                     <div class="calendar-title">Select Trading Day</div>
-                                    <span id="date-count" style="font-size: 11px; color: #10b981;"></span>
+                                    <div class="month-navigation">
+                                        <button class="month-nav-btn" onclick="previousMonth()" title="Previous Month">
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                                <polyline points="15 18 9 12 15 6"></polyline>
+                                            </svg>
+                                        </button>
+                                        <span class="month-display" id="month-display">Loading...</span>
+                                        <button class="month-nav-btn" onclick="nextMonth()" title="Next Month">
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                                <polyline points="9 18 15 12 9 6"></polyline>
+                                            </svg>
+                                        </button>
+                                    </div>
                                 </div>
+                                <div style="font-size: 11px; color: #10b981; margin-bottom: 8px; text-align: center;" id="date-count"></div>
                                 <div class="calendar-legend">
                                     <div class="legend-item">
                                         <div class="legend-dot available"></div>
@@ -857,11 +969,12 @@
     </div>
 
     <script>
-        const API_BASE = 'https://nonexhibitive-buena-chirurgical.ngrok-free.dev/api';
+        const API_BASE = 'http://localhost:5000/api';
         let refreshInterval;
         let currentData = null;
         let selectedDate = null;  // Track selected date
         let availableDates = [];   // Store available dates
+        let currentMonth = new Date();  // Track current month being displayed
 
         async function fetchData() {
             try {
@@ -1048,7 +1161,26 @@
         async function loadAvailableDates() {
             try {
                 const response = await fetch(`${API_BASE}/available-dates`);
-                availableDates = await response.json();
+                const data = await response.json();
+
+                // Handle both response formats: {dates: [...]} or just [...]
+                availableDates = data.dates || data;
+
+                // Auto-select today's date if available, otherwise select most recent date
+                if (!selectedDate && availableDates.length > 0) {
+                    const today = formatLocalDate(new Date());
+
+                    // Check if today has data
+                    if (availableDates.includes(today)) {
+                        selectedDate = today;
+                        console.log('Selected today\'s date:', today);
+                    } else {
+                        // Select most recent date (dates are sorted DESC, so first one is most recent)
+                        selectedDate = availableDates[0];
+                        console.log('Today has no data, selected most recent:', selectedDate);
+                    }
+                }
+
                 generateCalendar();
                 updateDateDisplay();
             } catch (error) {
@@ -1064,12 +1196,37 @@
             input.classList.toggle('active');
         }
 
+        // Helper function to format date as YYYY-MM-DD in local timezone
+        function formatLocalDate(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        // Month navigation functions
+        function previousMonth() {
+            currentMonth.setMonth(currentMonth.getMonth() - 1);
+            generateCalendar();
+        }
+
+        function nextMonth() {
+            currentMonth.setMonth(currentMonth.getMonth() + 1);
+            generateCalendar();
+        }
+
         function generateCalendar() {
             const grid = document.getElementById('calendar-grid');
             const dateCount = document.getElementById('date-count');
+            const monthDisplay = document.getElementById('month-display');
 
             // Clear existing calendar
             grid.innerHTML = '';
+
+            // Update month display
+            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                'July', 'August', 'September', 'October', 'November', 'December'];
+            monthDisplay.textContent = `${monthNames[currentMonth.getMonth()]} ${currentMonth.getFullYear()}`;
 
             // Add day headers
             const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -1080,30 +1237,21 @@
                 grid.appendChild(header);
             });
 
-            // Helper function to format date as YYYY-MM-DD in local timezone
-            function formatLocalDate(date) {
-                const year = date.getFullYear();
-                const month = String(date.getMonth() + 1).padStart(2, '0');
-                const day = String(date.getDate()).padStart(2, '0');
-                return `${year}-${month}-${day}`;
-            }
-
-            // Get date range (last 35 days to show full weeks)
             const today = new Date();
-            today.setHours(0, 0, 0, 0); // Reset to midnight
+            today.setHours(0, 0, 0, 0);
             const todayStr = formatLocalDate(today);
 
-            const endDate = new Date(today);
-            const startDate = new Date(today);
-            startDate.setDate(startDate.getDate() - 34); // 5 weeks back
+            // Get first day of the month
+            const firstDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+            const lastDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
 
-            // Get the first day to display (start of week containing startDate)
-            const firstDay = new Date(startDate);
-            firstDay.setDate(firstDay.getDate() - firstDay.getDay());
+            // Get the starting date (Sunday before or on first day of month)
+            const startDate = new Date(firstDayOfMonth);
+            startDate.setDate(startDate.getDate() - startDate.getDay());
 
-            // Generate calendar days
-            const currentDate = new Date(firstDay);
-            for (let i = 0; i < 35; i++) {
+            // Generate calendar (6 weeks = 42 days to cover all cases)
+            const currentDate = new Date(startDate);
+            for (let i = 0; i < 42; i++) {
                 const dateStr = formatLocalDate(currentDate);
                 const dayElement = document.createElement('div');
                 dayElement.className = 'calendar-day';
@@ -1115,12 +1263,9 @@
 
                 // Check if date has data available
                 const hasData = availableDates.includes(dateStr);
-
-                // Check if it's today
                 const isToday = dateStr === todayStr;
-
-                // Check if selected
                 const isSelected = dateStr === selectedDate;
+                const isCurrentMonth = currentDate.getMonth() === currentMonth.getMonth();
 
                 if (isToday) {
                     dayElement.classList.add('today');
@@ -1137,8 +1282,8 @@
                     dayElement.classList.add('unavailable');
                 }
 
-                // Dim dates outside the main month range
-                if (currentDate < startDate || currentDate > endDate) {
+                // Dim dates outside current month
+                if (!isCurrentMonth) {
                     dayElement.style.opacity = '0.3';
                 }
 
@@ -1146,11 +1291,17 @@
                 currentDate.setDate(currentDate.getDate() + 1);
             }
 
-            // Update count
-            if (availableDates.length > 0) {
-                dateCount.textContent = `${availableDates.length} ${availableDates.length === 1 ? 'day' : 'days'} available`;
+            // Update count - only count dates in current month
+            const datesInCurrentMonth = availableDates.filter(dateStr => {
+                const date = new Date(dateStr + 'T00:00:00');
+                return date.getMonth() === currentMonth.getMonth() &&
+                       date.getFullYear() === currentMonth.getFullYear();
+            });
+
+            if (datesInCurrentMonth.length > 0) {
+                dateCount.textContent = `${datesInCurrentMonth.length} ${datesInCurrentMonth.length === 1 ? 'day' : 'days'} available in this month`;
             } else {
-                dateCount.textContent = 'No data available';
+                dateCount.textContent = 'No data available in this month';
             }
         }
 
@@ -1178,6 +1329,23 @@
             refreshInterval = setInterval(fetchData, 5000); // 5 seconds for near real-time updates
         }
 
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('collapsed');
+
+            // Save state to localStorage
+            const isCollapsed = sidebar.classList.contains('collapsed');
+            localStorage.setItem('sidebarCollapsed', isCollapsed);
+        }
+
+        function initSidebar() {
+            // Restore sidebar state from localStorage
+            const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+            if (isCollapsed) {
+                document.getElementById('sidebar').classList.add('collapsed');
+            }
+        }
+
         // Close calendar when clicking outside
         document.addEventListener('click', function (event) {
             const container = document.querySelector('.date-picker-container');
@@ -1190,6 +1358,7 @@
         });
 
         window.addEventListener('load', async () => {
+            initSidebar();  // Restore sidebar state
             await loadAvailableDates();  // Load and populate date selector
             await fetchData();
             startAutoRefresh();
