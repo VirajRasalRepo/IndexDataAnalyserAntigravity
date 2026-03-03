@@ -149,12 +149,18 @@ if mysql -u root -p"$MYSQL_ROOT_PASSWORD" -e "SELECT 1;" &> /dev/null; then
     # Run database setup script
     print_info "Creating database and tables..."
     mysql -u root -p"$MYSQL_ROOT_PASSWORD" < setup_database.sql
-    print_success "Database setup completed"
+    print_success "Primary database setup completed"
+    
+    # Run Greeks schema setup script
+    print_info "Creating Greeks analytics tables and columns..."
+    mysql -u root -p"$MYSQL_ROOT_PASSWORD" < setup_greeks_schema.sql
+    print_success "Greeks database setup completed"
 else
     print_error "Failed to connect to MySQL. Please check your password."
     echo ""
     echo "You can manually setup the database later by running:"
     echo "  mysql -u root -p < setup_database.sql"
+    echo "  mysql -u root -p < setup_greeks_schema.sql"
 fi
 echo ""
 
