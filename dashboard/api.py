@@ -1022,6 +1022,35 @@ def greeks_pro():
         lotto = [r for r in processed['ce_ranked'] + processed['pe_ranked']
                  if r.get('lotto_flag')]
 
+        # Calculate new analytics
+        from core.greeks_processor import calc_put_call_skew, calc_max_pain, calc_straddle_premium
+
+        # Find ATM strikes
+        spot = processed['spot']
+        atm_ce = min(processed['ce_ranked'], key=lambda x: abs(x['strike_price'] - spot)) if processed['ce_ranked'] else {}
+        atm_pe = min(processed['pe_ranked'], key=lambda x: abs(x['strike_price'] - spot)) if processed['pe_ranked'] else {}
+
+        # Put-Call Skew
+        put_call_skew = calc_put_call_skew(
+            atm_ce_iv=atm_ce.get('iv', 0) * 100,
+            atm_pe_iv=atm_pe.get('iv', 0) * 100
+        )
+
+        # Max Pain
+        all_strikes_for_max_pain = [{
+            'strike_price': r['strike_price'],
+            'ce_oi': next((c['oi'] for c in processed['ce_ranked'] if c['strike_price'] == r['strike_price']), 0),
+            'pe_oi': r['oi']
+        } for r in processed['pe_ranked']]
+        max_pain = calc_max_pain(all_strikes_for_max_pain)
+
+        # Straddle Premium
+        straddle_premium = calc_straddle_premium(
+            atm_ce_ltp=atm_ce.get('ltp', 0),
+            atm_pe_ltp=atm_pe.get('ltp', 0),
+            spot=spot
+        )
+
         # Build response
         response = {
             'status': 'ok',
@@ -1033,6 +1062,9 @@ def greeks_pro():
             'expiry': expiry_date.strftime('%Y-%m-%d'),
             'trend_intensity': processed['trend_intensity'],
             'pcr_divergence': processed['pcr_divergence'],
+            'put_call_skew': put_call_skew,
+            'max_pain': max_pain,
+            'straddle_premium': straddle_premium,
             'ce_top5': processed['ce_ranked'][:5],
             'pe_top5': processed['pe_ranked'][:5],
             'ce_all': processed['ce_ranked'][:10],

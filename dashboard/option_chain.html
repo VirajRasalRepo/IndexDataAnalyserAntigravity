@@ -35,16 +35,67 @@
             display: flex;
             flex-direction: column;
             flex-shrink: 0;
+            transition: all 0.3s ease;
+        }
+
+        .sidebar.collapsed {
+            width: 64px;
+        }
+
+        .sidebar.collapsed .logo-text,
+        .sidebar.collapsed .nav-link span,
+        .sidebar.collapsed .section-header {
+            display: none;
+        }
+
+        .sidebar.collapsed .nav-link {
+            justify-content: center;
+            padding: 8px;
         }
 
         .sidebar-header {
             padding: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
         }
 
         .logo-container {
             display: flex;
             align-items: center;
             gap: 12px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .sidebar-toggle {
+            width: 32px;
+            height: 32px;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            color: #94a3b8;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .sidebar-toggle:hover {
+            background: #334155;
+            color: #135bec;
+            border-color: #135bec;
+        }
+
+        .sidebar-toggle svg {
+            transition: transform 0.3s;
+        }
+
+        .sidebar.collapsed .sidebar-toggle svg {
+            transform: rotate(180deg);
         }
 
         .logo-icon {
@@ -544,7 +595,7 @@
 <body>
     <div class="dashboard">
         <!-- SIDEBAR -->
-        <div class="sidebar">
+        <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <div class="logo-container">
                     <div class="logo-icon">
@@ -556,6 +607,11 @@
                     </div>
                     <div class="logo-text">OI Analysis</div>
                 </div>
+                <button class="sidebar-toggle" onclick="toggleSidebar()" title="Toggle Sidebar">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                </button>
             </div>
 
             <div class="nav-menu">
@@ -566,14 +622,14 @@
                         <rect x="14" y="14" width="7" height="7"></rect>
                         <rect x="3" y="14" width="7" height="7"></rect>
                     </svg>
-                    Dashboard
+                    <span>Dashboard</span>
                 </a>
                 <a href="option_chain.html" class="nav-link active">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="12" y1="1" x2="12" y2="23"></line>
                         <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
                     </svg>
-                    Option Chain
+                    <span>Option Chain</span>
                 </a>
                 <a href="#" class="nav-link">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -581,9 +637,9 @@
                         <path d="M12 20V4"></path>
                         <path d="M6 20v-6"></path>
                     </svg>
-                    OI Multi-Strike
+                    <span>OI Multi-Strike</span>
                 </a>
-                <a href="#" class="nav-link">
+                <a href="greeks.html" class="nav-link">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path
                             d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
@@ -594,11 +650,11 @@
                         <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
                         <line x1="12" y1="22.08" x2="12" y2="12"></line>
                     </svg>
-                    Greeks Dashboard
+                    <span>Greeks Dashboard</span>
                 </a>
 
                 <div class="section-header">Reports</div>
-                <a href="#" class="nav-link">
+                <a href="historical_data.html" class="nav-link">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                         <polyline points="14 2 14 8 20 8"></polyline>
@@ -606,13 +662,22 @@
                         <line x1="16" y1="17" x2="8" y2="17"></line>
                         <polyline points="10 9 9 9 8 9"></polyline>
                     </svg>
-                    Historical Data
+                    <span>Historical Data</span>
                 </a>
                 <a href="#" class="nav-link">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
                     </svg>
-                    Flash Signals
+                    <span>Flash Signals</span>
+                </a>
+
+                <div class="section-header">Settings</div>
+                <a href="api_credentials.html" class="nav-link">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                    <span>API Credentials</span>
                 </a>
             </div>
         </div>
@@ -801,8 +866,24 @@
             }
         }
 
+        // Sidebar toggle functions
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('collapsed');
+            const isCollapsed = sidebar.classList.contains('collapsed');
+            localStorage.setItem('sidebarCollapsed', isCollapsed);
+        }
+
+        function initSidebar() {
+            const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+            if (isCollapsed) {
+                document.getElementById('sidebar').classList.add('collapsed');
+            }
+        }
+
         // Initialize
         window.addEventListener('load', async () => {
+            initSidebar();
             await fetchData();
             startAutoRefresh();
         });

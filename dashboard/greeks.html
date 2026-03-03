@@ -1155,6 +1155,39 @@
                         </div>
                     </div>
 
+                    <!-- NEW ANALYTICS ROW -->
+                    <div class="metrics-row" style="margin-top: 16px;">
+                        <!-- PUT-CALL SKEW -->
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <div class="metric-label">PUT-CALL SKEW</div>
+                                <div class="metric-badge" id="skewBadge">Normal</div>
+                            </div>
+                            <div class="metric-value" id="skewValue">Loading...</div>
+                            <div style="font-size: 11px; color: #64748b; margin-top: 4px;" id="skewSignal">--</div>
+                        </div>
+
+                        <!-- MAX PAIN -->
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <div class="metric-label">MAX PAIN</div>
+                                <div class="metric-badge neutral">Target Strike</div>
+                            </div>
+                            <div class="metric-value" id="maxPainValue">Loading...</div>
+                            <div style="font-size: 11px; color: #64748b; margin-top: 4px;" id="maxPainDistance">--</div>
+                        </div>
+
+                        <!-- STRADDLE PREMIUM -->
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <div class="metric-label">ATM STRADDLE</div>
+                                <div class="metric-badge purple" id="straddleBadge">Expected Move</div>
+                            </div>
+                            <div class="metric-value" id="straddleValue">Loading...</div>
+                            <div style="font-size: 11px; color: #64748b; margin-top: 4px;" id="straddleMove">--</div>
+                        </div>
+                    </div>
+
                     <!-- ALERT BANNER -->
                     <div class="alert-banner" id="alertBanner" style="display: none;">
                         <div class="alert-icon">
@@ -1186,8 +1219,13 @@
                                             <th>IV</th>
                                             <th>DELTA</th>
                                             <th>GAMMA</th>
+                                            <th>VEGA</th>
                                             <th>THETA</th>
+                                            <th>CHARM</th>
+                                            <th title="Gamma Risk Score (0-10)">γ-RISK</th>
                                             <th>EFF</th>
+                                            <th title="Vega-Adjusted Efficiency">V-EFF</th>
+                                            <th title="Greeks Velocity">VEL</th>
                                             <th>ALERTS</th>
                                         </tr>
                                     </thead>
@@ -1626,6 +1664,48 @@
                 document.getElementById('pcrValue').textContent = data.pcr_divergence.pcr.toFixed(2);
             }
 
+            // Update Put-Call Skew
+            if (data.put_call_skew) {
+                const skew = data.put_call_skew.iv_skew || 0;
+                document.getElementById('skewValue').textContent = skew.toFixed(2);
+                document.getElementById('skewSignal').textContent = data.put_call_skew.skew_signal || '--';
+
+                const skewBadge = document.getElementById('skewBadge');
+                if (skew > 3.0) {
+                    skewBadge.textContent = 'High Fear';
+                    skewBadge.className = 'metric-badge red';
+                } else if (skew < 0.5) {
+                    skewBadge.textContent = 'Euphoria';
+                    skewBadge.className = 'metric-badge yellow';
+                } else {
+                    skewBadge.textContent = 'Normal';
+                    skewBadge.className = 'metric-badge green';
+                }
+            }
+
+            // Update Max Pain
+            if (data.max_pain) {
+                const maxPainStrike = data.max_pain.max_pain_strike || 0;
+                document.getElementById('maxPainValue').textContent = maxPainStrike.toFixed(0);
+
+                const spot = data.spot || 0;
+                const distance = maxPainStrike - spot;
+                const distanceText = distance > 0 ? `+${distance.toFixed(0)} above spot` : `${distance.toFixed(0)} below spot`;
+                document.getElementById('maxPainDistance').textContent = distanceText;
+            }
+
+            // Update Straddle Premium
+            if (data.straddle_premium) {
+                const straddleVal = data.straddle_premium.straddle_premium || 0;
+                const moveP ct = data.straddle_premium.expected_move_pct || 0;
+
+                document.getElementById('straddleValue').textContent = '₹' + straddleVal.toFixed(0);
+                document.getElementById('straddleMove').textContent = `Expected: ±${movePct.toFixed(2)}% (±${data.straddle_premium.expected_move_points?.toFixed(0)} pts)`;
+
+                const straddleBadge = document.getElementById('straddleBadge');
+                straddleBadge.textContent = movePct > 1.5 ? 'High IV' : movePct < 0.8 ? 'Low IV' : 'Normal';
+            }
+
             // Update Greeks table
             updateGreeksTable(data.ce_all || [], data.pe_all || []);
 
@@ -1644,7 +1724,7 @@
             const tbody = document.getElementById('greeksTableBody');
 
             if (ceStrikes.length === 0 && peStrikes.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 40px; color: #64748b;">No data available</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="14" style="text-align: center; padding: 40px; color: #64748b;">No data available</td></tr>';
                 return;
             }
 
@@ -1653,8 +1733,21 @@
 
             allStrikes.forEach(strike => {
                 const alerts = [];
-                if (strike.alert_theta_trap) alerts.push('<span class="alert-badge theta">THETA</span>');
-                if (strike.alert_gamma_blast) alerts.push('<span class="alert-badge gamma">GAMMA</span>');
+                if (strike.theta_trap) alerts.push('<span class="alert-badge red">⚠️</span>');
+                if (strike.gamma_blast) alerts.push('<span class="alert-badge yellow">⚡</span>');
+                if (strike.negative_carry) alerts.push('<span class="alert-badge orange">🩸</span>');
+                if (strike.lotto_flag) alerts.push('<span class="alert-badge purple">🎰</span>');
+
+                // Gamma Risk color coding
+                const gammaRisk = strike.gamma_risk_score || 0;
+                let gammaRiskClass = 'value-positive';
+                if (gammaRisk >= 8) gammaRiskClass = 'value-negative';
+                else if (gammaRisk >= 4) gammaRiskClass = '';
+
+                // Velocity direction
+                const deltaVelPct = strike.delta_velocity_pct || 0;
+                const velArrow = deltaVelPct > 1 ? '↑' : deltaVelPct < -1 ? '↓' : '→';
+                const velClass = deltaVelPct > 1 ? 'value-positive' : deltaVelPct < -1 ? 'value-negative' : '';
 
                 html += `
                     <tr>
@@ -1664,8 +1757,13 @@
                         <td>${strike.iv ? (strike.iv * 100).toFixed(1) + '%' : '--'}</td>
                         <td class="${strike.delta > 0 ? 'value-positive' : 'value-negative'}">${strike.delta ? strike.delta.toFixed(3) : '--'}</td>
                         <td>${strike.gamma ? strike.gamma.toFixed(4) : '--'}</td>
+                        <td>${strike.vega ? strike.vega.toFixed(3) : '--'}</td>
                         <td class="value-negative">${strike.theta ? strike.theta.toFixed(2) : '--'}</td>
+                        <td title="Charm Bleed: ${strike.charm_bleed_60m ? strike.charm_bleed_60m.toFixed(5) : '--'}/hr">${strike.charm ? strike.charm.toFixed(4) : '--'}</td>
+                        <td class="${gammaRiskClass}" title="Gamma Risk Score (0-10)">${gammaRisk.toFixed(1)}</td>
                         <td class="value-positive">${strike.efficiency ? strike.efficiency.toFixed(2) : '--'}</td>
+                        <td class="value-positive" title="Vega-Adjusted Efficiency">${strike.vega_adj_efficiency ? strike.vega_adj_efficiency.toFixed(2) : '--'}</td>
+                        <td class="${velClass}" title="Delta Velocity: ${deltaVelPct.toFixed(1)}%">${velArrow}</td>
                         <td>${alerts.join(' ') || '--'}</td>
                     </tr>
                 `;

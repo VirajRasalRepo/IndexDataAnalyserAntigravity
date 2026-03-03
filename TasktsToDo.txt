@@ -53,4 +53,65 @@ DONE task 5: Fixed critical WebSocket/webhook issues
   - Created WEBHOOK_FIXES.md with detailed analysis and testing guide
   - WebSocket now properly stores real-time data for 9 instruments
 
+02-03-2026 :
+DONE task 1: Implemented comprehensive market holiday support
+  - Added MARKET_HOLIDAYS list in core/config.py with Indian stock market holidays (2025-2027)
+  - Created is_trading_day() function to check weekends + holidays
+  - Updated is_market_hours() to use is_trading_day() validation
+  - Updated get_next_market_open_time() to skip holidays when calculating next trading day
+  - Updated API is_trading_day() function to validate against holiday calendar
+  - System now correctly handles:
+    * Weekends (Saturday/Sunday)
+    * Indian market holidays (Republic Day, Holi, Diwali, etc.)
+    * Smart scheduling across holiday periods
+    * Post-market sync only on actual trading days
+  - Created comprehensive documentation: docs/MARKET_HOLIDAYS.md
+  - Includes 18 holidays for 2026 (Republic Day, Holi, Eid, Diwali, Christmas, etc.)
+
+03-03-2026 (Today - Holi Holiday):
+DONE task 1: Greeks Dashboard Integration - Phase 1 Complete
+  - Created core/greeks_processor.py with production-grade Greeks engine
+    * Uses Dhan pre-calculated Greeks (NO Black-Scholes)
+    * Calculates Efficiency Score (Delta/|Theta|)
+    * Tracks Greeks Velocity (Delta, Gamma, Theta, IV change/min)
+    * Detects Theta Trap, Gamma Blast, Negative Carry conditions
+    * Generates Entry/Exit/Caution signals
+    * PCR-Delta divergence detection
+    * Charm defaults to 0.0 if not in Dhan API
+  - Updated database schema (34 new columns + User_ table)
+    * Added CE/PE efficiency, velocity, alert flags
+    * Added market-level metrics (net_delta_flow, market_bias, vix_change_pct)
+    * Created User_ table for portfolio delta tracking
+  - Created apply_greeks_schema.py (Python schema applicator)
+  - Created setup_greeks_schema.sql (SQL schema definitions)
+  - Created docs/GREEKS_INTEGRATION.md (complete integration guide)
+  - Database verified: 4 efficiency columns + User_ table with 11 columns
+
+DONE task 2: Greeks Dashboard Integration - Phase 2 Complete
+  - ✅ Added ACTIVE_EXPIRY=2026-03-06 to .env and config.py
+  - ✅ Integrated Greeks API endpoints into dashboard/api.py
+    * /api/greeks-pro (main Greeks analytics endpoint)
+    * /api/greeks/portfolio (portfolio net delta)
+    * /api/greeks/signals (entry/exit signals)
+    * In-memory cache for velocity calculation
+  - ✅ Updated main.py with STEP 4: Greeks Analytics processing
+    * Fetches latest OC data from DB
+    * Calculates VIX, PCR, expiry date
+    * Calls process_greeks_from_db()
+    * Tracks prev_greeks_snapshot and prev_vix for velocity
+    * Logs market bias, net delta flow, alerts
+  - ✅ Created dashboard/greeks.html - Professional Greeks dashboard
+    * Real-time metrics (Spot, VIX, DTE, Bias, IV Rank, PCR)
+    * Alerts & Signals display
+    * Portfolio Net Delta tracker
+    * Top 5 CE/PE strikes by efficiency
+    * Lotto strikes table (Scalp + Gamma Blast)
+    * Auto-refresh every 60 seconds
+
+PENDING task 3: Testing and Documentation
+  - Test Greeks integration end-to-end
+  - Verify API endpoints work correctly
+  - Test dashboard display with live data
+  - Update weekly: ACTIVE_EXPIRY every Thursday 3:30 PM+
+
 IMP : hosting this website on the server.

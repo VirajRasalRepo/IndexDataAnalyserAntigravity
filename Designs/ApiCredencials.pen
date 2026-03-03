@@ -1,0 +1,1954 @@
+{
+  "version": "2.8",
+  "children": [
+    {
+      "type": "frame",
+      "id": "vkF07",
+      "x": -640,
+      "y": -506.5,
+      "name": "Container",
+      "clip": true,
+      "width": 1280,
+      "height": 1013,
+      "stroke": {
+        "align": "inside",
+        "thickness": 1
+      },
+      "layout": "vertical",
+      "children": [
+        {
+          "type": "frame",
+          "id": "dbbYA",
+          "name": "Container",
+          "width": "fill_container",
+          "stroke": {
+            "align": "inside",
+            "thickness": 1
+          },
+          "children": [
+            {
+              "type": "frame",
+              "id": "F5xdy",
+              "name": "Aside",
+              "width": 256,
+              "height": 1026,
+              "fill": "#101622ff",
+              "stroke": {
+                "align": "inside",
+                "thickness": {
+                  "right": 1
+                },
+                "fill": "#1e293bff"
+              },
+              "layout": "vertical",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "t7Ond",
+                  "name": "Container",
+                  "width": "fill_container",
+                  "stroke": {
+                    "align": "inside",
+                    "thickness": 1
+                  },
+                  "gap": 12,
+                  "padding": 24,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "DSFp2",
+                      "name": "Background",
+                      "fill": "#135becff",
+                      "cornerRadius": 8,
+                      "stroke": {
+                        "align": "inside",
+                        "thickness": 1
+                      },
+                      "layout": "vertical",
+                      "padding": 6,
+                      "children": [
+                        {
+                          "type": "path",
+                          "id": "J1oOQ",
+                          "name": "Icon",
+                          "geometry": "M4 14l2 0 0-5-2 0 0 5 0 0m8 0l2 0 0-10-2 0 0 10 0 0m-4 0l2 0 0-3-2 0 0 3 0 0m0-5l2 0 0-2-2 0 0 2 0 0m-6 9c-0.55 0-1.02083-0.19583-1.4125-0.5875-0.39167-0.39167-0.5875-0.8625-0.5875-1.4125l0-14c0-0.55 0.19583-1.02083 0.5875-1.4125 0.39167-0.39167 0.8625-0.5875 1.4125-0.5875l14 0c0.55 0 1.02083 0.19583 1.4125 0.5875 0.39167 0.39167 0.5875 0.8625 0.5875 1.4125l0 14c0 0.55-0.19583 1.02083-0.5875 1.4125-0.39167 0.39167-0.8625 0.5875-1.4125 0.5875l-14 0 0 0m0-2l14 0 0 0 0 0 0-14 0 0 0 0-14 0 0 0 0 0 0 14 0 0 0 0 0 0m0-14l0 0 0 0 0 0 0 14 0 0 0 0 0 0 0 0 0 0 0-14 0 0 0 0 0 0",
+                          "fill": "#ffffffff",
+                          "width": 18,
+                          "height": 18
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "354Cj",
+                      "name": "Heading 1",
+                      "stroke": {
+                        "align": "inside",
+                        "thickness": 1
+                      },
+                      "layout": "vertical",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "xN3Bh",
+                          "name": "Text",
+                          "fill": "#f1f5f9ff",
+                          "textGrowth": "fixed-width-height",
+                          "width": 94.27999877929688,
+                          "height": 28,
+                          "content": "OI Analysis",
+                          "lineHeight": 1.5555555555555556,
+                          "textAlignVertical": "middle",
+                          "fontFamily": "Inter",
+                          "fontSize": 18,
+                          "fontWeight": "700",
+                          "letterSpacing": -0.44999998807907104
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "D5O0i",
+                  "name": "Nav",
+                  "clip": true,
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "stroke": {
+                    "align": "inside",
+                    "thickness": 1
+                  },
+                  "layout": "vertical",
+                  "gap": 4,
+                  "padding": [
+                    0,
+                    16
+                  ],
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "rUzCB",
+                      "name": "Link",
+                      "width": "fill_container",
+                      "fill": "#135bec1a",
+                      "cornerRadius": 8,
+                      "stroke": {
+                        "align": "inside",
+                        "thickness": 1
+                      },
+                      "gap": 12,
+                      "padding": [
+                        8,
+                        12
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "SJIf7",
+                          "name": "Container",
+                          "stroke": {
+                            "align": "inside",
+                            "thickness": 1
+                          },
+                          "layout": "vertical",
+                          "children": [
+                            {
+                              "type": "path",
+                              "id": "dFzGX",
+                              "name": "Icon",
+                              "geometry": "M10 6l0-6 8 0 0 6-8 0 0 0m-10 4l0-10 8 0 0 10-8 0 0 0m10 8l0-10 8 0 0 10-8 0 0 0m-10 0l0-6 8 0 0 6-8 0 0 0m2-10l4 0 0-6-4 0 0 6 0 0m10 8l4 0 0-6-4 0 0 6 0 0m0-12l4 0 0-2-4 0 0 2 0 0m-10 12l4 0 0-2-4 0 0 2 0 0m4-8l0 0 0 0 0 0 0 0 0 0m6-4l0 0 0 0 0 0 0 0 0 0m0 6l0 0 0 0 0 0 0 0 0 0m-6 4l0 0 0 0 0 0 0 0 0 0",
+                              "fill": "#135becff",
+                              "width": 18,
+                              "height": 18
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "B6f3B",
+                          "name": "Text",
+                          "fill": "#135becff",
+                          "textGrowth": "fixed-width-height",
+                          "width": 73.0199966430664,
+                          "height": 20,
+                          "content": "Dashboard",
+                          "lineHeight": 1.4285714285714286,
+                          "textAlignVertical": "middle",
+                          "fontFamily": "Inter",
+                          "fontSize": 14,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "awemT",
+                      "name": "Link",
+                      "width": "fill_container",
+                      "cornerRadius": 8,
+                      "stroke": {
+                        "align": "inside",
+                        "thickness": 1
+                      },
+                      "gap": 12,
+                      "padding": [
+                        8,
+                        12
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "q2dfc",
+                          "name": "Container",
+                          "stroke": {
+                            "align": "inside",
+                            "thickness": 1
+                          },
+                          "layout": "vertical",
+                          "children": [
+                            {
+                              "type": "path",
+                              "id": "iylLO",
+                              "name": "Icon",
+                              "geometry": "M6 15l0-2 12 0 0 2-12 0 0 0m0-6l0-2 12 0 0 2-12 0 0 0m0-6l0-2 12 0 0 2-12 0 0 0m-4 13c-0.55 0-1.02083-0.19583-1.4125-0.5875-0.39167-0.39167-0.5875-0.8625-0.5875-1.4125 0-0.55 0.19583-1.02083 0.5875-1.4125 0.39167-0.39167 0.8625-0.5875 1.4125-0.5875 0.55 0 1.02083 0.19583 1.4125 0.5875 0.39167 0.39167 0.5875 0.8625 0.5875 1.4125 0 0.55-0.19583 1.02083-0.5875 1.4125-0.39167 0.39167-0.8625 0.5875-1.4125 0.5875l0 0m0-6c-0.55 0-1.02083-0.19583-1.4125-0.5875-0.39167-0.39167-0.5875-0.8625-0.5875-1.4125 0-0.55 0.19583-1.02083 0.5875-1.4125 0.39167-0.39167 0.8625-0.5875 1.4125-0.5875 0.55 0 1.02083 0.19583 1.4125 0.5875 0.39167 0.39167 0.5875 0.8625 0.5875 1.4125 0 0.55-0.19583 1.02083-0.5875 1.4125-0.39167 0.39167-0.8625 0.5875-1.4125 0.5875l0 0m0-6c-0.55 0-1.02083-0.19583-1.4125-0.5875-0.39167-0.39167-0.5875-0.8625-0.5875-1.4125 0-0.55 0.19583-1.02083 0.5875-1.4125 0.39167-0.39167 0.8625-0.5875 1.4125-0.5875 0.55 0 1.02083 0.19583 1.4125 0.5875 0.39167 0.39167 0.5875 0.8625 0.5875 1.4125 0 0.55-0.19583 1.02083-0.5875 1.4125-0.39167 0.39167-0.8625 0.5875-1.4125 0.5875l0 0",
+                              "fill": "#94a3b8ff",
+                              "width": 18,
+                              "height": 16
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "huhEs",
+                          "name": "Text",
+                          "fill": "#94a3b8ff",
+                          "textGrowth": "fixed-width-height",
+                          "width": 86.88999938964844,
+                          "height": 20,
+                          "content": "Option Chain",
+                          "lineHeight": 1.4285714285714286,
+                          "textAlignVertical": "middle",
+                          "fontFamily": "Inter",
+                          "fontSize": 14,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Gimsi",
+                      "name": "Link",
+                      "width": "fill_container",
+                      "cornerRadius": 8,
+                      "stroke": {
+                        "align": "inside",
+                        "thickness": 1
+                      },
+                      "gap": 12,
+                      "padding": [
+                        8,
+                        12
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "WUK1r",
+                          "name": "Container",
+                          "stroke": {
+                            "align": "inside",
+                            "thickness": 1
+                          },
+                          "layout": "vertical",
+                          "children": [
+                            {
+                              "type": "path",
+                              "id": "Q4sS6",
+                              "name": "Icon",
+                              "geometry": "M1.5 13l-1.5-1.5 7.5-7.5 4 4 7.1-8 1.4 1.4-8.5 9.6-4-4-6 6 0 0",
+                              "fill": "#94a3b8ff",
+                              "width": 20,
+                              "height": 13
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "HAr5g",
+                          "name": "Text",
+                          "fill": "#94a3b8ff",
+                          "textGrowth": "fixed-width-height",
+                          "width": 96.58000183105469,
+                          "height": 20,
+                          "content": "OI Multi-Strike",
+                          "lineHeight": 1.4285714285714286,
+                          "textAlignVertical": "middle",
+                          "fontFamily": "Inter",
+                          "fontSize": 14,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "vBXMR",
+                      "name": "Link",
+                      "width": "fill_container",
+                      "cornerRadius": 8,
+                      "stroke": {
+                        "align": "inside",
+                        "thickness": 1
+                      },
+                      "gap": 12,
+                      "padding": [
+                        8,
+                        12
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "DF8Z8",
+                          "name": "Container",
+                          "stroke": {
+                            "align": "inside",
+                            "thickness": 1
+                          },
+                          "layout": "vertical",
+                          "children": [
+                            {
+                              "type": "path",
+                              "id": "vbJj8",
+                              "name": "Icon",
+                              "geometry": "M0 18l0-2 2-2 0 4-2 0 0 0m4 0l0-6 2-2 0 0 0 8-2 0 0 0m4 0l0-8 2 2.025 0 5.975-2 0 0 0m4 0l0-5.975 2-2 0 7.975-2 0 0 0m4 0l0-10 2-2 0 12-2 0 0 0m-16-5.175l0-2.825 7-7 4 4 7-7 0 2.825-7 7-4-4-7 7 0 0",
+                              "fill": "#94a3b8ff",
+                              "width": 18,
+                              "height": 18
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "ogeJ2",
+                          "name": "Text",
+                          "fill": "#94a3b8ff",
+                          "textGrowth": "fixed-width-height",
+                          "width": 124.16999816894531,
+                          "height": 20,
+                          "content": "Greeks Dashboard",
+                          "lineHeight": 1.4285714285714286,
+                          "textAlignVertical": "middle",
+                          "fontFamily": "Inter",
+                          "fontSize": 14,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "H9dQd",
+                      "name": "Container",
+                      "width": "fill_container",
+                      "stroke": {
+                        "align": "inside",
+                        "thickness": 1
+                      },
+                      "layout": "vertical",
+                      "padding": [
+                        16,
+                        12,
+                        8,
+                        12
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "XoRyA",
+                          "name": "Reports",
+                          "fill": "#94a3b8ff",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Reports",
+                          "lineHeight": 1.3333333333333333,
+                          "textAlignVertical": "middle",
+                          "fontFamily": "Inter",
+                          "fontSize": 12,
+                          "fontWeight": "600",
+                          "letterSpacing": 0.6000000238418579
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "pmCtK",
+                      "name": "Link",
+                      "width": "fill_container",
+                      "cornerRadius": 8,
+                      "stroke": {
+                        "align": "inside",
+                        "thickness": 1
+                      },
+                      "gap": 12,
+                      "padding": [
+                        8,
+                        12
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "td5h8",
+                          "name": "Container",
+                          "stroke": {
+                            "align": "inside",
+                            "thickness": 1
+                          },
+                          "layout": "vertical",
+                          "children": [
+                            {
+                              "type": "path",
+                              "id": "BJpP5",
+                              "name": "Icon",
+                              "geometry": "M4 16l8 0 0-2-8 0 0 2 0 0m0-4l8 0 0-2-8 0 0 2 0 0m-2 8c-0.55 0-1.02083-0.19583-1.4125-0.5875-0.39167-0.39167-0.5875-0.8625-0.5875-1.4125l0-16c0-0.55 0.19583-1.02083 0.5875-1.4125 0.39167-0.39167 0.8625-0.5875 1.4125-0.5875l8 0 6 6 0 12c0 0.55-0.19583 1.02083-0.5875 1.4125-0.39167 0.39167-0.8625 0.5875-1.4125 0.5875l-12 0 0 0m7-13l0-5-7 0 0 0 0 0 0 16 0 0 0 0 12 0 0 0 0 0 0-11-5 0 0 0m-7-5l0 0 0 5 0 0 0-5 0 5 0 0 0 11 0 0 0 0 0 0 0 0 0 0 0-16 0 0 0 0 0 0",
+                              "fill": "#94a3b8ff",
+                              "width": 16,
+                              "height": 20
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "tYUVp",
+                          "name": "Text",
+                          "fill": "#94a3b8ff",
+                          "textGrowth": "fixed-width-height",
+                          "width": 97.91000366210938,
+                          "height": 20,
+                          "content": "Historical Data",
+                          "lineHeight": 1.4285714285714286,
+                          "textAlignVertical": "middle",
+                          "fontFamily": "Inter",
+                          "fontSize": 14,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "FQnoB",
+                      "name": "Link",
+                      "width": "fill_container",
+                      "cornerRadius": 8,
+                      "stroke": {
+                        "align": "inside",
+                        "thickness": 1
+                      },
+                      "gap": 12,
+                      "padding": [
+                        8,
+                        12
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "iasoW",
+                          "name": "Container",
+                          "stroke": {
+                            "align": "inside",
+                            "thickness": 1
+                          },
+                          "layout": "vertical",
+                          "children": [
+                            {
+                              "type": "path",
+                              "id": "HaESE",
+                              "name": "Icon",
+                              "geometry": "M6.55 16.2l5.175-6.2-4 0 0.725-5.675-4.625 6.675 3.475 0-0.75 5.2 0 0m-2.55 3.8l1-7-5 0 9-13 2 0-1 8 6 0-10 12-2 0 0 0m3.775-9.75l0 0 0 0 0 0 0 0 0 0 0 0 0 0",
+                              "fill": "#94a3b8ff",
+                              "width": 16,
+                              "height": 20
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "2aTJQ",
+                          "name": "Text",
+                          "fill": "#94a3b8ff",
+                          "textGrowth": "fixed-width-height",
+                          "width": 88.11000061035156,
+                          "height": 20,
+                          "content": "Flash Signals",
+                          "lineHeight": 1.4285714285714286,
+                          "textAlignVertical": "middle",
+                          "fontFamily": "Inter",
+                          "fontSize": 14,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "F5njd",
+                      "name": "Link",
+                      "width": "fill_container",
+                      "cornerRadius": 8,
+                      "stroke": {
+                        "align": "inside",
+                        "thickness": 1
+                      },
+                      "gap": 12,
+                      "padding": [
+                        8,
+                        12
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "Wv3wC",
+                          "name": "Container",
+                          "stroke": {
+                            "align": "inside",
+                            "thickness": 1
+                          },
+                          "layout": "vertical",
+                          "children": [
+                            {
+                              "type": "path",
+                              "id": "zs0vI",
+                              "name": "Icon",
+                              "geometry": "M5 10c-1.38889 0-2.56944-0.48611-3.54167-1.45833-0.97222-0.97222-1.45833-2.15278-1.45833-3.54167 0-1.38889 0.48611-2.56944 1.45833-3.54167 0.97222-0.97222 2.15278-1.45833 3.54167-1.45833 0.91667 0 1.75694 0.22917 2.52083 0.6875 0.76389 0.45833 1.36805 1.0625 1.8125 1.8125l9 0 0 5-1.66666 0 0 2.5-5 0 0-2.5-2.33334 0c-0.44444 0.75-1.04861 1.35417-1.8125 1.8125-0.76389 0.45833-1.60417 0.6875-2.52083 0.6875l0 0m0-1.66667c0.91667 0 1.65278-0.28125 2.20833-0.84375 0.55556-0.5625 0.88889-1.11458 1-1.65625l5.125 0 0 2.5 1.66667 0 0-2.5 1.66667 0 0-1.66666-8.45834 0c-0.11111-0.54167-0.44444-1.09375-1-1.65625-0.55556-0.5625-1.29167-0.84375-2.20833-0.84375-0.91667 0-1.70139 0.32639-2.35417 0.97916-0.65278 0.65278-0.97917 1.4375-0.97916 2.35417 0 0.91667 0.32639 1.70139 0.97916 2.35417 0.65278 0.65278 1.4375 0.97917 2.35417 0.97916l0 0m0-1.66666c0.45833 0 0.85069-0.16319 1.17708-0.48959 0.32639-0.32639 0.48958-0.71875 0.48959-1.17708 0-0.45833-0.16319-0.85069-0.48959-1.17708-0.32639-0.32639-0.71875-0.48958-1.17708-0.48959-0.45833 0-0.85069 0.16319-1.17708 0.48959-0.32639 0.32639-0.48958 0.71875-0.48959 1.17708 0 0.45833 0.16319 0.85069 0.48959 1.17708 0.32639 0.32639 0.71875 0.48958 1.17708 0.48959l0 0m0-1.66667l0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0",
+                              "fill": "#135becff",
+                              "width": 18.33333396911621,
+                              "height": 10
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "OuIId",
+                          "name": "Text",
+                          "fill": "#94a3b8ff",
+                          "textGrowth": "fixed-width-height",
+                          "width": 120,
+                          "height": 20,
+                          "content": "API Credencials",
+                          "lineHeight": 1.4285714285714286,
+                          "textAlignVertical": "middle",
+                          "fontFamily": "Inter",
+                          "fontSize": 14,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "Mr4c8",
+                  "name": "HorizontalBorder",
+                  "width": "fill_container",
+                  "stroke": {
+                    "align": "inside",
+                    "thickness": {
+                      "top": 1
+                    },
+                    "fill": "#1e293bff"
+                  },
+                  "layout": "vertical",
+                  "padding": 16,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "VIN5O",
+                      "name": "Overlay",
+                      "width": "fill_container",
+                      "fill": "#1e293b80",
+                      "cornerRadius": 8,
+                      "stroke": {
+                        "align": "inside",
+                        "thickness": 1
+                      },
+                      "gap": 12,
+                      "padding": 8,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "YHQyE",
+                          "name": "Overlay",
+                          "width": 32,
+                          "height": 32,
+                          "fill": "#135bec33",
+                          "cornerRadius": 9999,
+                          "stroke": {
+                            "align": "inside",
+                            "thickness": 1
+                          },
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "g5oSO",
+                              "name": "Container",
+                              "stroke": {
+                                "align": "inside",
+                                "thickness": 1
+                              },
+                              "layout": "vertical",
+                              "children": [
+                                {
+                                  "type": "path",
+                                  "id": "1mGl4",
+                                  "name": "Icon",
+                                  "geometry": "M4.66667 4.66667c-0.64167 0-1.19097-0.22847-1.64792-0.68542-0.45694-0.45694-0.68542-1.00625-0.68542-1.64792 0-0.64167 0.22847-1.19097 0.68542-1.64791 0.45694-0.45694 1.00625-0.68542 1.64792-0.68542 0.64167 0 1.19097 0.22847 1.64791 0.68542 0.45694 0.45694 0.68542 1.00625 0.68542 1.64791 0 0.64167-0.22847 1.19097-0.68542 1.64792-0.45694 0.45694-1.00625 0.68542-1.64791 0.68542l0 0m-4.66667 4.66666l0-1.63333c0-0.33056 0.08507-0.63437 0.25521-0.91146 0.17014-0.27708 0.39618-0.48854 0.67812-0.63437 0.60278-0.30139 1.21528-0.52743 1.8375-0.67813 0.62222-0.15069 1.25417-0.22604 1.89584-0.22604 0.64167 0 1.27361 0.07535 1.89583 0.22604 0.62222 0.15069 1.23472 0.37674 1.8375 0.67813 0.28194 0.14583 0.50799 0.35729 0.67813 0.63437 0.17014 0.27708 0.25521 0.5809 0.2552 0.91146l0 1.63333-9.33333 0 0 0m1.16667-1.16666l7 0 0-0.46667c0-0.10694-0.02674-0.20417-0.08021-0.29167-0.05347-0.0875-0.12396-0.15556-0.21146-0.20416-0.525-0.2625-1.05486-0.45938-1.58958-0.59063-0.53472-0.13125-1.07431-0.19688-1.61875-0.19687-0.54444 0-1.08403 0.06563-1.61875 0.19687-0.53472 0.13125-1.06458 0.32813-1.58959 0.59063-0.0875 0.04861-0.15799 0.11667-0.21145 0.20416-0.05347 0.0875-0.08021 0.18472-0.08021 0.29167l0 0.46667 0 0m3.5-4.66667c0.32083 0 0.59549-0.11424 0.82395-0.34271 0.22847-0.22847 0.34271-0.50312 0.34271-0.82396 0-0.32083-0.11424-0.59549-0.34271-0.82395-0.22847-0.22847-0.50313-0.34271-0.82395-0.34271-0.32083 0-0.59549 0.11424-0.82396 0.3427-0.22847 0.22847-0.34271 0.50312-0.34271 0.82396 0 0.32083 0.11424 0.59549 0.34271 0.82396 0.22847 0.22847 0.50312 0.34271 0.82396 0.34271l0 0m0-1.16667l0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0m0 5.83334l0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0",
+                                  "fill": "#135becff",
+                                  "width": 9.333333015441895,
+                                  "height": 9.333333015441895
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "Bu5yO",
+                          "name": "Container",
+                          "width": "fill_container",
+                          "stroke": {
+                            "align": "inside",
+                            "thickness": 1
+                          },
+                          "layout": "vertical",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "pEMef",
+                              "name": "Container",
+                              "clip": true,
+                              "width": "fill_container",
+                              "stroke": {
+                                "align": "inside",
+                                "thickness": 1
+                              },
+                              "layout": "vertical",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "upn5n",
+                                  "name": "Pro Trader",
+                                  "fill": "#f1f5f9ff",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "Pro Trader",
+                                  "lineHeight": 1.3333333333333333,
+                                  "textAlignVertical": "middle",
+                                  "fontFamily": "Inter",
+                                  "fontSize": 12,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "XdAZL",
+                              "name": "Container",
+                              "clip": true,
+                              "width": "fill_container",
+                              "stroke": {
+                                "align": "inside",
+                                "thickness": 1
+                              },
+                              "layout": "vertical",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "nctIG",
+                                  "name": "Subscription Active",
+                                  "fill": "#64748bff",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "Subscription Active",
+                                  "lineHeight": 1.5,
+                                  "textAlignVertical": "middle",
+                                  "fontFamily": "Inter",
+                                  "fontSize": 10,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "ovMLy",
+                          "name": "Container",
+                          "stroke": {
+                            "align": "inside",
+                            "thickness": 1
+                          },
+                          "layout": "vertical",
+                          "children": [
+                            {
+                              "type": "path",
+                              "id": "IU05O",
+                              "name": "Icon",
+                              "geometry": "M4.25833 11.66667l-0.23333-1.86667c-0.12639-0.04861-0.24549-0.10694-0.35729-0.175-0.11181-0.06806-0.22118-0.14097-0.32813-0.21875l-1.73541 0.72917-1.60417-2.77084 1.50208-1.1375c-0.00972-0.06806-0.01458-0.13368-0.01458-0.19687 0-0.06319 0-0.12882 0-0.19688 0-0.06806 0-0.13368 0-0.19687 0-0.06319 0.00486-0.12882 0.01458-0.19688l-1.50208-1.1375 1.60417-2.77083 1.73541 0.72917c0.10694-0.07778 0.21875-0.15069 0.33542-0.21875 0.11667-0.06806 0.23333-0.12639 0.35-0.175l0.23333-1.86667 3.20834 0 0.23333 1.86667c0.12639 0.04861 0.24549 0.10694 0.35729 0.175 0.11181 0.06806 0.22118 0.14097 0.32813 0.21875l1.73541-0.72917 1.60417 2.77083-1.50208 1.1375c0.00972 0.06806 0.01458 0.13368 0.01458 0.19688 0 0.06319 0 0.12882 0 0.19687 0 0.06806 0 0.13368 0 0.19688 0 0.06319-0.00972 0.12882-0.02917 0.19687l1.50209 1.1375-1.60417 2.77084-1.72083-0.72917c-0.10694 0.07778-0.21875 0.15069-0.33542 0.21875-0.11667 0.06806-0.23333 0.12639-0.35 0.175l-0.23333 1.86667-3.20834 0 0 0m1.02084-1.16667l1.15208 0 0.20417-1.54583c0.30139-0.07778 0.5809-0.19201 0.83854-0.34271 0.25764-0.15069 0.4934-0.33299 0.70729-0.54688l1.44375 0.59792 0.56875-0.99167-1.25417-0.94791c0.04861-0.13611 0.08264-0.27951 0.10209-0.43021 0.01944-0.15069 0.02917-0.30382 0.02916-0.45938 0-0.15556-0.00972-0.30868-0.02916-0.45937-0.01944-0.15069-0.05347-0.2941-0.10209-0.43021l1.25417-0.94792-0.56875-0.99166-1.44375 0.6125c-0.21389-0.22361-0.44965-0.41076-0.70729-0.56146-0.25764-0.15069-0.53715-0.26493-0.83854-0.34271l-0.18959-1.54583-1.15208 0-0.20417 1.54583c-0.30139 0.07778-0.5809 0.19201-0.83854 0.34271-0.25764 0.15069-0.4934 0.33299-0.70729 0.54687l-1.44375-0.59791-0.56875 0.99166 1.25417 0.93334c-0.04861 0.14583-0.08264 0.29167-0.10209 0.4375-0.01944 0.14583-0.02917 0.30139-0.02916 0.46666 0 0.15556 0.00972 0.30625 0.02916 0.45209 0.01944 0.14583 0.05347 0.29167 0.10209 0.4375l-1.25417 0.94791 0.56875 0.99167 1.44375-0.6125c0.21389 0.22361 0.44965 0.41076 0.70729 0.56146 0.25764 0.15069 0.53715 0.26493 0.83854 0.34271l0.18959 1.54583 0 0m0.6125-2.625c0.56389 0 1.04514-0.19931 1.44375-0.59792 0.39861-0.39861 0.59792-0.87986 0.59791-1.44375 0-0.56389-0.19931-1.04514-0.59791-1.44375-0.39861-0.39861-0.87986-0.59792-1.44375-0.59791-0.57361 0-1.05729 0.19931-1.45104 0.59791-0.39375 0.39861-0.59063 0.87986-0.59063 1.44375 0 0.56389 0.19688 1.04514 0.59063 1.44375 0.39375 0.39861 0.87743 0.59792 1.45104 0.59792l0 0m-0.02917-2.04167l0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0",
+                              "fill": "#94a3b8ff",
+                              "width": 11.725000381469727,
+                              "height": 11.666666984558105
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "g9eWk",
+              "name": "Main",
+              "clip": true,
+              "width": "fill_container",
+              "height": "fill_container",
+              "fill": "#0d1119ff",
+              "stroke": {
+                "align": "inside",
+                "thickness": 1
+              },
+              "layout": "vertical",
+              "gap": 32,
+              "padding": 40,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "iptBR",
+                  "name": "Container",
+                  "width": "fill_container",
+                  "height": 119.5,
+                  "stroke": {
+                    "align": "inside",
+                    "thickness": 1
+                  },
+                  "layout": "none",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "zdLxE",
+                      "x": 0,
+                      "y": 0,
+                      "name": "Margin",
+                      "width": 944,
+                      "stroke": {
+                        "align": "inside",
+                        "thickness": 1
+                      },
+                      "layout": "vertical",
+                      "padding": [
+                        0,
+                        0,
+                        4,
+                        0
+                      ],
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "MPs0u",
+                          "name": "Container",
+                          "width": "fill_container",
+                          "stroke": {
+                            "align": "inside",
+                            "thickness": 1
+                          },
+                          "gap": 8,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "jFTqx",
+                              "name": "Container",
+                              "stroke": {
+                                "align": "inside",
+                                "thickness": 1
+                              },
+                              "layout": "vertical",
+                              "children": [
+                                {
+                                  "type": "path",
+                                  "id": "N7Gus",
+                                  "name": "Icon",
+                                  "geometry": "M5.475 15l-0.3-2.4c-0.1625-0.0625-0.31563-0.1375-0.45938-0.225-0.14375-0.0875-0.28438-0.18125-0.42187-0.28125l-2.23125 0.9375-2.0625-3.5625 1.93125-1.4625c-0.0125-0.0875-0.01875-0.17188-0.01875-0.25312 0-0.08125 0-0.16563 0-0.25313 0-0.0875 0-0.17188 0-0.25313 0-0.08125 0.00625-0.16562 0.01875-0.25312l-1.93125-1.4625 2.0625-3.5625 2.23125 0.9375c0.1375-0.1 0.28125-0.19375 0.43125-0.28125 0.15-0.0875 0.3-0.1625 0.45-0.225l0.3-2.4 4.125 0 0.3 2.4c0.1625 0.0625 0.31563 0.1375 0.45938 0.225 0.14375 0.0875 0.28438 0.18125 0.42187 0.28125l2.23125-0.9375 2.0625 3.5625-1.93125 1.4625c0.0125 0.0875 0.01875 0.17187 0.01875 0.25312 0 0.08125 0 0.16563 0 0.25313 0 0.0875 0 0.17188 0 0.25313 0 0.08125-0.0125 0.16563-0.0375 0.25312l1.93125 1.4625-2.0625 3.5625-2.2125-0.9375c-0.1375 0.1-0.28125 0.19375-0.43125 0.28125-0.15 0.0875-0.3 0.1625-0.45 0.225l-0.3 2.4-4.125 0 0 0m1.3125-1.5l1.48125 0 0.2625-1.9875c0.3875-0.1 0.74687-0.24687 1.07813-0.44062 0.33125-0.19375 0.63438-0.42813 0.90937-0.70313l1.85625 0.76875 0.73125-1.275-1.6125-1.21875c0.0625-0.175 0.10625-0.35938 0.13125-0.55313 0.025-0.19375 0.0375-0.39063 0.0375-0.59062 0-0.2-0.0125-0.39687-0.0375-0.59062-0.025-0.19375-0.06875-0.37813-0.13125-0.55313l1.6125-1.21875-0.73125-1.275-1.85625 0.7875c-0.275-0.2875-0.57812-0.52813-0.90937-0.72188-0.33125-0.19375-0.69063-0.34062-1.07813-0.44062l-0.24375-1.9875-1.48125 0-0.2625 1.9875c-0.3875 0.1-0.74687 0.24688-1.07813 0.44062-0.33125 0.19375-0.63437 0.42812-0.90937 0.70313l-1.85625-0.76875-0.73125 1.275 1.6125 1.2c-0.0625 0.1875-0.10625 0.375-0.13125 0.5625-0.025 0.1875-0.0375 0.3875-0.0375 0.6 0 0.2 0.0125 0.39375 0.0375 0.58125 0.025 0.1875 0.06875 0.375 0.13125 0.5625l-1.6125 1.21875 0.73125 1.275 1.85625-0.7875c0.275 0.2875 0.57812 0.52812 0.90937 0.72188 0.33125 0.19375 0.69063 0.34062 1.07813 0.44062l0.24375 1.9875 0 0m0.7875-3.375c0.725 0 1.34375-0.25625 1.85625-0.76875 0.5125-0.5125 0.76875-1.13125 0.76875-1.85625 0-0.725-0.25625-1.34375-0.76875-1.85625-0.5125-0.5125-1.13125-0.76875-1.85625-0.76875-0.7375 0-1.35938 0.25625-1.86563 0.76875-0.50625 0.5125-0.75938 1.13125-0.75937 1.85625 0 0.725 0.25313 1.34375 0.75937 1.85625 0.50625 0.5125 1.12812 0.76875 1.86563 0.76875l0 0m-0.0375-2.625l0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0",
+                                  "fill": "#135becff",
+                                  "width": 15.074999809265137,
+                                  "height": 15
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "wrDwx",
+                              "name": "Container",
+                              "stroke": {
+                                "align": "inside",
+                                "thickness": 1
+                              },
+                              "layout": "vertical",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "nRZjm",
+                                  "name": "Text",
+                                  "fill": "#135becff",
+                                  "textGrowth": "fixed-width-height",
+                                  "width": 162.0500030517578,
+                                  "height": 16,
+                                  "content": "Workspace Settings",
+                                  "lineHeight": 1.3333333333333333,
+                                  "textAlignVertical": "middle",
+                                  "fontFamily": "Inter",
+                                  "fontSize": 12,
+                                  "fontWeight": "700",
+                                  "letterSpacing": 1.2000000476837158
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "T3DB3",
+                      "x": 0,
+                      "y": 30,
+                      "name": "Heading 2",
+                      "width": 944,
+                      "stroke": {
+                        "align": "inside",
+                        "thickness": 1
+                      },
+                      "layout": "vertical",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "CNEYN",
+                          "name": "Text",
+                          "fill": "#f1f5f9ff",
+                          "textGrowth": "fixed-width-height",
+                          "width": 222,
+                          "height": 36,
+                          "content": "API Credentials",
+                          "lineHeight": 1.2,
+                          "textAlignVertical": "middle",
+                          "fontFamily": "Inter",
+                          "fontSize": 30,
+                          "fontWeight": "900",
+                          "letterSpacing": -0.75
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "4qtIB",
+                      "x": 0,
+                      "y": 72.875,
+                      "name": "Container",
+                      "width": 672,
+                      "stroke": {
+                        "align": "inside",
+                        "thickness": 1
+                      },
+                      "layout": "vertical",
+                      "padding": [
+                        0,
+                        0,
+                        0.625,
+                        0
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "c2ihW",
+                          "name": "Text",
+                          "fill": "#94a3b8ff",
+                          "textGrowth": "fixed-width-height",
+                          "width": 622.5800170898438,
+                          "height": 46,
+                          "content": "Manage your secure environment variables and tokens. These credentials allow programmatic\naccess to the real-time stock market data feed.",
+                          "lineHeight": 1.625,
+                          "textAlignVertical": "middle",
+                          "fontFamily": "Inter",
+                          "fontSize": 14,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "zrsue",
+                  "name": "Background+Border+Shadow",
+                  "width": "fill_container",
+                  "fill": "#161c2aff",
+                  "cornerRadius": 12,
+                  "stroke": {
+                    "align": "inside",
+                    "thickness": 1,
+                    "fill": "#1e293b99"
+                  },
+                  "effect": {
+                    "type": "shadow",
+                    "shadowType": "outer",
+                    "color": "#0000000d",
+                    "offset": {
+                      "x": 0,
+                      "y": 1
+                    },
+                    "blur": 1.75
+                  },
+                  "gap": 24,
+                  "padding": 24,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "IsD2e",
+                      "name": "Background+Shadow",
+                      "clip": true,
+                      "width": 160,
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": -135,
+                        "size": {
+                          "height": 1.4142135623730951
+                        },
+                        "colors": [
+                          {
+                            "color": "#135becff",
+                            "position": 0
+                          },
+                          {
+                            "color": "#2563ebff",
+                            "position": 1
+                          }
+                        ],
+                        "center": {
+                          "x": 0.4999999999999999
+                        }
+                      },
+                      "cornerRadius": 12,
+                      "stroke": {
+                        "align": "inside",
+                        "thickness": 1
+                      },
+                      "effect": [
+                        {
+                          "type": "shadow",
+                          "shadowType": "outer",
+                          "color": "#135bec33",
+                          "offset": {
+                            "x": 0,
+                            "y": 4
+                          },
+                          "blur": 5.25,
+                          "spread": -4
+                        },
+                        {
+                          "type": "shadow",
+                          "shadowType": "outer",
+                          "color": "#135bec33",
+                          "offset": {
+                            "x": 0,
+                            "y": 10
+                          },
+                          "blur": 13.125,
+                          "spread": -3
+                        }
+                      ],
+                      "padding": [
+                        56,
+                        32
+                      ],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "VZAwg",
+                          "name": "Container",
+                          "stroke": {
+                            "align": "inside",
+                            "thickness": 1
+                          },
+                          "layout": "vertical",
+                          "children": [
+                            {
+                              "type": "path",
+                              "id": "T8vDS",
+                              "name": "Icon",
+                              "geometry": "M22 26l-4-4 4-4 4 4-4 4 0 0m-4.25-11.75l-5-5 9.25-9.25 9.25 9.25-5 5-4.25-4.25-4.25 4.25 0 0m-8.5 17l-9.25-9.25 9.25-9.25 5 5-4.25 4.25 4.25 4.25-5 5 0 0m25.5 0l-5-5 4.25-4.25-4.25-4.25 5-5 9.25 9.25-9.25 9.25 0 0m-12.75 12.75l-9.25-9.25 5-5 4.25 4.25 4.25-4.25 5 5-9.25 9.25 0 0",
+                              "fill": "#ffffffff",
+                              "width": 44,
+                              "height": 44
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Z4e5v",
+                      "name": "Container",
+                      "width": "fill_container",
+                      "stroke": {
+                        "align": "inside",
+                        "thickness": 1
+                      },
+                      "layout": "vertical",
+                      "gap": 16,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "QRKC7",
+                          "name": "Container",
+                          "width": "fill_container",
+                          "stroke": {
+                            "align": "inside",
+                            "thickness": 1
+                          },
+                          "gap": 207.88999938964844,
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "6Gm8X",
+                              "name": "Container",
+                              "stroke": {
+                                "align": "inside",
+                                "thickness": 1
+                              },
+                              "layout": "vertical",
+                              "gap": 4,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "EtfSu",
+                                  "name": "Heading 3",
+                                  "width": "fill_container",
+                                  "stroke": {
+                                    "align": "inside",
+                                    "thickness": 1
+                                  },
+                                  "layout": "vertical",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "kzdST",
+                                      "name": "Text",
+                                      "fill": "#f1f5f9ff",
+                                      "textGrowth": "fixed-width-height",
+                                      "width": 191.88999938964844,
+                                      "height": 28,
+                                      "content": "Authentication Status",
+                                      "lineHeight": 1.5555555555555556,
+                                      "textAlignVertical": "middle",
+                                      "fontFamily": "Inter",
+                                      "fontSize": 18,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "wDl77",
+                                  "name": "Container",
+                                  "width": "fill_container",
+                                  "stroke": {
+                                    "align": "inside",
+                                    "thickness": 1
+                                  },
+                                  "layout": "vertical",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "gOSVF",
+                                      "name": "Text",
+                                      "fill": "#94a3b8ff",
+                                      "textGrowth": "fixed-width-height",
+                                      "width": 331.5,
+                                      "height": 20,
+                                      "content": "Active production credentials for stream endpoint.",
+                                      "lineHeight": 1.4285714285714286,
+                                      "textAlignVertical": "middle",
+                                      "fontFamily": "Inter",
+                                      "fontSize": 14,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "jqnat",
+                              "name": "Container",
+                              "stroke": {
+                                "align": "inside",
+                                "thickness": 1
+                              },
+                              "layout": "vertical",
+                              "gap": 4,
+                              "alignItems": "end",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "50qhA",
+                                  "name": "Overlay+Border",
+                                  "fill": "#10b9811a",
+                                  "cornerRadius": 6,
+                                  "stroke": {
+                                    "align": "inside",
+                                    "thickness": 1,
+                                    "fill": "#10b98133"
+                                  },
+                                  "gap": 6,
+                                  "padding": [
+                                    4,
+                                    12
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "rectangle",
+                                      "cornerRadius": 9999,
+                                      "id": "le2m3",
+                                      "name": "Background",
+                                      "fill": "#10b981ff",
+                                      "width": 8,
+                                      "height": 8,
+                                      "stroke": {
+                                        "align": "inside",
+                                        "thickness": 1
+                                      }
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "9gRh2",
+                                      "name": "Text",
+                                      "fill": "#10b981ff",
+                                      "textGrowth": "fixed-width-height",
+                                      "width": 130.61000061035156,
+                                      "height": 17,
+                                      "content": "Connection Active",
+                                      "lineHeight": 1.5,
+                                      "textAlignVertical": "middle",
+                                      "fontFamily": "Inter",
+                                      "fontSize": 11,
+                                      "fontWeight": "900",
+                                      "letterSpacing": 0.550000011920929
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "VY4Re",
+                                  "name": "Container",
+                                  "stroke": {
+                                    "align": "inside",
+                                    "thickness": 1
+                                  },
+                                  "layout": "vertical",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "AyF0B",
+                                      "name": "Text",
+                                      "fill": "#64748bff",
+                                      "textGrowth": "fixed-width-height",
+                                      "width": 163.3000030517578,
+                                      "height": 15,
+                                      "content": "Syncing via WebSocket Cluster #04",
+                                      "lineHeight": 1.5,
+                                      "textAlignVertical": "middle",
+                                      "fontFamily": "Inter",
+                                      "fontSize": 10,
+                                      "fontWeight": "500",
+                                      "letterSpacing": -0.25
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "0DhbW",
+                          "name": "Container",
+                          "width": "fill_container",
+                          "stroke": {
+                            "align": "inside",
+                            "thickness": 1
+                          },
+                          "gap": 16,
+                          "padding": [
+                            8,
+                            0,
+                            0,
+                            0
+                          ],
+                          "justifyContent": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "rdvUC",
+                              "name": "Overlay+Border",
+                              "width": "fill_container",
+                              "height": "fill_container",
+                              "fill": "#1e293b66",
+                              "cornerRadius": 8,
+                              "stroke": {
+                                "align": "inside",
+                                "thickness": 1,
+                                "fill": "#33415580"
+                              },
+                              "layout": "vertical",
+                              "gap": 3.25,
+                              "padding": 12,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "IXuMS",
+                                  "name": "Container",
+                                  "width": "fill_container",
+                                  "stroke": {
+                                    "align": "inside",
+                                    "thickness": 1
+                                  },
+                                  "layout": "vertical",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "rIwuE",
+                                      "name": "Token Expiry",
+                                      "fill": "#64748bff",
+                                      "textGrowth": "fixed-width",
+                                      "width": "fill_container",
+                                      "content": "Token Expiry",
+                                      "lineHeight": 1.5,
+                                      "textAlignVertical": "middle",
+                                      "fontFamily": "Inter",
+                                      "fontSize": 10,
+                                      "fontWeight": "900",
+                                      "letterSpacing": 1
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "G1Bnk",
+                                  "name": "Container",
+                                  "width": "fill_container",
+                                  "stroke": {
+                                    "align": "inside",
+                                    "thickness": 1
+                                  },
+                                  "gap": 8,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "dDVFQ",
+                                      "name": "Container",
+                                      "stroke": {
+                                        "align": "inside",
+                                        "thickness": 1
+                                      },
+                                      "layout": "vertical",
+                                      "children": [
+                                        {
+                                          "type": "path",
+                                          "id": "tk95I",
+                                          "name": "Icon",
+                                          "geometry": "M7.75833 8.575l0.81667-0.81667-2.15833-2.15833 0-2.68333-1.16667 0 0 3.15 2.50833 2.50833 0 0m-1.925 3.09167c-0.80694 0-1.56528-0.15313-2.275-0.45938-0.70972-0.30625-1.32708-0.72188-1.85208-1.24687-0.525-0.525-0.94063-1.14236-1.24688-1.85209-0.30625-0.70972-0.45937-1.46806-0.45937-2.275 0-0.80694 0.15312-1.56528 0.45937-2.275 0.30625-0.70972 0.72188-1.32708 1.24688-1.85208 0.525-0.525 1.14236-0.94063 1.85208-1.24688 0.70972-0.30625 1.46806-0.45937 2.275-0.45937 0.80694 0 1.56528 0.15312 2.275 0.45937 0.70972 0.30625 1.32708 0.72188 1.85209 1.24688 0.525 0.525 0.94063 1.14236 1.24687 1.85208 0.30625 0.70972 0.45937 1.46806 0.45938 2.275 0 0.80694-0.15313 1.56528-0.45938 2.275-0.30625 0.70972-0.72188 1.32708-1.24687 1.85209-0.525 0.525-1.14236 0.94063-1.85209 1.24687-0.70972 0.30625-1.46806 0.45937-2.275 0.45938l0 0m0-5.83334l0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0m0 4.66667c1.29306 0 2.3941-0.45451 3.30313-1.36354 0.90903-0.90903 1.36354-2.01007 1.36354-3.30313 0-1.29306-0.45451-2.3941-1.36354-3.30312-0.90903-0.90903-2.01007-1.36354-3.30313-1.36354-1.29306 0-2.3941 0.45451-3.30312 1.36354-0.90903 0.90903-1.36354 2.01007-1.36354 3.30312 0 1.29306 0.45451 2.3941 1.36354 3.30313 0.90903 0.90903 2.01007 1.36354 3.30312 1.36354l0 0",
+                                          "fill": "#94a3b8ff",
+                                          "width": 11.666666984558105,
+                                          "height": 11.666666984558105
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "NuGX4",
+                                      "name": "Container",
+                                      "stroke": {
+                                        "align": "inside",
+                                        "thickness": 1
+                                      },
+                                      "layout": "vertical",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "jijSi",
+                                          "name": "Text",
+                                          "fill": "#f1f5f9ff",
+                                          "textGrowth": "fixed-width-height",
+                                          "width": 161.02000427246094,
+                                          "height": 20,
+                                          "content": "Oct 24, 2023 - 14:30 UTC",
+                                          "lineHeight": 1.5,
+                                          "textAlignVertical": "middle",
+                                          "fontFamily": "Inter",
+                                          "fontSize": 13,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "9DRd2",
+                              "name": "Overlay+Border",
+                              "width": "fill_container",
+                              "height": "fill_container",
+                              "fill": "#1e293b66",
+                              "cornerRadius": 8,
+                              "stroke": {
+                                "align": "inside",
+                                "thickness": 1,
+                                "fill": "#33415580"
+                              },
+                              "layout": "vertical",
+                              "gap": 3.25,
+                              "padding": 12,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "jcpmO",
+                                  "name": "Container",
+                                  "width": "fill_container",
+                                  "stroke": {
+                                    "align": "inside",
+                                    "thickness": 1
+                                  },
+                                  "layout": "vertical",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "2tgRI",
+                                      "name": "TTL Remaining",
+                                      "fill": "#64748bff",
+                                      "textGrowth": "fixed-width",
+                                      "width": "fill_container",
+                                      "content": "TTL Remaining",
+                                      "lineHeight": 1.5,
+                                      "textAlignVertical": "middle",
+                                      "fontFamily": "Inter",
+                                      "fontSize": 10,
+                                      "fontWeight": "900",
+                                      "letterSpacing": 1
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "HBkZA",
+                                  "name": "Container",
+                                  "width": "fill_container",
+                                  "stroke": {
+                                    "align": "inside",
+                                    "thickness": 1
+                                  },
+                                  "gap": 8,
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "wpjI0",
+                                      "name": "Container",
+                                      "stroke": {
+                                        "align": "inside",
+                                        "thickness": 1
+                                      },
+                                      "layout": "vertical",
+                                      "children": [
+                                        {
+                                          "type": "path",
+                                          "id": "whDBX",
+                                          "name": "Icon",
+                                          "geometry": "M3.5 1.16667l0-1.16667 3.5 0 0 1.16667-3.5 0 0 0m1.16667 6.41666l1.16666 0 0-3.5-1.16666 0 0 3.5 0 0m0.58333 4.66667c-0.71944 0-1.39757-0.13854-2.03437-0.41563-0.63681-0.27708-1.1934-0.65382-1.6698-1.1302-0.47639-0.47639-0.85312-1.03299-1.1302-1.66979-0.27708-0.63681-0.41563-1.31493-0.41563-2.03438 0-0.71944 0.13854-1.39757 0.41563-2.03438 0.27708-0.63681 0.65382-1.1934 1.1302-1.66979 0.47639-0.47639 1.03299-0.85312 1.6698-1.1302 0.63681-0.27708 1.31493-0.41563 2.03437-0.41563 0.60278 0 1.18125 0.09722 1.73542 0.29167 0.55417 0.19444 1.07431 0.47639 1.56041 0.84583l0.81667-0.81667 0.81667 0.81667-0.81667 0.81667c0.36944 0.48611 0.65139 1.00625 0.84583 1.56041 0.19444 0.55417 0.29167 1.13264 0.29167 1.73542 0 0.71944-0.13854 1.39757-0.41563 2.03438-0.27708 0.63681-0.65382 1.1934-1.1302 1.66979-0.47639 0.47639-1.03299 0.85313-1.66979 1.13021-0.63681 0.27708-1.31493 0.41563-2.03438 0.41562l0 0m0-1.16667c1.12778 0 2.09028-0.39861 2.8875-1.19583 0.79722-0.79722 1.19583-1.75972 1.19583-2.8875 0-1.12778-0.39861-2.09028-1.19583-2.8875-0.79722-0.79722-1.75972-1.19583-2.8875-1.19583-1.12778 0-2.09028 0.39861-2.8875 1.19583-0.79722 0.79722-1.19583 1.75972-1.19583 2.8875 0 1.12778 0.39861 2.09028 1.19583 2.8875 0.79722 0.79722 1.75972 1.19583 2.8875 1.19583l0 0m0-4.08333l0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0",
+                                          "fill": "#135becff",
+                                          "width": 10.5,
+                                          "height": 12.25
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "frame",
+                                      "id": "NtPGS",
+                                      "name": "Container",
+                                      "stroke": {
+                                        "align": "inside",
+                                        "thickness": 1
+                                      },
+                                      "layout": "vertical",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "5LlvV",
+                                          "name": "Text",
+                                          "fill": "#135becff",
+                                          "textGrowth": "fixed-width-height",
+                                          "width": 53.72999954223633,
+                                          "height": 20,
+                                          "content": "01:42:15",
+                                          "lineHeight": 1.5,
+                                          "textAlignVertical": "middle",
+                                          "fontFamily": "Inter",
+                                          "fontSize": 13,
+                                          "fontWeight": "700"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "MK12R",
+                  "name": "Background+Border+Shadow",
+                  "clip": true,
+                  "width": "fill_container",
+                  "fill": "#161c2aff",
+                  "cornerRadius": 12,
+                  "stroke": {
+                    "align": "inside",
+                    "thickness": 1,
+                    "fill": "#1e293b99"
+                  },
+                  "effect": {
+                    "type": "shadow",
+                    "shadowType": "outer",
+                    "color": "#0000000d",
+                    "offset": {
+                      "x": 0,
+                      "y": 1
+                    },
+                    "blur": 1.75
+                  },
+                  "layout": "vertical",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "GFri6",
+                      "name": "Overlay+HorizontalBorder",
+                      "width": "fill_container",
+                      "fill": "#1e293b33",
+                      "stroke": {
+                        "align": "inside",
+                        "thickness": {
+                          "bottom": 1
+                        },
+                        "fill": "#1e293b99"
+                      },
+                      "gap": 541.0399780273438,
+                      "padding": 24,
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "QQ7NL",
+                          "name": "Container",
+                          "stroke": {
+                            "align": "inside",
+                            "thickness": 1
+                          },
+                          "layout": "vertical",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "2xeQC",
+                              "name": "Heading 3",
+                              "width": "fill_container",
+                              "stroke": {
+                                "align": "inside",
+                                "thickness": 1
+                              },
+                              "layout": "vertical",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "8O4gr",
+                                  "name": "Text",
+                                  "fill": "#f1f5f9ff",
+                                  "textGrowth": "fixed-width-height",
+                                  "width": 179.3800048828125,
+                                  "height": 24,
+                                  "content": "Production Credentials",
+                                  "lineHeight": 1.5,
+                                  "textAlignVertical": "middle",
+                                  "fontFamily": "Inter",
+                                  "fontSize": 16,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "rIoDF",
+                              "name": "Container",
+                              "width": "fill_container",
+                              "stroke": {
+                                "align": "inside",
+                                "thickness": 1
+                              },
+                              "layout": "vertical",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "PxM5g",
+                                  "name": "Text",
+                                  "fill": "#94a3b8ff",
+                                  "textGrowth": "fixed-width-height",
+                                  "width": 143.61000061035156,
+                                  "height": 16,
+                                  "content": "Environment: Mainnet-V2",
+                                  "lineHeight": 1.3333333333333333,
+                                  "textAlignVertical": "middle",
+                                  "fontFamily": "Inter",
+                                  "fontSize": 12,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "cEES7",
+                          "name": "Button",
+                          "fill": "#135becff",
+                          "cornerRadius": 6,
+                          "stroke": {
+                            "align": "inside",
+                            "thickness": 1
+                          },
+                          "gap": 8,
+                          "padding": [
+                            8,
+                            16
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "7KJTL",
+                              "name": "Container",
+                              "stroke": {
+                                "align": "inside",
+                                "thickness": 1
+                              },
+                              "layout": "vertical",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "path",
+                                  "id": "aIppl",
+                                  "name": "Icon",
+                                  "geometry": "M0 12l0-1.5 2.0625 0-0.3-0.2625c-0.65-0.575-1.10625-1.23125-1.36875-1.96875-0.2625-0.7375-0.39375-1.48125-0.39375-2.23125 0-1.3875 0.41563-2.62188 1.24687-3.70313 0.83125-1.08125 1.91562-1.79687 3.25313-2.14687l0 1.575c-0.9 0.325-1.625 0.87813-2.175 1.65938-0.55 0.78125-0.825 1.65312-0.825 2.61562 0 0.5625 0.10625 1.10938 0.31875 1.64062 0.2125 0.53125 0.54375 1.02187 0.99375 1.47188l0.1875 0.1875 0-1.8375 1.5 0 0 4.5-4.5 0 0 0m7.5-0.1875l0-1.575c0.9-0.325 1.625-0.87813 2.175-1.65938 0.55-0.78125 0.825-1.65312 0.825-2.61562 0-0.5625-0.10625-1.10938-0.31875-1.64062-0.2125-0.53125-0.54375-1.02188-0.99375-1.47188l-0.1875-0.1875 0 1.8375-1.5 0 0-4.5 4.5 0 0 1.5-2.0625 0 0.3 0.2625c0.6125 0.6125 1.05937 1.27813 1.34062 1.99688 0.28125 0.71875 0.42188 1.45312 0.42188 2.20312 0 1.3875-0.41563 2.62187-1.24688 3.70312-0.83125 1.08125-1.91563 1.79688-3.25312 2.14688l0 0",
+                                  "fill": "#ffffffff",
+                                  "width": 12,
+                                  "height": 12
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "nXbIi",
+                              "name": "Text",
+                              "fill": "#ffffffff",
+                              "textGrowth": "fixed-width-height",
+                              "width": 115.58000183105469,
+                              "height": 16,
+                              "content": "Refresh Token",
+                              "lineHeight": 1.3333333333333333,
+                              "textAlign": "center",
+                              "textAlignVertical": "middle",
+                              "fontFamily": "Inter",
+                              "fontSize": 12,
+                              "fontWeight": "900",
+                              "letterSpacing": 1.2000000476837158
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "JHj1q",
+                      "name": "Container",
+                      "width": "fill_container",
+                      "stroke": {
+                        "align": "inside",
+                        "thickness": 1
+                      },
+                      "layout": "vertical",
+                      "gap": 24,
+                      "padding": 24,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "qhGdW",
+                          "name": "Container",
+                          "width": "fill_container",
+                          "stroke": {
+                            "align": "inside",
+                            "thickness": 1
+                          },
+                          "layout": "vertical",
+                          "gap": 8,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "RXUUC",
+                              "name": "Label",
+                              "width": "fill_container",
+                              "stroke": {
+                                "align": "inside",
+                                "thickness": 1
+                              },
+                              "layout": "vertical",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "YXGe8",
+                                  "name": "Client ID",
+                                  "fill": "#94a3b8ff",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "Client ID",
+                                  "lineHeight": 1.5,
+                                  "textAlignVertical": "middle",
+                                  "fontFamily": "Inter",
+                                  "fontSize": 11,
+                                  "fontWeight": "900",
+                                  "letterSpacing": 1.100000023841858
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "o8eKk",
+                              "name": "Container",
+                              "width": "fill_container",
+                              "stroke": {
+                                "align": "inside",
+                                "thickness": 1
+                              },
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "CcDDD",
+                                  "name": "Input",
+                                  "clip": true,
+                                  "width": "fill_container",
+                                  "height": "fill_container",
+                                  "fill": "#0f172a80",
+                                  "cornerRadius": [
+                                    6,
+                                    0,
+                                    0,
+                                    6
+                                  ],
+                                  "stroke": {
+                                    "align": "inside",
+                                    "thickness": 1,
+                                    "fill": "#334155ff"
+                                  },
+                                  "layout": "vertical",
+                                  "padding": [
+                                    12,
+                                    16
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "HfiM4",
+                                      "name": "Container",
+                                      "clip": true,
+                                      "width": "fill_container",
+                                      "stroke": {
+                                        "align": "inside",
+                                        "thickness": 1
+                                      },
+                                      "layout": "vertical",
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "7nJvW",
+                                          "name": "sd_prod_9210_x882_alpha",
+                                          "fill": "#cbd5e1ff",
+                                          "textGrowth": "fixed-width",
+                                          "width": "fill_container",
+                                          "content": "sd_prod_9210_x882_alpha",
+                                          "lineHeight": 1.4285714285714286,
+                                          "textAlignVertical": "middle",
+                                          "fontFamily": "Liberation Mono",
+                                          "fontSize": 14,
+                                          "fontWeight": "normal"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "O2gLD",
+                                  "name": "Button",
+                                  "fill": "#1e293bff",
+                                  "cornerRadius": [
+                                    0,
+                                    6,
+                                    6,
+                                    0
+                                  ],
+                                  "stroke": {
+                                    "align": "inside",
+                                    "thickness": {
+                                      "top": 1,
+                                      "right": 1,
+                                      "bottom": 1
+                                    },
+                                    "fill": "#334155ff"
+                                  },
+                                  "padding": [
+                                    13,
+                                    16
+                                  ],
+                                  "justifyContent": "center",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "V1B8b",
+                                      "name": "Container",
+                                      "stroke": {
+                                        "align": "inside",
+                                        "thickness": 1
+                                      },
+                                      "layout": "vertical",
+                                      "alignItems": "center",
+                                      "children": [
+                                        {
+                                          "type": "path",
+                                          "id": "DGWDW",
+                                          "name": "Icon",
+                                          "geometry": "M4.5 12c-0.4125 0-0.76563-0.14687-1.05938-0.44063-0.29375-0.29375-0.44062-0.64687-0.44062-1.05937l0-9c0-0.4125 0.14687-0.76563 0.44062-1.05937 0.29375-0.29375 0.64688-0.44063 1.05938-0.44063l6.75 0c0.4125 0 0.76563 0.14688 1.05937 0.44063 0.29375 0.29375 0.44063 0.64687 0.44063 1.05937l0 9c0 0.4125-0.14687 0.76563-0.44063 1.05937-0.29375 0.29375-0.64687 0.44063-1.05937 0.44063l-6.75 0 0 0m0-1.5l6.75 0 0 0 0 0 0-9 0 0 0 0-6.75 0 0 0 0 0 0 9 0 0 0 0 0 0m-3 4.5c-0.4125 0-0.76563-0.14687-1.05937-0.44063-0.29375-0.29375-0.44063-0.64687-0.44063-1.05937l0-10.5 1.5 0 0 10.5 0 0 0 0 8.25 0 0 1.5-8.25 0 0 0m3-4.5l0 0 0 0 0-9 0 0 0 0 0 0 0 0 0 0 0 9 0 0 0 0 0 0 0 0",
+                                          "fill": "#64748bff",
+                                          "width": 12.75,
+                                          "height": 15
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "zw7tw",
+                          "name": "Container",
+                          "width": "fill_container",
+                          "stroke": {
+                            "align": "inside",
+                            "thickness": 1
+                          },
+                          "layout": "vertical",
+                          "gap": 8,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "XbjqK",
+                              "name": "Label",
+                              "width": "fill_container",
+                              "stroke": {
+                                "align": "inside",
+                                "thickness": 1
+                              },
+                              "layout": "vertical",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "UyEJZ",
+                                  "name": "Live Bearer Token",
+                                  "fill": "#94a3b8ff",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "Live Bearer Token",
+                                  "lineHeight": 1.5,
+                                  "textAlignVertical": "middle",
+                                  "fontFamily": "Inter",
+                                  "fontSize": 11,
+                                  "fontWeight": "900",
+                                  "letterSpacing": 1.100000023841858
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "qpt6q",
+                              "name": "Container",
+                              "width": "fill_container",
+                              "stroke": {
+                                "align": "inside",
+                                "thickness": 1
+                              },
+                              "layout": "vertical",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "EwLkx",
+                                  "name": "Textarea",
+                                  "clip": true,
+                                  "width": "fill_container",
+                                  "fill": "#0f172a80",
+                                  "cornerRadius": 6,
+                                  "stroke": {
+                                    "align": "inside",
+                                    "thickness": 1,
+                                    "fill": "#334155ff"
+                                  },
+                                  "padding": [
+                                    14.9399995803833,
+                                    16,
+                                    33.880001068115234,
+                                    16
+                                  ],
+                                  "justifyContent": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "Z1187",
+                                      "name": "Container",
+                                      "width": "fill_container",
+                                      "stroke": {
+                                        "align": "inside",
+                                        "thickness": 1
+                                      },
+                                      "layout": "vertical",
+                                      "padding": [
+                                        0,
+                                        0,
+                                        0.8100000023841858,
+                                        0
+                                      ],
+                                      "children": [
+                                        {
+                                          "type": "text",
+                                          "id": "vA63j",
+                                          "name": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4 fwpMeJf36POk6yJV_adQssw5c",
+                                          "fill": "#94a3b8ff",
+                                          "textGrowth": "fixed-width",
+                                          "width": "fill_container",
+                                          "content": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4\nfwpMeJf36POk6yJV_adQssw5c",
+                                          "lineHeight": 1.6254544691606,
+                                          "textAlignVertical": "middle",
+                                          "fontFamily": "Liberation Mono",
+                                          "fontSize": 11,
+                                          "fontWeight": "normal"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "A9gST",
+                                  "name": "Button",
+                                  "fill": "#1e293bff",
+                                  "cornerRadius": 6,
+                                  "stroke": {
+                                    "align": "inside",
+                                    "thickness": 1,
+                                    "fill": "#334155ff"
+                                  },
+                                  "effect": {
+                                    "type": "shadow",
+                                    "shadowType": "outer",
+                                    "color": "#0000000d",
+                                    "offset": {
+                                      "x": 0,
+                                      "y": 1
+                                    },
+                                    "blur": 1.75
+                                  },
+                                  "layout": "vertical",
+                                  "padding": 8,
+                                  "justifyContent": "center",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "frame",
+                                      "id": "FpZPN",
+                                      "name": "Container",
+                                      "stroke": {
+                                        "align": "inside",
+                                        "thickness": 1
+                                      },
+                                      "justifyContent": "center",
+                                      "children": [
+                                        {
+                                          "type": "path",
+                                          "id": "TzNsT",
+                                          "name": "Icon",
+                                          "geometry": "M4.5 12c-0.4125 0-0.76563-0.14687-1.05938-0.44063-0.29375-0.29375-0.44062-0.64687-0.44062-1.05937l0-9c0-0.4125 0.14687-0.76563 0.44062-1.05937 0.29375-0.29375 0.64688-0.44063 1.05938-0.44063l6.75 0c0.4125 0 0.76563 0.14688 1.05937 0.44063 0.29375 0.29375 0.44063 0.64687 0.44063 1.05937l0 9c0 0.4125-0.14687 0.76563-0.44063 1.05937-0.29375 0.29375-0.64687 0.44063-1.05937 0.44063l-6.75 0 0 0m0-1.5l6.75 0 0 0 0 0 0-9 0 0 0 0-6.75 0 0 0 0 0 0 9 0 0 0 0 0 0m-3 4.5c-0.4125 0-0.76563-0.14687-1.05937-0.44063-0.29375-0.29375-0.44063-0.64687-0.44063-1.05937l0-10.5 1.5 0 0 10.5 0 0 0 0 8.25 0 0 1.5-8.25 0 0 0m3-4.5l0 0 0 0 0-9 0 0 0 0 0 0 0 0 0 0 0 9 0 0 0 0 0 0 0 0",
+                                          "fill": "#64748bff",
+                                          "width": 12.75,
+                                          "height": 15
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
