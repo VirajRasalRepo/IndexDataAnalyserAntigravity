@@ -35,22 +35,25 @@ class DhanMarketFeed:
     WS_URL = "wss://api-feed.dhan.co"
 
     # Request codes
-    SUBSCRIPTION_CODE = 15  # Subscribe
+    SUBSCRIPTION_CODE = 17  # Subscribe
     UNSUBSCRIPTION_CODE = 16  # Unsubscribe
     QUOTE_MODE = 4  # Quote packet mode
 
     # Exchange segment codes
     EXCHANGE_SEGMENTS = {
-        "IDX_I": 13,
+        "IDX_I": 0,
         "NSE_EQ": 1,
         "NSE_FNO": 2,
-        "BSE_EQ": 11,
-        "BSE_FNO": 12,
+        "NSE_CURRENCY": 3,
+        "BSE_EQ": 4,
+        "MCX_COMM": 5,
+        "BSE_CURRENCY": 7,
+        "BSE_FNO": 8,
     }
 
     # Market instruments configuration
     INSTRUMENTS = [
-        {"security_id": 26017, "exchange_segment": "IDX_I", "prefix": "india_vix"},
+        {"security_id": 21, "exchange_segment": "IDX_I", "prefix": "india_vix"},
         {"security_id": 13, "exchange_segment": "IDX_I", "prefix": "nifty_50"},
         {"security_id": 2885, "exchange_segment": "NSE_EQ", "prefix": "reliance"},
         {"security_id": 1333, "exchange_segment": "NSE_EQ", "prefix": "hdfc_bank"},
@@ -164,6 +167,7 @@ class DhanMarketFeed:
             ws: WebSocket instance
             message: Binary message data
         """
+
         try:
             logger.debug(f"Received message: {len(message)} bytes")
 
@@ -203,9 +207,8 @@ class DhanMarketFeed:
             # Prepare instrument list
             instrument_list = []
             for instrument in self.INSTRUMENTS:
-                exchange_code = self.EXCHANGE_SEGMENTS.get(instrument["exchange_segment"], 1)
                 instrument_list.append({
-                    "ExchangeSegment": exchange_code,
+                    "ExchangeSegment": instrument["exchange_segment"],
                     "SecurityId": str(instrument["security_id"])
                 })
 
@@ -213,7 +216,8 @@ class DhanMarketFeed:
             subscription_msg = {
                 "RequestCode": self.SUBSCRIPTION_CODE,
                 "InstrumentCount": len(instrument_list),
-                "InstrumentList": instrument_list
+                "InstrumentList": instrument_list,
+                "RequestMode": self.QUOTE_MODE
             }
 
             # Send subscription
@@ -224,93 +228,44 @@ class DhanMarketFeed:
             logger.error(f"Failed to subscribe to instruments: {e}")
 
     def _parse_quote_packet(self, data: bytes) -> Optional[Dict]:
-        """
-        Parse Quote Packet (Mode 4) binary data.
-
-        Binary format (Little Endian):
-        - Header: 8 bytes
-        - Exchange Segment: 1 byte
-        - Security ID: 4 bytes (int32)
-        - LTP: 4 bytes (float32)
-        - LTQ: 4 bytes (int32)
-        - LTT: 4 bytes (int32) - EPOCH
-        - Average Price: 4 bytes (float32)
-        - Volume: 4 bytes (int32)
-        - Total Buy Qty: 4 bytes (float32)
-        - Total Sell Qty: 4 bytes (float32)
-        - Open: 4 bytes (float32)
-        - High: 4 bytes (float32)
-        - Low: 4 bytes (float32)
-        - Close: 4 bytes (float32)
-
-        Args:
-            data: Binary data from WebSocket
-
-        Returns:
-            Dictionary with parsed data or None
-        """
+        """Parse Quote Packet using Dhan's official binary format."""
         try:
-            if len(data) < 52:  # Minimum packet size
+            if len(data) < 50:
                 return None
-
-            # Parse header (8 bytes) - skip for now
-            offset = 8
-
-            # Parse data fields (Little Endian format)
-            exchange_segment = struct.unpack_from('<B', data, offset)[0]
-            offset += 1
-
-            security_id = struct.unpack_from('<I', data, offset)[0]
-            offset += 4
-
-            ltp = struct.unpack_from('<f', data, offset)[0]
-            offset += 4
-
-            ltq = struct.unpack_from('<I', data, offset)[0]
-            offset += 4
-
-            ltt_epoch = struct.unpack_from('<I', data, offset)[0]
-            offset += 4
-
-            avg_price = struct.unpack_from('<f', data, offset)[0]
-            offset += 4
-
-            volume = struct.unpack_from('<I', data, offset)[0]
-            offset += 4
-
-            total_buy_qty = struct.unpack_from('<f', data, offset)[0]
-            offset += 4
-
-            total_sell_qty = struct.unpack_from('<f', data, offset)[0]
-            offset += 4
-
-            open_price = struct.unpack_from('<f', data, offset)[0]
-            offset += 4
-
-            high_price = struct.unpack_from('<f', data, offset)[0]
-            offset += 4
-
-            low_price = struct.unpack_from('<f', data, offset)[0]
-            offset += 4
-
-            close_price = struct.unpack_from('<f', data, offset)[0]
+            unpacked = struct.unpack_from('<BHBIfHIfIIIffff', data, 0)
+            response_code = unpacked[0]
+            exchange_segment = unpacked[2]
+            security_id = unpacked[3]
+            ltp = unpacked[4]
+            ltq = unpacked[5]
+            ltt_epoch = unpacked[6]
+            avg_price = unpacked[7]
+            volume = unpacked[8]
+            total_sell_qty = unpacked[9]
+            total_buy_qty = unpacked[10]
+            open_price = unpacked[11]
+            close_price = unpacked[12]
+            high_price = unpacked[13]
+            low_price = unpacked[14]
 
             return {
                 'exchange_segment': exchange_segment,
                 'security_id': security_id,
                 'ltp': round(ltp, 2),
                 'ltq': ltq,
-                'ltt_epoch': ltt_epoch,
+                'ltt': ltt_epoch,
                 'avg_price': round(avg_price, 2),
                 'volume': volume,
-                'total_buy_qty': int(total_buy_qty),
-                'total_sell_qty': int(total_sell_qty),
+                'total_buy_qty': total_buy_qty,
+                'total_sell_qty': total_sell_qty,
                 'open': round(open_price, 2),
                 'high': round(high_price, 2),
                 'low': round(low_price, 2),
                 'close': round(close_price, 2),
-                'timestamp': datetime.now()
             }
+        except Exception as e:
+            logger.error(f"Error parsing quote packet: {e}")
+            return None
 
         except Exception as e:
             logger.error(f"Error parsing quote packet: {e}")

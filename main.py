@@ -289,7 +289,7 @@ def run_pipeline():
                             SELECT *
                             FROM nifty_oc_historical
                             WHERE Date = CURDATE() AND Time = (
-                                SELECT MAX(Time) FROM nifty_oc_historical WHERE Date = CURDATE()
+                                SELECT t.max_time FROM (SELECT MAX(Time) AS max_time FROM nifty_oc_historical WHERE Date = CURDATE()) t
                             )
                         """)
                         columns = [desc[0] for desc in cursor.description]
@@ -315,7 +315,7 @@ def run_pipeline():
                                     SUM(ce_oi) as ce_oi_total
                                 FROM nifty_oc_historical
                                 WHERE Date = CURDATE() AND Time = (
-                                    SELECT MAX(Time) FROM nifty_oc_historical WHERE Date = CURDATE()
+                                    SELECT t.max_time FROM (SELECT MAX(Time) AS max_time FROM nifty_oc_historical WHERE Date = CURDATE()) t
                                 )
                             """)
                             pcr_row = cursor.fetchone()
@@ -382,7 +382,7 @@ def run_pipeline():
                                             pe_alert_gamma_blast = %s,
                                             pe_alert_negative_carry = %s
                                         WHERE Date = CURDATE()
-                                          AND Time = (SELECT MAX(Time) FROM nifty_oc_historical WHERE Date = CURDATE())
+                                          AND Time = (SELECT t.max_time FROM (SELECT MAX(Time) AS max_time FROM nifty_oc_historical WHERE Date = CURDATE()) t)
                                           AND Strike_price = %s
                                     """, (
                                         greeks_result['dte'],
