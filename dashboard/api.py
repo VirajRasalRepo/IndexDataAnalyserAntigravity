@@ -953,20 +953,30 @@ def greeks_pro():
             vix_current = decimal_to_float(vix_rows[0][0]) if vix_rows else 14.0
             vix_prev = decimal_to_float(vix_rows[1][0]) if len(vix_rows) > 1 else vix_current
 
-            # Calculate PCR
-            cursor.execute("""
+            # Calculate PCR (use target_date if provided, else CURDATE)
+            pcr_date_clause = f"Date = '{target_date}'" if target_date else "Date = CURDATE()"
+            cursor.execute(f"""
                 SELECT
                     SUM(pe_oi) as pe_oi_total,
                     SUM(ce_oi) as ce_oi_total
                 FROM nifty_oc_historical
-                WHERE Date = CURDATE() AND Time = (
-                    SELECT MAX(Time) FROM nifty_oc_historical WHERE Date = CURDATE()
+                WHERE {pcr_date_clause} AND Time = (
+                    SELECT MAX(Time) FROM nifty_oc_historical WHERE {pcr_date_clause}
                 )
             """)
             pcr_row = cursor.fetchone()
             pe_oi = decimal_to_float(pcr_row[0] or 1)
             ce_oi = decimal_to_float(pcr_row[1] or 1)
             pcr = pe_oi / ce_oi if ce_oi > 0 else 1.0
+
+            # Get day's opening spot price for straddle utilization (FEATURE 5)
+            date_for_open = target_date if target_date else datetime.now().strftime('%Y-%m-%d')
+            cursor.execute("""
+                SELECT Spot_price FROM nifty_oc_historical
+                WHERE Date = %s ORDER BY Time ASC LIMIT 1
+            """, (date_for_open,))
+            open_row = cursor.fetchone()
+            day_open = decimal_to_float(open_row[0]) if open_row else spot
 
             # Get IV Environment (Rank + Percentile)
             with DatabaseManager.get_connection() as conn:
@@ -1035,7 +1045,7 @@ def greeks_pro():
             'ce_oi': next((c['oi'] for c in processed['ce_ranked'] if c['strike_price'] == r['strike_price']), 0),
             'pe_oi': r['oi']
         } for r in processed['pe_ranked']]
-        max_pain = calc_max_pain(all_strikes_for_max_pain)
+        max_pain = calc_max_pain(all_strikes_for_max_pain, spot)
 
         # Straddle Premium
         straddle_premium = calc_straddle_premium(
@@ -1043,6 +1053,13 @@ def greeks_pro():
             atm_pe_ltp=atm_pe.get('ltp', 0),
             spot=spot
         )
+
+        # Straddle Utilization % (FEATURE 5) — how much of expected move is consumed
+        actual_move = abs(spot - day_open)
+        expected_pts = straddle_premium.get('expected_move_points', 0)
+        straddle_premium['utilization_pct'] = round(actual_move / expected_pts * 100, 1) if expected_pts > 0 else 0.0
+        straddle_premium['day_open'] = round(day_open, 2)
+        straddle_premium['actual_move'] = round(actual_move, 2)
 
         # Build response
         response = {
@@ -1254,6 +1271,7 @@ def available_times():
 
 
 @app.route('/')
+@app.route('/index.html')
 def index():
     """Serve the main dashboard page."""
     from flask import send_file

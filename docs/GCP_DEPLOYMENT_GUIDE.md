@@ -68,7 +68,7 @@ By default, the API runs on port 5000. You need to open this port if you want to
      cd IndexDataAnalyser
      ```
 
-## Phase 4: Run the Setup Script
+## Phase 4: Run the Setup Scriptl
 
 The project comes with an automated installer for Linux (`setup.sh`).
 
