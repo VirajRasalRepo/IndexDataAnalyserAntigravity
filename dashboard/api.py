@@ -1045,7 +1045,7 @@ def greeks_pro():
             'ce_oi': next((c['oi'] for c in processed['ce_ranked'] if c['strike_price'] == r['strike_price']), 0),
             'pe_oi': r['oi']
         } for r in processed['pe_ranked']]
-        max_pain = calc_max_pain(all_strikes_for_max_pain, spot)
+        max_pain = calc_max_pain(all_strikes_for_max_pain)
 
         # Straddle Premium
         straddle_premium = calc_straddle_premium(
