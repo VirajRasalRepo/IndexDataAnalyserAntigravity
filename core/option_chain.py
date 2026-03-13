@@ -25,7 +25,7 @@ class OptionChainData:
 
     # SQL query for inserting option chain data
     INSERT_OC_QUERY = """
-        INSERT INTO NIFTY_OC_HISTORICAL
+        INSERT INTO nifty_oc_historical
         (Date, Time, Spot_price, Strike_price, ce_oi, ce_volume, ce_IV,
         ce_delta, ce_gamma, ce_theta, ce_price, ce_vega,
         pe_oi, pe_volume, pe_IV, pe_delta, pe_gamma,

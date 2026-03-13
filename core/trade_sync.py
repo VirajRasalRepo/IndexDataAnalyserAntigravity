@@ -22,7 +22,7 @@ class TradeSync:
 
     # SQL query for inserting trades (INSERT IGNORE to skip duplicates)
     INSERT_TRADE_QUERY = """
-        INSERT IGNORE INTO USER_TRADES
+        INSERT IGNORE INTO user_trades
         (trade_id, order_id, symbol, transaction_type, quantity,
          entry_price, entry_time, status)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
