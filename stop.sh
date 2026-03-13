@@ -25,6 +25,23 @@ cd "$SCRIPT_DIR"
 STOPPED_COUNT=0
 
 # ============================================================
+# Stop Systemd Services (if they exist)
+# ============================================================
+if systemctl is-active --quiet oi-data-collector.service 2>/dev/null; then
+    print_info "Stopping oi-data-collector systemd service..."
+    sudo systemctl stop oi-data-collector.service
+    print_success "oi-data-collector systemd service stopped"
+    STOPPED_COUNT=$((STOPPED_COUNT + 1))
+fi
+
+if systemctl is-active --quiet oi-dashboard-api.service 2>/dev/null; then
+    print_info "Stopping oi-dashboard-api systemd service..."
+    sudo systemctl stop oi-dashboard-api.service
+    print_success "oi-dashboard-api systemd service stopped"
+    STOPPED_COUNT=$((STOPPED_COUNT + 1))
+fi
+
+# ============================================================
 # Stop Data Collector
 # ============================================================
 if [ -f "logs/data_collector.pid" ]; then

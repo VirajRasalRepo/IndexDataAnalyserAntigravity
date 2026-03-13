@@ -40,16 +40,16 @@ print_info "Running pre-flight checks..."
 print_info "Cleaning up old processes..."
 
 # Stop systemd services if running (to avoid duplicate instances)
-if systemctl is-active --quiet ida-collector.service 2>/dev/null; then
-    print_info "Stopping ida-collector systemd service..."
-    sudo systemctl stop ida-collector.service
-    print_success "ida-collector systemd service stopped"
+if systemctl is-active --quiet oi-data-collector.service 2>/dev/null; then
+    print_info "Stopping oi-data-collector systemd service..."
+    sudo systemctl stop oi-data-collector.service
+    print_success "oi-data-collector systemd service stopped"
 fi
 
-if systemctl is-active --quiet ida-api.service 2>/dev/null; then
-    print_info "Stopping ida-api systemd service..."
-    sudo systemctl stop ida-api.service
-    print_success "ida-api systemd service stopped"
+if systemctl is-active --quiet oi-dashboard-api.service 2>/dev/null; then
+    print_info "Stopping oi-dashboard-api systemd service..."
+    sudo systemctl stop oi-dashboard-api.service
+    print_success "oi-dashboard-api systemd service stopped"
 fi
 
 # Kill old collector process if running
