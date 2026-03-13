@@ -34,6 +34,66 @@ export PYTHONPATH="$SCRIPT_DIR:$PYTHONPATH"
 print_info "Running pre-flight checks..."
 
 # Check .env file
+# ============================================================
+# Cleanup: Stop old processes and free ports
+# ============================================================
+print_info "Cleaning up old processes..."
+
+# Stop systemd services if running (to avoid duplicate instances)
+if systemctl is-active --quiet ida-collector.service 2>/dev/null; then
+    print_info "Stopping ida-collector systemd service..."
+    sudo systemctl stop ida-collector.service
+    print_success "ida-collector systemd service stopped"
+fi
+
+if systemctl is-active --quiet ida-api.service 2>/dev/null; then
+    print_info "Stopping ida-api systemd service..."
+    sudo systemctl stop ida-api.service
+    print_success "ida-api systemd service stopped"
+fi
+
+# Kill old collector process if running
+if [ -f "logs/data_collector.pid" ]; then
+    OLD_PID=$(cat logs/data_collector.pid)
+    if ps -p "$OLD_PID" > /dev/null 2>&1; then
+        print_info "Killing old Data Collector (PID: $OLD_PID)..."
+        kill "$OLD_PID" 2>/dev/null || true
+        sleep 1
+        # Force kill if still alive
+        kill -9 "$OLD_PID" 2>/dev/null || true
+    fi
+    rm -f logs/data_collector.pid
+fi
+
+# Kill old API process if running
+if [ -f "logs/api.pid" ]; then
+    OLD_PID=$(cat logs/api.pid)
+    if ps -p "$OLD_PID" > /dev/null 2>&1; then
+        print_info "Killing old Dashboard API (PID: $OLD_PID)..."
+        kill "$OLD_PID" 2>/dev/null || true
+        sleep 1
+        kill -9 "$OLD_PID" 2>/dev/null || true
+    fi
+    rm -f logs/api.pid
+fi
+
+# Kill any remaining main.py processes (catch strays)
+pkill -f "python3 main.py" 2>/dev/null || true
+pkill -f "python3 dashboard/api.py" 2>/dev/null || true
+
+# Free port 5000 if still in use
+if fuser 5000/tcp > /dev/null 2>&1; then
+    print_info "Freeing port 5000..."
+    fuser -k 5000/tcp > /dev/null 2>&1 || true
+    sleep 1
+fi
+
+print_success "Cleanup complete"
+echo ""
+
+# ============================================================
+# Check if .env file exists
+# ============================================================
 if [ ! -f ".env" ]; then
     print_error ".env file not found!"
     echo "Please run setup.sh first or create .env from .env.example"
@@ -173,6 +233,8 @@ app.run(host='0.0.0.0', port=5000, debug=False)
 " >> logs/api.log 2>&1 &
         API_PID=$!
     fi
+    nohup python3 dashboard/api.py > logs/api.log 2>&1 &
+    API_PID=$!
     echo $API_PID > logs/api.pid
     print_success "Dashboard API started (PID: $API_PID)"
     echo "  Endpoint: http://0.0.0.0:5000"

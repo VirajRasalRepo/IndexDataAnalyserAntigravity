@@ -22,7 +22,7 @@ class DatabaseManager:
     _pool: Optional[pooling.MySQLConnectionPool] = None
 
     @classmethod
-    def initialize_pool(cls, pool_name: str = "analyzer_pool", pool_size: int = 5) -> None:
+    def initialize_pool(cls, pool_name: str = "analyzer_pool", pool_size: int = 20) -> None:
         """
         Initialize the connection pool.
 
