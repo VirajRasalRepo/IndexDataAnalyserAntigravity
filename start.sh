@@ -9,6 +9,7 @@ set -e
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
+BLUE='\033[0;34m'
 NC='\033[0m'
 
 print_success() { echo -e "${GREEN}✓ $1${NC}"; }
@@ -24,6 +25,15 @@ echo ""
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$SCRIPT_DIR"
 
+# Export PYTHONPATH so all Python processes can find core/ modules
+export PYTHONPATH="$SCRIPT_DIR:$PYTHONPATH"
+
+# ============================================================
+# Pre-flight checks
+# ============================================================
+print_info "Running pre-flight checks..."
+
+# Check .env file
 # ============================================================
 # Cleanup: Stop old processes and free ports
 # ============================================================
@@ -89,126 +99,236 @@ if [ ! -f ".env" ]; then
     echo "Please run setup.sh first or create .env from .env.example"
     exit 1
 fi
+print_success ".env file found"
 
-# ============================================================
-# Activate virtual environment
-# ============================================================
+# Source .env for MySQL check
+set -a
+source .env
+set +a
+
+# Check virtual environment
 if [ -d "venv" ]; then
-    print_info "Activating virtual environment..."
     source venv/bin/activate
     print_success "Virtual environment activated"
 else
-    print_error "Virtual environment not found!"
-    echo "Please run setup.sh first"
+    print_error "Virtual environment not found! Run setup.sh first."
     exit 1
 fi
-echo ""
 
-# ============================================================
 # Check MySQL connection
-# ============================================================
 print_info "Checking MySQL connection..."
-source .env
-if python3 -c "import mysql.connector; mysql.connector.connect(host='$DB_HOST', user='$DB_USER', password='$DB_PASSWORD', database='$DB_NAME')" 2>/dev/null; then
-    print_success "MySQL connection successful"
+if python3 -c "
+import mysql.connector
+mysql.connector.connect(
+    host='${DB_HOST:-localhost}',
+    user='${DB_USER:-root}',
+    password='${DB_PASSWORD}',
+    database='${DB_NAME:-analyzer_db}',
+    port=${DB_PORT:-3306}
+)
+print('ok')
+" 2>/dev/null | grep -q "ok"; then
+    print_success "MySQL connection successful (${DB_NAME:-analyzer_db}@${DB_HOST:-localhost})"
 else
     print_error "Cannot connect to MySQL database"
-    echo "Please check your database configuration in .env"
+    echo "  Host: ${DB_HOST:-localhost}:${DB_PORT:-3306}"
+    echo "  User: ${DB_USER:-root}"
+    echo "  Database: ${DB_NAME:-analyzer_db}"
+    echo "  Please check your .env configuration"
     exit 1
 fi
+
+# Check critical Python imports
+print_info "Verifying Python imports..."
+if python3 -c "from core.config import Config; from dashboard.api import app; print('ok')" 2>/dev/null | grep -q "ok"; then
+    print_success "Python imports verified"
+else
+    print_error "Python import check failed. Check PYTHONPATH and dependencies."
+    echo "  PYTHONPATH=$PYTHONPATH"
+    echo "  Try: pip install -r requirements.txt"
+    exit 1
+fi
+
 echo ""
 
 # ============================================================
-# Create log directory
+# Create directories
 # ============================================================
 mkdir -p logs
 print_info "Log directory: $SCRIPT_DIR/logs"
 echo ""
 
 # ============================================================
-# Start Data Collector
+# Stop existing services (if running)
+# ============================================================
+print_info "Checking for existing processes..."
+if [ -f "logs/data_collector.pid" ]; then
+    OLD_PID=$(cat logs/data_collector.pid)
+    if ps -p $OLD_PID > /dev/null 2>&1; then
+        print_info "Stopping existing Data Collector (PID: $OLD_PID)..."
+        kill $OLD_PID 2>/dev/null || true
+        sleep 2
+        kill -9 $OLD_PID 2>/dev/null || true
+    fi
+    rm -f logs/data_collector.pid
+fi
+
+if [ -f "logs/api.pid" ]; then
+    OLD_PID=$(cat logs/api.pid)
+    if ps -p $OLD_PID > /dev/null 2>&1; then
+        print_info "Stopping existing Dashboard API (PID: $OLD_PID)..."
+        kill $OLD_PID 2>/dev/null || true
+        sleep 2
+        kill -9 $OLD_PID 2>/dev/null || true
+    fi
+    rm -f logs/api.pid
+fi
+
+# Also kill any orphan gunicorn workers
+pkill -f "gunicorn.*dashboard.api" 2>/dev/null || true
+echo ""
+
+# ============================================================
+# Start Data Collector (main.py)
 # ============================================================
 print_info "Starting Data Collector (main.py)..."
 if [ -f "main.py" ]; then
-    nohup python3 main.py > logs/data_collector.log 2>&1 &
+    nohup python3 "$SCRIPT_DIR/main.py" \
+        >> logs/data_collector.log 2>&1 &
     COLLECTOR_PID=$!
     echo $COLLECTOR_PID > logs/data_collector.pid
     print_success "Data Collector started (PID: $COLLECTOR_PID)"
-    echo "  Log file: logs/data_collector.log"
+    echo "  Log: logs/data_collector.log"
 else
     print_error "main.py not found!"
 fi
 echo ""
 
 # ============================================================
-# Start Dashboard API
+# Start Dashboard API (gunicorn or flask dev server)
 # ============================================================
 print_info "Starting Dashboard API..."
 if [ -f "dashboard/api.py" ]; then
+    # Use gunicorn in production, flask dev server as fallback
+    if command -v gunicorn &> /dev/null || [ -f "venv/bin/gunicorn" ]; then
+        print_info "Using gunicorn (production mode)"
+        nohup gunicorn \
+            --workers 4 \
+            --bind 0.0.0.0:5000 \
+            --timeout 120 \
+            --chdir "$SCRIPT_DIR" \
+            --access-logfile logs/gunicorn-access.log \
+            --error-logfile logs/gunicorn-error.log \
+            dashboard.api:app \
+            >> logs/api.log 2>&1 &
+        API_PID=$!
+    else
+        print_info "gunicorn not found, using Flask dev server (not for production!)"
+        # IMPORTANT: Run from project root with PYTHONPATH set, NOT from dashboard/
+        nohup python3 -c "
+import sys
+sys.path.insert(0, '$SCRIPT_DIR')
+from dashboard.api import app
+app.run(host='0.0.0.0', port=5000, debug=False)
+" >> logs/api.log 2>&1 &
+        API_PID=$!
+    fi
     nohup python3 dashboard/api.py > logs/api.log 2>&1 &
     API_PID=$!
     echo $API_PID > logs/api.pid
     print_success "Dashboard API started (PID: $API_PID)"
-    echo "  API endpoint: http://localhost:5000"
-    echo "  Log file: logs/api.log"
+    echo "  Endpoint: http://0.0.0.0:5000"
+    echo "  Log: logs/api.log"
 else
     print_error "dashboard/api.py not found!"
 fi
 echo ""
 
 # ============================================================
-# Wait for services to start
+# Wait for services and run health checks
 # ============================================================
 print_info "Waiting for services to initialize..."
-sleep 3
+sleep 4
 
-# Check if processes are running
 COLLECTOR_RUNNING=false
 API_RUNNING=false
+API_HEALTHY=false
 
+# Check Data Collector
 if [ -f "logs/data_collector.pid" ]; then
     if ps -p $(cat logs/data_collector.pid) > /dev/null 2>&1; then
         COLLECTOR_RUNNING=true
     fi
 fi
 
+# Check API process
 if [ -f "logs/api.pid" ]; then
     if ps -p $(cat logs/api.pid) > /dev/null 2>&1; then
         API_RUNNING=true
     fi
 fi
 
+# Health check: try API endpoint with retry
+if [ "$API_RUNNING" = true ]; then
+    print_info "Running API health check..."
+    for i in 1 2 3 4 5; do
+        if curl -sf http://localhost:5000/api/available-dates > /dev/null 2>&1; then
+            API_HEALTHY=true
+            break
+        fi
+        sleep 2
+    done
+fi
+
 # ============================================================
 # Status Summary
 # ============================================================
+echo ""
 echo "============================================================"
 echo "Service Status"
 echo "============================================================"
 
 if [ "$COLLECTOR_RUNNING" = true ]; then
-    print_success "Data Collector: RUNNING"
+    print_success "Data Collector: RUNNING (PID: $(cat logs/data_collector.pid))"
 else
     print_error "Data Collector: FAILED"
-    echo "  Check logs/data_collector.log for errors"
+    echo "  Check: tail -20 logs/data_collector.log"
 fi
 
 if [ "$API_RUNNING" = true ]; then
-    print_success "Dashboard API: RUNNING"
+    if [ "$API_HEALTHY" = true ]; then
+        print_success "Dashboard API:  RUNNING + HEALTHY (PID: $(cat logs/api.pid))"
+    else
+        print_info "Dashboard API:  RUNNING but health check pending (PID: $(cat logs/api.pid))"
+    fi
 else
-    print_error "Dashboard API: FAILED"
-    echo "  Check logs/api.log for errors"
+    print_error "Dashboard API:  FAILED"
+    echo "  Check: tail -20 logs/api.log"
 fi
 
 echo ""
+
+# ============================================================
+# Access Information
+# ============================================================
+SERVER_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "localhost")
+
 echo "============================================================"
 echo "Access Information"
 echo "============================================================"
-echo "Dashboard: file://$SCRIPT_DIR/dashboard/index.html"
-echo "Option Chain: file://$SCRIPT_DIR/dashboard/option_chain.html"
-echo "Historical Data: file://$SCRIPT_DIR/dashboard/historical_data.html"
-echo "API Endpoint: http://localhost:5000/api"
+if command -v nginx &> /dev/null && systemctl is-active --quiet nginx 2>/dev/null; then
+    echo "  Dashboard:      http://${SERVER_IP}/"
+    echo "  Greeks:         http://${SERVER_IP}/greeks.html"
+    echo "  Option Chain:   http://${SERVER_IP}/option_chain.html"
+    echo "  Historical:     http://${SERVER_IP}/historical_data.html"
+    echo "  API Endpoint:   http://${SERVER_IP}/api/"
+else
+    echo "  API Endpoint:   http://${SERVER_IP}:5000/api/"
+    echo "  Dashboard:      http://${SERVER_IP}:5000/"
+fi
 echo ""
-echo "To stop services: ./stop.sh"
-echo "To check status: ./status.sh"
-echo "To view logs: tail -f logs/*.log"
+echo "Commands:"
+echo "  ./stop.sh           - Stop all services"
+echo "  ./status.sh         - Check service status"
+echo "  tail -f logs/*.log  - Watch live logs"
 echo ""

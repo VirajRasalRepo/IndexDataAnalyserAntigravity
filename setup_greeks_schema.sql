@@ -54,10 +54,10 @@ ALTER TABLE nifty_oc_historical
 -- CREATE INDEX idx_date_time_strike ON nifty_oc_historical (Date, Time, Strike_price);
 
 -- ===============================================================
--- Create User_ table for portfolio tracking
+-- Create user_ table for portfolio tracking
 -- ===============================================================
 
-CREATE TABLE IF NOT EXISTS User_ (
+CREATE TABLE IF NOT EXISTS user_ (
     trade_id INT AUTO_INCREMENT PRIMARY KEY,
     strike_price DECIMAL(10, 2) NOT NULL,
     option_type ENUM('CE', 'PE') NOT NULL,
@@ -85,8 +85,8 @@ WHERE TABLE_SCHEMA = 'analyzer_db'
   AND COLUMN_NAME LIKE '%efficiency%'
 ORDER BY ORDINAL_POSITION;
 
--- Verify User_ table
-DESCRIBE User_;
+-- Verify user_ table
+DESCRIBE user_;
 
 -- Check table size
 SELECT

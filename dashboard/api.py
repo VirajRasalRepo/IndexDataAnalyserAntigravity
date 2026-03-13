@@ -766,7 +766,9 @@ def get_available_times():
 
 @app.route('/api/credentials', methods=['GET'])
 def get_credentials():
-    """Get current API credentials from .env file."""
+    """Get current API credentials from .env file. Restricted to localhost."""
+    if request.remote_addr not in ('127.0.0.1', '::1'):
+        return jsonify({'error': 'Access denied — localhost only'}), 403
     try:
         env_path = Path(__file__).parent.parent / '.env'
 
@@ -802,7 +804,9 @@ def get_credentials():
 
 @app.route('/api/credentials', methods=['POST'])
 def update_credentials():
-    """Update API credentials in .env file."""
+    """Update API credentials in .env file. Restricted to localhost."""
+    if request.remote_addr not in ('127.0.0.1', '::1'):
+        return jsonify({'error': 'Access denied — localhost only'}), 403
     try:
         data = request.get_json()
 
@@ -864,6 +868,35 @@ def update_credentials():
 # ═══════════════════════════════════════════════════════════════
 # GREEKS ANALYTICS ENDPOINTS
 # ═══════════════════════════════════════════════════════════════
+
+# Expiry cache — fetched once per day, not per request
+_expiry_cache = {
+    'expiry_str': None,
+    'fetched_date': None,  # date when last fetched
+}
+
+
+def _get_cached_expiry():
+    """Get expiry date, fetching from Dhan API at most once per day."""
+    from dhanhq import dhanhq as DhanHQ
+    from core import Utilities
+
+    today = datetime.now().date()
+    if _expiry_cache['expiry_str'] and _expiry_cache['fetched_date'] == today:
+        return _expiry_cache['expiry_str']
+
+    try:
+        dhan = DhanHQ(Config.DHAN_CLIENT_ID, Config.DHAN_ACCESS_TOKEN)
+        expiry_data = Utilities.get_expiry_list(dhan)
+        expiry_str = expiry_data[0] if isinstance(expiry_data, list) and len(expiry_data) > 0 else expiry_data
+        _expiry_cache['expiry_str'] = expiry_str
+        _expiry_cache['fetched_date'] = today
+        logger.info(f"Expiry cached for today: {expiry_str}")
+        return expiry_str
+    except Exception as e:
+        logger.error(f"Failed to fetch expiry: {e}")
+        return _expiry_cache['expiry_str']  # return stale cache if available
+
 
 # In-memory cache for Greeks data
 _greeks_cache = {
@@ -953,17 +986,17 @@ def greeks_pro():
             vix_current = decimal_to_float(vix_rows[0][0]) if vix_rows else 14.0
             vix_prev = decimal_to_float(vix_rows[1][0]) if len(vix_rows) > 1 else vix_current
 
-            # Calculate PCR (use target_date if provided, else CURDATE)
-            pcr_date_clause = f"Date = '{target_date}'" if target_date else "Date = CURDATE()"
-            cursor.execute(f"""
+            # Calculate PCR (use target_date if provided, else today)
+            pcr_date = target_date if target_date else datetime.now().strftime('%Y-%m-%d')
+            cursor.execute("""
                 SELECT
                     SUM(pe_oi) as pe_oi_total,
                     SUM(ce_oi) as ce_oi_total
                 FROM nifty_oc_historical
-                WHERE {pcr_date_clause} AND Time = (
-                    SELECT MAX(Time) FROM nifty_oc_historical WHERE {pcr_date_clause}
+                WHERE Date = %s AND Time = (
+                    SELECT MAX(Time) FROM nifty_oc_historical WHERE Date = %s
                 )
-            """)
+            """, (pcr_date, pcr_date))
             pcr_row = cursor.fetchone()
             pe_oi = decimal_to_float(pcr_row[0] or 1)
             ce_oi = decimal_to_float(pcr_row[1] or 1)
@@ -984,16 +1017,9 @@ def greeks_pro():
             iv_rank = iv_data.get("iv_rank") or 50.0  # backward compat
             iv_bias = get_iv_trading_bias(iv_data)
 
-        # Get expiry date from Dhan API (auto-detect next Tuesday)
-        from datetime import datetime as dt
-        from dhanhq import dhanhq
-        from core import Utilities
-
-        # Initialize Dhan client
-        dhan = dhanhq(Config.DHAN_CLIENT_ID, Config.DHAN_ACCESS_TOKEN)
-        expiry_data = Utilities.get_expiry_list(dhan)
-        expiry_str = expiry_data[0] if isinstance(expiry_data, list) and len(expiry_data) > 0 else expiry_data
-        expiry_date = dt.strptime(expiry_str, '%Y-%m-%d').date() if expiry_str else dt.now().date()
+        # Get expiry date (cached — fetches from Dhan API at most once per day)
+        expiry_str = _get_cached_expiry()
+        expiry_date = datetime.strptime(expiry_str, '%Y-%m-%d').date() if expiry_str else datetime.now().date()
 
         # Process Greeks
         processed = process_greeks_from_db(
@@ -1142,7 +1168,7 @@ def get_portfolio_net_delta():
                            WHEN u.option_type = 'CE' THEN h.ce_alert_gamma_blast
                            WHEN u.option_type = 'PE' THEN h.pe_alert_gamma_blast
                        END as alert_gamma_blast
-                FROM User_ u
+                FROM user_ u
                 LEFT JOIN (
                     SELECT strike_price,
                            ce_delta, ce_theta, ce_gamma, ce_price,
@@ -1231,10 +1257,11 @@ def greeks_signals():
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/api/available-times', methods=['GET'])
-def available_times():
+@app.route('/api/greeks/available-times', methods=['GET'])
+def greeks_available_times():
     """
-    Get list of available times for a specific date.
+    Get list of available times for a specific date (Greeks dashboard).
+    Only returns times where Greeks data (ce_efficiency) has been computed.
 
     Query Parameters:
         date: Date in YYYY-MM-DD format (required)
@@ -1266,7 +1293,7 @@ def available_times():
             })
 
     except Exception as e:
-        logger.error(f"Error in available-times endpoint: {e}")
+        logger.error(f"Error in greeks available-times endpoint: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
@@ -1308,4 +1335,4 @@ def api_credentials():
 
 if __name__ == '__main__':
     logger.info("Starting OI Dashboard API server...")
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=Config.DEBUG)
