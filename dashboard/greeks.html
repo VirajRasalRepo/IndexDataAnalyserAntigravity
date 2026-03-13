@@ -666,9 +666,59 @@
         }
 
         .signal-type.entry { color: #22c55e; }
+        .signal-type.buyce { color: #22c55e; }
+        .signal-type.buype { color: #ef4444; }
         .signal-type.exit { color: #ef4444; }
         .signal-type.caution { color: #f59e0b; }
         .signal-type.gamma { color: #a855f7; }
+        .signal-type.gammablast { color: #a855f7; }
+
+        .signal-card.buyce {
+            background: rgba(34, 197, 94, 0.1);
+            border-color: rgba(34, 197, 94, 0.3);
+        }
+
+        .signal-card.buype {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+
+        .signal-card.gammablast {
+            background: rgba(168, 85, 247, 0.15);
+            border-color: rgba(168, 85, 247, 0.4);
+        }
+
+        /* EXPIRY DAY BANNER (FEATURE 2) */
+        .expiry-banner {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            border-radius: 8px;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .expiry-banner.gamma-window {
+            background: rgba(168, 85, 247, 0.2);
+            border-color: rgba(168, 85, 247, 0.4);
+        }
+
+        .expiry-banner .alert-text {
+            color: #ef4444;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+        }
+
+        .expiry-banner.gamma-window .alert-text {
+            color: #a855f7;
+        }
+
+        .dte-expiry-pulse {
+            animation: pulse 1s infinite;
+            color: #ef4444 !important;
+        }
 
         .signal-strike {
             font-size: 16px;
@@ -1016,6 +1066,150 @@
             color: #94a3b8;
             letter-spacing: 0.3px;
         }
+
+        /* IV Environment dual-grid (moved from inline style) */
+        .iv-dual-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        /* HAMBURGER BUTTON */
+        .hamburger-btn {
+            display: none;
+            background: none;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 8px;
+            min-width: 44px;
+            min-height: 44px;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .hamburger-btn:hover { background: #1e293b; color: #f1f5f9; }
+
+        /* SIDEBAR OVERLAY */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 998;
+        }
+        .sidebar-overlay.active { display: block; }
+
+        /* ===== TABLET LANDSCAPE (1024px) ===== */
+        @media (max-width: 1024px) {
+            .sidebar { width: 64px; }
+            .sidebar .logo-text,
+            .sidebar .nav-link span,
+            .sidebar .section-header { display: none; }
+            .sidebar .nav-link { justify-content: center; padding: 8px; }
+            .sidebar .sidebar-header { padding: 16px 12px; justify-content: center; }
+            .sidebar .sidebar-toggle { display: none; }
+
+            .metrics-row { grid-template-columns: repeat(2, 1fr); }
+            .main-grid { grid-template-columns: 1fr; }
+            .side-panels { flex-direction: row; flex-wrap: wrap; }
+            .side-panel { flex: 1 1 calc(50% - 8px); min-width: 250px; }
+            .signals-grid { grid-template-columns: repeat(2, 1fr); }
+            .table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            .greeks-table { min-width: 900px; }
+            .header-bar { padding: 0 16px; }
+            .header-filters { flex-wrap: wrap; gap: 8px; }
+            .header-filters .divider { display: none; }
+            .content-area { padding: 16px; gap: 16px; }
+            .time-grid { grid-template-columns: repeat(4, 1fr); }
+        }
+
+        /* ===== TABLET PORTRAIT (768px) ===== */
+        @media (max-width: 768px) {
+            body { overflow: auto; height: auto; }
+            body.sidebar-open { overflow: hidden; }
+            .dashboard { height: auto; min-height: 100vh; }
+
+            .sidebar {
+                position: fixed;
+                top: 0; left: -256px;
+                width: 256px;
+                height: 100vh;
+                z-index: 999;
+                transition: left 0.3s ease;
+            }
+            .sidebar.mobile-open { left: 0; }
+            .sidebar.mobile-open .logo-text,
+            .sidebar.mobile-open .nav-link span,
+            .sidebar.mobile-open .section-header { display: block; }
+            .sidebar.mobile-open .nav-link { justify-content: flex-start; padding: 8px 12px; }
+            .sidebar.collapsed { width: 256px; left: -256px; }
+            .sidebar.collapsed.mobile-open { left: 0; }
+            .sidebar .sidebar-toggle { display: none; }
+            .hamburger-btn { display: flex; }
+            .nav-link { min-height: 44px; padding: 10px 12px; }
+
+            .metrics-row { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+            .metric-card { padding: 12px; }
+            .metric-value { font-size: 22px; }
+            .side-panels { flex-direction: column; }
+            .side-panel { flex: 1 1 100%; min-width: unset; }
+            .signals-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+
+            .header-bar {
+                flex-direction: column;
+                height: auto;
+                padding: 12px;
+                gap: 8px;
+                align-items: stretch;
+            }
+            .header-title { font-size: 16px; }
+            .header-filters { width: 100%; flex-wrap: wrap; }
+            .content-area { padding: 12px; gap: 12px; }
+
+            .greeks-table th, .greeks-table td { padding: 8px 8px; font-size: 10px; }
+            .time-grid { grid-template-columns: repeat(3, 1fr); }
+
+            .footer-bar {
+                height: auto;
+                padding: 8px 12px;
+                flex-direction: column;
+                gap: 4px;
+            }
+            .footer-status { gap: 12px; flex-wrap: wrap; }
+
+            .calendar-dropdown {
+                position: fixed;
+                top: 50%; left: 50%;
+                transform: translate(-50%, -50%);
+                right: auto;
+                min-width: min(320px, 90vw);
+                max-height: 80vh;
+                overflow-y: auto;
+            }
+        }
+
+        /* ===== PHONE (480px) ===== */
+        @media (max-width: 480px) {
+            .metrics-row { grid-template-columns: 1fr; }
+            .metric-value { font-size: 20px; }
+            .signals-grid { grid-template-columns: 1fr; }
+            .signal-card { padding: 12px; min-height: 44px; }
+            .side-panel-content { padding: 12px; }
+            .iv-dual-grid { grid-template-columns: 1fr; gap: 8px; }
+            .greeks-table { min-width: 800px; }
+            .time-grid { grid-template-columns: repeat(3, 1fr); }
+
+            .header-bar { padding: 8px; }
+            .content-area { padding: 8px; gap: 8px; }
+            .footer-bar { padding: 6px 8px; }
+            .status-item { font-size: 9px; }
+            .footer-info { font-size: 9px; }
+            .calendar-dropdown { min-width: calc(100vw - 16px); max-width: calc(100vw - 16px); }
+        }
     </style>
 </head>
 
@@ -1114,10 +1308,20 @@
             </div>
         </div>
 
+        <!-- SIDEBAR OVERLAY (mobile) -->
+        <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeMobileSidebar()"></div>
+
         <!-- MAIN CONTENT -->
         <div class="main-content">
             <!-- HEADER -->
             <div class="header-bar">
+                <button class="hamburger-btn" onclick="toggleMobileSidebar()" aria-label="Menu">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <line x1="3" y1="12" x2="21" y2="12"></line>
+                        <line x1="3" y1="18" x2="21" y2="18"></line>
+                    </svg>
+                </button>
                 <div class="header-title">Greeks Dashboard - Historical View</div>
                 <div class="header-filters">
                     <div class="date-picker-container">
@@ -1229,7 +1433,7 @@
                             </div>
 
                             <!-- Dual Row: Rank vs Percentile -->
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                            <div class="iv-dual-grid">
                                 <!-- IV Rank (left, de-emphasized) -->
                                 <div>
                                     <div style="font-size: 10px; color: #64748b; margin-bottom: 4px;">IV RANK (52W)</div>
@@ -1301,6 +1505,17 @@
                             <div class="metric-value" id="straddleValue">Loading...</div>
                             <div style="font-size: 11px; color: #64748b; margin-top: 4px;" id="straddleMove">--</div>
                         </div>
+                    </div>
+
+                    <!-- EXPIRY DAY BANNER (FEATURE 2) -->
+                    <div class="expiry-banner" id="expiryBanner" style="display: none;">
+                        <div class="alert-icon" style="color: #ef4444;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                        </div>
+                        <div class="alert-text" id="expiryText">EXPIRY DAY — DTE=0, Gamma Risk Elevated</div>
                     </div>
 
                     <!-- ALERT BANNER -->
@@ -1467,6 +1682,27 @@
             }
         })();
 
+        // Mobile sidebar functions
+        function toggleMobileSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            sidebar.classList.toggle('mobile-open');
+            overlay.classList.toggle('active');
+            document.body.classList.toggle('sidebar-open');
+        }
+
+        function closeMobileSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            sidebar.classList.remove('mobile-open');
+            overlay.classList.remove('active');
+            document.body.classList.remove('sidebar-open');
+        }
+
+        window.addEventListener('resize', function() {
+            if (window.innerWidth > 768) closeMobileSidebar();
+        });
+
         // Toggle calendar dropdown
         function toggleCalendar() {
             const dropdown = document.getElementById('calendar-dropdown');
@@ -1544,7 +1780,7 @@
 
             // Note: Loading indicator is shown inline in time grid by selectDate()
             try {
-                const response = await fetch(`${API_BASE}/available-times?date=${date}`);
+                const response = await fetch(`${API_BASE}/greeks/available-times?date=${date}`);
                 if (response.ok) {
                     const data = await response.json();
 
@@ -1863,14 +2099,40 @@
             if (data.iv_environment) {
                 renderIVEnvironment(data.iv_environment, data.iv_bias);
             }
+            // FEATURE 2: DTE=0 Expiry Day Mode
             if (data.dte !== undefined) {
-                document.getElementById('dteValue').textContent = data.dte + ' days';
+                const dteEl = document.getElementById('dteValue');
+                const expiryBanner = document.getElementById('expiryBanner');
+
+                if (data.dte === 0) {
+                    dteEl.innerHTML = '<span class="dte-expiry-pulse">0 — EXPIRY DAY</span>';
+
+                    // Show expiry banner
+                    expiryBanner.style.display = 'flex';
+                    const now = new Date();
+                    const hours = now.getHours();
+                    const mins = now.getMinutes();
+                    const inGammaWindow = (hours === 13 && mins >= 30) || hours === 14 || (hours === 14 && mins <= 30);
+
+                    if (inGammaWindow) {
+                        expiryBanner.className = 'expiry-banner gamma-window';
+                        document.getElementById('expiryText').textContent =
+                            'EXPIRY DAY — GAMMA BLAST WINDOW ACTIVE (13:30-14:30)';
+                    } else {
+                        expiryBanner.className = 'expiry-banner';
+                        document.getElementById('expiryText').textContent =
+                            'EXPIRY DAY — DTE=0, Gamma Risk Elevated';
+                    }
+                } else {
+                    dteEl.textContent = data.dte + ' days';
+                    expiryBanner.style.display = 'none';
+                }
             }
 
-            // Update PCR divergence alert
-            if (data.pcr_divergence && data.pcr_divergence.is_divergent) {
+            // FEATURE 6: Fix PCR divergence alert (backend sends 'divergence' not 'is_divergent')
+            if (data.pcr_divergence && data.pcr_divergence.divergence) {
                 document.getElementById('alertBanner').style.display = 'flex';
-                document.getElementById('alertText').textContent = `PCR-DELTA DIVERGENCE — ${data.pcr_divergence.interpretation}`;
+                document.getElementById('alertText').textContent = `PCR-DELTA DIVERGENCE — ${data.pcr_divergence.signal || 'Volatility spike likely'}`;
             } else {
                 document.getElementById('alertBanner').style.display = 'none';
             }
@@ -1899,24 +2161,43 @@
                 }
             }
 
-            // Update Max Pain
+            // FEATURE 4: Max Pain Distance From Spot with directional pressure
             if (data.max_pain) {
                 const maxPainStrike = data.max_pain.max_pain_strike || 0;
                 document.getElementById('maxPainValue').textContent = maxPainStrike.toFixed(0);
 
-                const spot = data.spot || 0;
-                const distance = maxPainStrike - spot;
-                const distanceText = distance > 0 ? `+${distance.toFixed(0)} above spot` : `${distance.toFixed(0)} below spot`;
-                document.getElementById('maxPainDistance').textContent = distanceText;
+                const distance = data.max_pain.distance_from_spot || 0;
+                const distancePct = data.max_pain.distance_pct || 0;
+                const pressure = data.max_pain.pressure_signal || '';
+                const distColor = Math.abs(distance) < 50 ? '#22c55e' : '#f59e0b';
+
+                document.getElementById('maxPainDistance').innerHTML =
+                    `<span style="color: ${distColor}">${distance > 0 ? '+' : ''}${distance.toFixed(0)} pts (${distancePct.toFixed(1)}%)</span>` +
+                    `<br/><span style="font-size: 10px;">${pressure}</span>`;
             }
 
-            // Update Straddle Premium
+            // FEATURE 5: Straddle Premium with Utilization %
             if (data.straddle_premium) {
                 const straddleVal = data.straddle_premium.straddle_premium || 0;
                 const movePct = data.straddle_premium.expected_move_pct || 0;
+                const utilPct = data.straddle_premium.utilization_pct || 0;
+                const actualMove = data.straddle_premium.actual_move || 0;
 
                 document.getElementById('straddleValue').textContent = '₹' + straddleVal.toFixed(0);
-                document.getElementById('straddleMove').textContent = `Expected: ±${movePct.toFixed(2)}% (±${data.straddle_premium.expected_move_points?.toFixed(0)} pts)`;
+
+                const utilColor = utilPct > 80 ? '#ef4444' : utilPct > 50 ? '#f59e0b' : '#22c55e';
+                const utilLabel = utilPct > 80 ? 'EXHAUSTED' : utilPct > 50 ? 'HALF USED' : 'ROOM LEFT';
+
+                document.getElementById('straddleMove').innerHTML =
+                    `Expected: ±${movePct.toFixed(2)}% (±${data.straddle_premium.expected_move_points?.toFixed(0)} pts)` +
+                    `<div style="margin-top: 6px;">` +
+                    `<div style="display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 2px;">` +
+                    `<span style="color: #64748b;">Move Used: <span style="color: ${utilColor}">${utilPct.toFixed(0)}%</span> (${actualMove.toFixed(0)} pts)</span>` +
+                    `<span style="color: ${utilColor}; font-weight: 700;">${utilLabel}</span>` +
+                    `</div>` +
+                    `<div style="background: #1e293b; height: 4px; border-radius: 9999px; overflow: hidden;">` +
+                    `<div style="height: 100%; width: ${Math.min(utilPct, 100)}%; background: ${utilColor}; border-radius: 9999px; transition: width 0.3s;"></div>` +
+                    `</div></div>`;
 
                 const straddleBadge = document.getElementById('straddleBadge');
                 straddleBadge.textContent = movePct > 1.5 ? 'High IV' : movePct < 0.8 ? 'Low IV' : 'Normal';
@@ -1979,7 +2260,7 @@
                         <td class="${gammaRiskClass}" title="Gamma Risk Score (0-10)">${gammaRisk.toFixed(1)}</td>
                         <td class="value-positive">${strike.efficiency ? strike.efficiency.toFixed(2) : '--'}</td>
                         <td class="value-positive" title="Vega-Adjusted Efficiency">${strike.vega_adj_efficiency ? strike.vega_adj_efficiency.toFixed(2) : '--'}</td>
-                        <td class="${velClass}" title="Delta Velocity: ${deltaVelPct.toFixed(1)}%">${velArrow}</td>
+                        <td class="${velClass}" title="Delta Velocity: ${(strike.delta_velocity || 0).toFixed(6)}/min (${deltaVelPct.toFixed(1)}%)">${velArrow} ${Math.abs(deltaVelPct) > 0.1 ? deltaVelPct.toFixed(1) + '%' : '--'}</td>
                         <td>${alerts.join(' ') || '--'}</td>
                     </tr>
                 `;
@@ -2031,6 +2312,31 @@
             container.innerHTML = html;
         }
 
+        // Map signal type to CSS class
+        function getSignalClass(type) {
+            const t = (type || '').toUpperCase();
+            if (t === 'BUY_CE' || t === 'BUY_PE') return t.toLowerCase().replace('_', '');
+            if (t === 'EXIT') return 'exit';
+            if (t === 'CAUTION') return 'caution';
+            if (t === 'GAMMA_BLAST') return 'gammablast';
+            // Legacy fallback
+            if (t === 'ENTRY') return 'entry';
+            if (t === 'GAMMA BLAST') return 'gamma';
+            return 'entry';
+        }
+
+        // Format signal type for display
+        function formatSignalLabel(type) {
+            const labels = {
+                'BUY_CE': 'BUY CE',
+                'BUY_PE': 'BUY PE',
+                'EXIT': 'EXIT',
+                'CAUTION': 'CAUTION',
+                'GAMMA_BLAST': 'GAMMA BLAST',
+            };
+            return labels[type] || type;
+        }
+
         // Update entry/exit signals
         function updateSignals(signals) {
             const grid = document.getElementById('signalsGrid');
@@ -2042,12 +2348,15 @@
 
             let html = '';
             signals.slice(0, 4).forEach(signal => {
-                const type = signal.type.toLowerCase().replace('_', '');
+                const cssClass = getSignalClass(signal.type);
+                const label = formatSignalLabel(signal.type);
+                const conf = signal.confidence || 0;
                 html += `
-                    <div class="signal-card ${type}">
-                        <div class="signal-type ${type}">${signal.type}</div>
+                    <div class="signal-card ${cssClass}">
+                        <div class="signal-type ${cssClass}">${label}</div>
                         <div class="signal-strike">${signal.strike_price} ${signal.option_type}</div>
                         <div class="signal-details">${signal.reason}</div>
+                        <div style="margin-top: 6px; font-size: 9px; color: #475569;">Confidence: ${conf}%</div>
                     </div>
                 `;
             });

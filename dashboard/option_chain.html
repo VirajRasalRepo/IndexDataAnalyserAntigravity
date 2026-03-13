@@ -589,6 +589,103 @@
                 opacity: 0.3;
             }
         }
+
+        /* HAMBURGER BUTTON */
+        .hamburger-btn {
+            display: none;
+            background: none;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 8px;
+            min-width: 44px;
+            min-height: 44px;
+            align-items: center;
+            justify-content: center;
+        }
+        .hamburger-btn:hover { background: #1e293b; color: #f1f5f9; }
+
+        /* SIDEBAR OVERLAY */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 998;
+        }
+        .sidebar-overlay.active { display: block; }
+
+        /* ===== TABLET LANDSCAPE (1024px) ===== */
+        @media (max-width: 1024px) {
+            .sidebar { width: 64px; }
+            .sidebar .logo-text,
+            .sidebar .nav-link span,
+            .sidebar .section-header { display: none; }
+            .sidebar .nav-link { justify-content: center; padding: 8px; }
+            .sidebar .sidebar-header { padding: 16px 12px; justify-content: center; }
+            .sidebar .sidebar-toggle { display: none; }
+            .header-bar { padding: 0 16px; }
+            .content-area { padding: 16px; gap: 16px; }
+            .table-wrapper { -webkit-overflow-scrolling: touch; }
+        }
+
+        /* ===== TABLET PORTRAIT (768px) ===== */
+        @media (max-width: 768px) {
+            body { overflow: auto; height: auto; }
+            body.sidebar-open { overflow: hidden; }
+            .dashboard { height: auto; min-height: 100vh; }
+
+            .sidebar {
+                position: fixed;
+                top: 0; left: -256px;
+                width: 256px;
+                height: 100vh;
+                z-index: 999;
+                transition: left 0.3s ease;
+            }
+            .sidebar.mobile-open { left: 0; }
+            .sidebar.mobile-open .logo-text,
+            .sidebar.mobile-open .nav-link span,
+            .sidebar.mobile-open .section-header { display: block; }
+            .sidebar.mobile-open .nav-link { justify-content: flex-start; padding: 8px 12px; }
+            .sidebar.collapsed { width: 256px; left: -256px; }
+            .sidebar.collapsed.mobile-open { left: 0; }
+            .sidebar .sidebar-toggle { display: none; }
+            .hamburger-btn { display: flex; }
+            .nav-link { min-height: 44px; padding: 10px 12px; }
+
+            .header-bar {
+                height: auto; min-height: 56px;
+                padding: 8px 12px;
+                flex-wrap: wrap; gap: 8px;
+            }
+            .search-container { width: 100%; order: 3; }
+            .content-area { padding: 12px; gap: 12px; }
+            .stats-row { flex-wrap: wrap; }
+            .stat-card { flex: 1 1 calc(50% - 8px); min-width: calc(50% - 8px); }
+
+            .data-cell { padding: 6px 4px; font-size: 11px; }
+            .column-header { font-size: 9px; padding: 8px 4px; }
+            .group-header th { font-size: 10px; padding: 6px; }
+        }
+
+        /* ===== PHONE (480px) ===== */
+        @media (max-width: 480px) {
+            .header-bar { padding: 8px; }
+            .content-area { padding: 8px; gap: 8px; }
+            .stat-card { flex: 1 1 100%; min-width: 100%; }
+            .stat-value { font-size: 20px; }
+            .search-container { display: none; }
+
+            .data-table { min-width: 800px; }
+            .data-cell { padding: 4px 2px; font-size: 10px; }
+            .data-cell.strike { font-size: 11px; }
+            .column-header { font-size: 8px; padding: 6px 2px; }
+            .signal-badge { font-size: 8px; padding: 1px 4px; }
+            .timestamp { font-size: 10px; padding: 6px 8px; }
+        }
     </style>
 </head>
 
@@ -682,8 +779,23 @@
             </div>
         </div>
 
+        <!-- SIDEBAR OVERLAY (mobile) -->
+        <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeMobileSidebar()"></div>
+
         <!-- MAIN CONTENT -->
         <div class="main-content">
+            <!-- HEADER BAR -->
+            <div class="header-bar">
+                <button class="hamburger-btn" onclick="toggleMobileSidebar()" aria-label="Menu">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <line x1="3" y1="12" x2="21" y2="12"></line>
+                        <line x1="3" y1="18" x2="21" y2="18"></line>
+                    </svg>
+                </button>
+                <h2 style="font-size:16px;font-weight:600;color:#f1f5f9;">Option Chain</h2>
+                <span class="timestamp" id="header-timestamp" style="background:none;border:none;padding:0;"></span>
+            </div>
             <!-- CONTENT AREA -->
             <div class="content-area">
                 <!-- STATS ROW -->
@@ -880,6 +992,27 @@
                 document.getElementById('sidebar').classList.add('collapsed');
             }
         }
+
+        // Mobile sidebar functions
+        function toggleMobileSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            sidebar.classList.toggle('mobile-open');
+            overlay.classList.toggle('active');
+            document.body.classList.toggle('sidebar-open');
+        }
+
+        function closeMobileSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            sidebar.classList.remove('mobile-open');
+            overlay.classList.remove('active');
+            document.body.classList.remove('sidebar-open');
+        }
+
+        window.addEventListener('resize', function() {
+            if (window.innerWidth > 768) closeMobileSidebar();
+        });
 
         // Initialize
         window.addEventListener('load', async () => {

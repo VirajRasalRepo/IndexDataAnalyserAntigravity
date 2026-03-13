@@ -35,12 +35,12 @@ if [ -f "logs/data_collector.pid" ]; then
         sleep 2
         if ps -p $PID > /dev/null 2>&1; then
             print_info "Force killing Data Collector..."
-            kill -9 $PID
+            kill -9 $PID 2>/dev/null || true
         fi
         print_success "Data Collector stopped"
         STOPPED_COUNT=$((STOPPED_COUNT + 1))
     else
-        print_info "Data Collector is not running"
+        print_info "Data Collector is not running (stale PID)"
     fi
     rm -f logs/data_collector.pid
 else
@@ -49,7 +49,7 @@ fi
 echo ""
 
 # ============================================================
-# Stop Dashboard API
+# Stop Dashboard API (gunicorn master + workers)
 # ============================================================
 if [ -f "logs/api.pid" ]; then
     PID=$(cat logs/api.pid)
@@ -59,12 +59,12 @@ if [ -f "logs/api.pid" ]; then
         sleep 2
         if ps -p $PID > /dev/null 2>&1; then
             print_info "Force killing Dashboard API..."
-            kill -9 $PID
+            kill -9 $PID 2>/dev/null || true
         fi
         print_success "Dashboard API stopped"
         STOPPED_COUNT=$((STOPPED_COUNT + 1))
     else
-        print_info "Dashboard API is not running"
+        print_info "Dashboard API is not running (stale PID)"
     fi
     rm -f logs/api.pid
 else
@@ -73,18 +73,25 @@ fi
 echo ""
 
 # ============================================================
-# Cleanup any remaining Python processes
+# Cleanup any remaining Python/gunicorn processes
 # ============================================================
-print_info "Checking for any remaining Python processes..."
-if pgrep -f "dashboard/api.py" > /dev/null; then
-    print_info "Found remaining API processes, killing..."
-    pkill -f "dashboard/api.py"
+print_info "Checking for remaining processes..."
+
+if pgrep -f "gunicorn.*dashboard.api" > /dev/null 2>&1; then
+    print_info "Killing remaining gunicorn workers..."
+    pkill -f "gunicorn.*dashboard.api" 2>/dev/null || true
     STOPPED_COUNT=$((STOPPED_COUNT + 1))
 fi
 
-if pgrep -f "main.py" > /dev/null; then
-    print_info "Found remaining Data Collector processes, killing..."
-    pkill -f "main.py"
+if pgrep -f "python.*dashboard/api.py" > /dev/null 2>&1; then
+    print_info "Killing remaining API processes..."
+    pkill -f "python.*dashboard/api.py" 2>/dev/null || true
+    STOPPED_COUNT=$((STOPPED_COUNT + 1))
+fi
+
+if pgrep -f "python.*main.py" > /dev/null 2>&1; then
+    print_info "Killing remaining Data Collector processes..."
+    pkill -f "python.*main.py" 2>/dev/null || true
     STOPPED_COUNT=$((STOPPED_COUNT + 1))
 fi
 echo ""
@@ -94,7 +101,7 @@ echo ""
 # ============================================================
 echo "============================================================"
 if [ $STOPPED_COUNT -gt 0 ]; then
-    print_success "All services stopped successfully"
+    print_success "All services stopped ($STOPPED_COUNT processes terminated)"
 else
     print_info "No services were running"
 fi

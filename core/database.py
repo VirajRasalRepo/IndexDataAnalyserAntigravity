@@ -90,7 +90,7 @@ class DatabaseManager:
 
         try:
             connection = cls.get_connection()
-            cursor = connection.cursor(dictionary=dictionary)
+            cursor = connection.cursor(dictionary=dictionary, buffered=True)
             yield cursor
             connection.commit()
         except MySQLError as err:

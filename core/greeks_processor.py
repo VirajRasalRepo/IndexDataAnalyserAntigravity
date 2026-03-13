@@ -548,13 +548,15 @@ def calc_put_call_skew(atm_ce_iv: float, atm_pe_iv: float) -> dict:
 # MAX PAIN CALCULATION
 # ═══════════════════════════════════════════════════════════════
 
-def calc_max_pain(strikes_data: list) -> dict:
+def calc_max_pain(strikes_data: list, spot: float = 0.0) -> dict:
     """
     Calculate Max Pain strike - where option buyers lose most money.
     This is where market makers want price to close on expiry.
+    Includes distance from spot and directional pressure signal.
     """
     if not strikes_data:
-        return {"max_pain_strike": 0.0, "max_pain_value": 0.0}
+        return {"max_pain_strike": 0.0, "max_pain_value": 0.0,
+                "distance_from_spot": 0.0, "distance_pct": 0.0, "pressure_signal": "--"}
 
     pain_by_strike = {}
 
@@ -576,14 +578,29 @@ def calc_max_pain(strikes_data: list) -> dict:
         pain_by_strike[s] = total_pain
 
     if not pain_by_strike:
-        return {"max_pain_strike": 0.0, "max_pain_value": 0.0}
+        return {"max_pain_strike": 0.0, "max_pain_value": 0.0,
+                "distance_from_spot": 0.0, "distance_pct": 0.0, "pressure_signal": "--"}
 
     max_pain_strike = min(pain_by_strike, key=pain_by_strike.get)
     max_pain_value = pain_by_strike[max_pain_strike]
 
+    # Distance from spot and directional pressure
+    distance = round(max_pain_strike - spot, 2) if spot > 0 else 0.0
+    distance_pct = round(distance / spot * 100, 2) if spot > 0 else 0.0
+
+    if distance > 50:
+        pressure = "ABOVE SPOT — Bearish Magnet"
+    elif distance < -50:
+        pressure = "BELOW SPOT — Bullish Magnet"
+    else:
+        pressure = "AT SPOT — Neutral"
+
     return {
         "max_pain_strike": round(max_pain_strike, 2),
         "max_pain_value": round(max_pain_value, 2),
+        "distance_from_spot": distance,
+        "distance_pct": distance_pct,
+        "pressure_signal": pressure,
     }
 
 
@@ -615,7 +632,11 @@ def calc_straddle_premium(atm_ce_ltp: float, atm_pe_ltp: float, spot: float) -> 
 # ═══════════════════════════════════════════════════════════════
 
 def generate_entry_signals(processed: dict, iv_rank: float) -> list:
-    """Generate entry/exit/caution signals based on Greeks analysis."""
+    """
+    Generate entry/exit/caution signals based on Greeks analysis.
+    Returns signals with keys matching frontend: type, strike_price, option_type, reason, confidence
+    Signal types: BUY_CE, BUY_PE, EXIT, CAUTION, GAMMA_BLAST
+    """
     signals   = []
     dte       = processed["dte"]
     trend     = processed["trend_intensity"]
@@ -626,73 +647,68 @@ def generate_entry_signals(processed: dict, iv_rank: float) -> list:
     for row in processed["ce_ranked"][:10] + processed["pe_ranked"][:10]:
         eff   = row.get("efficiency")
         vel   = row.get("delta_velocity", 0)
-        label = f"NIFTY {int(row['strike_price'])} {row['option_type']}"
 
-        # Rule 1 – Entry
+        # Rule 1 – BUY CE Entry
         if (eff and eff >= EFFICIENCY_STRONG
                 and trend["net_delta_flow"] > 0
                 and row["option_type"] == "CE"
                 and iv_rank < 60
                 and not row["theta_trap"]):
             signals.append({
-                "time":        datetime.now().strftime("%H:%M:%S"),
-                "signal":      "ENTRY",
-                "instrument":  label,
-                "rank":        row["rank"],
-                "eff_score":   eff,
-                "reasoning":   "Efficiency Cross + Gamma Spike",
-                "confidence":  min(int(eff * 25), 100),
+                "type":         "BUY_CE",
+                "strike_price": int(row["strike_price"]),
+                "option_type":  row["option_type"],
+                "reason":       f"Eff {eff:.1f} + Bullish Delta Flow",
+                "confidence":   min(int(eff * 25), 100),
+                "rank":         row["rank"],
             })
 
+        # Rule 2 – BUY PE Entry
         if (eff and eff >= EFFICIENCY_STRONG
                 and trend["net_delta_flow"] < 0
                 and row["option_type"] == "PE"
                 and iv_rank < 60
                 and not row["theta_trap"]):
             signals.append({
-                "time":        datetime.now().strftime("%H:%M:%S"),
-                "signal":      "ENTRY",
-                "instrument":  label,
-                "rank":        row["rank"],
-                "eff_score":   eff,
-                "reasoning":   "Delta Flow Reversal Trend",
-                "confidence":  min(int(eff * 25), 100),
+                "type":         "BUY_PE",
+                "strike_price": int(row["strike_price"]),
+                "option_type":  row["option_type"],
+                "reason":       f"Eff {eff:.1f} + Bearish Delta Flow",
+                "confidence":   min(int(eff * 25), 100),
+                "rank":         row["rank"],
             })
 
-        # Rule 2 – Exit
+        # Rule 3 – Exit
         if (eff is not None and eff < EFFICIENCY_WEAK) or row["theta_trap"]:
             signals.append({
-                "time":        datetime.now().strftime("%H:%M:%S"),
-                "signal":      "EXIT",
-                "instrument":  label,
-                "rank":        row["rank"],
-                "eff_score":   eff or 0,
-                "reasoning":   "Theta Trap detected in ATM-1",
-                "confidence":  90,
+                "type":         "EXIT",
+                "strike_price": int(row["strike_price"]),
+                "option_type":  row["option_type"],
+                "reason":       "Theta Trap" if row["theta_trap"] else f"Low Eff ({eff:.1f})",
+                "confidence":   90,
+                "rank":         row["rank"],
             })
 
-        # Caution – velocity fading
+        # Rule 4 – Caution (velocity fading)
         if vel < -0.005:
             signals.append({
-                "time":        datetime.now().strftime("%H:%M:%S"),
-                "signal":      "CAUTION",
-                "instrument":  label,
-                "rank":        row["rank"],
-                "eff_score":   eff or 0,
-                "reasoning":   f"Delta Velocity = {vel}/min (falling)",
-                "confidence":  60,
+                "type":         "CAUTION",
+                "strike_price": int(row["strike_price"]),
+                "option_type":  row["option_type"],
+                "reason":       f"Delta Vel {vel:.4f}/min (fading)",
+                "confidence":   60,
+                "rank":         row["rank"],
             })
 
-        # Rule 3 – Gamma Blast Play
+        # Rule 5 – Gamma Blast Play (expiry day only, 13:30-14:30 window)
         if row["gamma_blast"] and dte == 0 and blast_window and row["rank"] == "Scalp":
             signals.append({
-                "time":        datetime.now().strftime("%H:%M:%S"),
-                "signal":      "GAMMA BLAST",
-                "instrument":  label,
-                "rank":        "Scalp",
-                "eff_score":   eff or 0,
-                "reasoning":   "Gamma > 0.003 + Expiry Day Window",
-                "confidence":  75,
+                "type":         "GAMMA_BLAST",
+                "strike_price": int(row["strike_price"]),
+                "option_type":  row["option_type"],
+                "reason":       "Gamma > 0.003 + Expiry Window",
+                "confidence":   75,
+                "rank":         "Scalp",
             })
 
     return signals[:8]  # Cap at 8 for dashboard
