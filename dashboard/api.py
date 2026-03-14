@@ -329,39 +329,32 @@ def get_oi_difference_live():
 
             latest_date = selected_date
 
-            # Find timestamps closest to 9:15, 9:18, 9:21, etc. (3-minute intervals from 9:15 AM IST)
-            # Using a single query with CASE statements for efficiency
+            # Get all distinct timestamps for this date (single indexed query)
             cursor.execute(f"""
-                WITH target_times AS (
-                    SELECT DISTINCT
-                        FLOOR((TIME_TO_SEC(Time) - {MARKET_OPEN_TIME}) / {INTERVAL_SECONDS}) * {INTERVAL_SECONDS} + {MARKET_OPEN_TIME} as target_sec
-                    FROM nifty_oc_historical
-                    WHERE Date = %s
-                        AND TIME_TO_SEC(Time) >= {MARKET_OPEN_TIME}
-                        AND TIME_TO_SEC(Time) <= {MARKET_CLOSE_TIME}
-                ),
-                closest_times AS (
-                    SELECT
-                        t.target_sec,
-                        (
-                            SELECT TIME_TO_SEC(h.Time)
-                            FROM nifty_oc_historical h
-                            WHERE h.Date = %s
-                                AND TIME_TO_SEC(h.Time) >= t.target_sec - 90
-                                AND TIME_TO_SEC(h.Time) <= t.target_sec + 90
-                            ORDER BY ABS(TIME_TO_SEC(h.Time) - t.target_sec) ASC
-                            LIMIT 1
-                        ) as actual_sec,
-                        %s as date
-                    FROM target_times t
-                )
-                SELECT target_sec, actual_sec, date
-                FROM closest_times
-                WHERE actual_sec IS NOT NULL
-                ORDER BY target_sec ASC
-            """, (latest_date, latest_date, latest_date))
+                SELECT DISTINCT TIME_TO_SEC(Time) as time_sec
+                FROM nifty_oc_historical
+                WHERE Date = %s
+                    AND TIME_TO_SEC(Time) >= {MARKET_OPEN_TIME}
+                    AND TIME_TO_SEC(Time) <= {MARKET_CLOSE_TIME}
+                ORDER BY time_sec ASC
+            """, (latest_date,))
 
-            time_intervals = cursor.fetchall()
+            all_times = [row[0] for row in cursor.fetchall()]
+
+            # Snap to 3-minute intervals in Python (avoids expensive CTE)
+            time_intervals = []
+            if all_times:
+                time_by_target = {}
+                for ts in all_times:
+                    target = ((ts - MARKET_OPEN_TIME) // INTERVAL_SECONDS) * INTERVAL_SECONDS + MARKET_OPEN_TIME
+                    # Keep the closest time to each target
+                    if target not in time_by_target or abs(ts - target) < abs(time_by_target[target] - target):
+                        time_by_target[target] = ts
+
+                time_intervals = sorted(
+                    [(t, a, latest_date) for t, a in time_by_target.items()],
+                    key=lambda x: x[0]
+                )
 
             if not time_intervals:
                 return jsonify({'error': 'No data for today'}), 404
