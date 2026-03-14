@@ -64,6 +64,11 @@ class DhanMarketFeed:
         {"security_id": 11483, "exchange_segment": "NSE_EQ", "prefix": "lt"},
     ]
 
+    # Reconnect backoff settings
+    RECONNECT_MIN_DELAY = 5       # Start at 5 seconds
+    RECONNECT_MAX_DELAY = 300     # Cap at 5 minutes
+    RECONNECT_BACKOFF_FACTOR = 2  # Double each time
+
     def __init__(self, client_id: str, access_token: str):
         """
         Initialize DhanMarketFeed.
@@ -78,6 +83,7 @@ class DhanMarketFeed:
         self.connected = False
         self.running = False
         self.thread = None
+        self._reconnect_delay = self.RECONNECT_MIN_DELAY
 
         # Store latest market data
         self.market_data: Dict[str, Dict] = {}
@@ -132,7 +138,7 @@ class DhanMarketFeed:
         logger.info("WebSocket stopped")
 
     def _run_forever(self) -> None:
-        """Run WebSocket connection with auto-reconnect."""
+        """Run WebSocket connection with auto-reconnect and exponential backoff."""
         while self.running:
             try:
                 if self.ws:
@@ -143,18 +149,32 @@ class DhanMarketFeed:
                         self.ws.run_forever(ping_interval=10, ping_timeout=5)
 
                 if self.running:
-                    logger.warning("WebSocket disconnected. Reconnecting in 5 seconds...")
-                    time.sleep(5)
+                    logger.warning(
+                        f"WebSocket disconnected. Reconnecting in {self._reconnect_delay}s..."
+                    )
+                    time.sleep(self._reconnect_delay)
+                    self._reconnect_delay = min(
+                        self._reconnect_delay * self.RECONNECT_BACKOFF_FACTOR,
+                        self.RECONNECT_MAX_DELAY,
+                    )
 
             except Exception as e:
                 logger.error(f"WebSocket error: {e}")
                 if self.running:
-                    time.sleep(5)
+                    logger.warning(
+                        f"Retrying in {self._reconnect_delay}s..."
+                    )
+                    time.sleep(self._reconnect_delay)
+                    self._reconnect_delay = min(
+                        self._reconnect_delay * self.RECONNECT_BACKOFF_FACTOR,
+                        self.RECONNECT_MAX_DELAY,
+                    )
 
     def _on_open(self, ws) -> None:
         """Called when WebSocket connection is established."""
         logger.info("WebSocket connected successfully")
         self.connected = True
+        self._reconnect_delay = self.RECONNECT_MIN_DELAY  # Reset backoff on success
 
         # Subscribe to all instruments
         self._subscribe_instruments()
@@ -263,10 +283,6 @@ class DhanMarketFeed:
                 'low': round(low_price, 2),
                 'close': round(close_price, 2),
             }
-        except Exception as e:
-            logger.error(f"Error parsing quote packet: {e}")
-            return None
-
         except Exception as e:
             logger.error(f"Error parsing quote packet: {e}")
             return None
