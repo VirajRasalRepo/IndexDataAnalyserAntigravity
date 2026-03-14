@@ -182,8 +182,21 @@ def get_option_chain():
         strike_step = int(request.args.get('strike_step', 50))
 
         with DatabaseManager.get_cursor() as cursor:
-            # Get option chain data - using subquery to get latest timestamp from market hours
+            # Find latest Date+Time within market hours (two-step for index usage)
             cursor.execute(f"""
+                SELECT Date, MAX(Time) as latest_time
+                FROM nifty_oc_historical
+                WHERE Date = (SELECT MAX(Date) FROM nifty_oc_historical)
+                  AND TIME_TO_SEC(Time) >= {MARKET_OPEN_TIME}
+                  AND TIME_TO_SEC(Time) <= {MARKET_CLOSE_TIME}
+                GROUP BY Date
+            """)
+            latest = cursor.fetchone()
+            if not latest:
+                return jsonify({'error': 'No data for latest timestamp'}), 404
+
+            # Fetch option chain for that exact Date+Time (uses idx_date_time_strike)
+            cursor.execute("""
                 SELECT
                     Strike_price,
                     Spot_price,
@@ -192,15 +205,9 @@ def get_option_chain():
                     OI_Diff,
                     Date, Time
                 FROM nifty_oc_historical
-                WHERE (Date, Time) = (
-                    SELECT Date, Time
-                    FROM nifty_oc_historical
-                    WHERE TIME_TO_SEC(Time) >= {MARKET_OPEN_TIME} AND TIME_TO_SEC(Time) <= {MARKET_CLOSE_TIME}
-                    ORDER BY Date DESC, Time DESC
-                    LIMIT 1
-                )
+                WHERE Date = %s AND Time = %s
                 ORDER BY Strike_price ASC
-            """)
+            """, (latest[0], latest[1]))
 
             rows = cursor.fetchall()
 
@@ -376,32 +383,47 @@ def get_oi_difference_live():
             min_strike = atm_strike - (strike_count // 2) * strike_step
             max_strike = atm_strike + (strike_count // 2) * strike_step
 
-            # Fetch time-series data for all intervals
+            # Fetch ALL interval data in a single query instead of N separate queries
+            actual_secs = [int(row[1]) for row in time_intervals]
+            if not actual_secs:
+                return jsonify({'error': 'No data for today'}), 404
+
+            placeholders = ','.join(['%s'] * len(actual_secs))
+            cursor.execute(f"""
+                SELECT
+                    TIME_TO_SEC(Time) as time_sec,
+                    Strike_price,
+                    ce_oi, ce_volume,
+                    pe_oi, pe_volume
+                FROM nifty_oc_historical
+                WHERE Date = %s
+                    AND TIME_TO_SEC(Time) IN ({placeholders})
+                    AND Strike_price >= %s
+                    AND Strike_price <= %s
+                ORDER BY Time ASC, Strike_price ASC
+            """, (latest_date, *actual_secs, min_strike, max_strike))
+
+            # Group results by time_sec
+            all_rows = cursor.fetchall()
+            rows_by_time = {}
+            for row in all_rows:
+                ts = int(row[0])
+                if ts not in rows_by_time:
+                    rows_by_time[ts] = []
+                rows_by_time[ts].append(row)
+
+            # Build time_series_data from grouped results
             time_series_data = []
-
             for target_sec, actual_time_sec, date in time_intervals:
-                # Get data for the exact timestamp closest to target
-                cursor.execute("""
-                    SELECT
-                        Strike_price,
-                        ce_oi, ce_volume,
-                        pe_oi, pe_volume
-                    FROM nifty_oc_historical
-                    WHERE Date = %s
-                        AND TIME_TO_SEC(Time) = %s
-                        AND Strike_price >= %s
-                        AND Strike_price <= %s
-                    ORDER BY Strike_price ASC
-                """, (date, actual_time_sec, min_strike, max_strike))
-
+                actual_key = int(actual_time_sec)
                 interval_data = {}
-                for row in cursor.fetchall():
-                    strike = decimal_to_float(row[0])
+                for row in rows_by_time.get(actual_key, []):
+                    strike = decimal_to_float(row[1])
                     interval_data[strike] = {
-                        'ce_oi': decimal_to_float(row[1]) if row[1] else 0,
-                        'ce_vol': decimal_to_float(row[2]) if row[2] else 0,
-                        'pe_oi': decimal_to_float(row[3]) if row[3] else 0,
-                        'pe_vol': decimal_to_float(row[4]) if row[4] else 0,
+                        'ce_oi': decimal_to_float(row[2]) if row[2] else 0,
+                        'ce_vol': decimal_to_float(row[3]) if row[3] else 0,
+                        'pe_oi': decimal_to_float(row[4]) if row[4] else 0,
+                        'pe_vol': decimal_to_float(row[5]) if row[5] else 0,
                     }
 
                 time_series_data.append({
