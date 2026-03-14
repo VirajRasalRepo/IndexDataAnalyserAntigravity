@@ -28,6 +28,9 @@ cd "$SCRIPT_DIR"
 # Export PYTHONPATH so all Python processes can find core/ modules
 export PYTHONPATH="$SCRIPT_DIR:$PYTHONPATH"
 
+# API port (change here to use a different port)
+API_PORT=5000
+
 # ============================================================
 # Pre-flight checks
 # ============================================================
@@ -81,10 +84,10 @@ fi
 pkill -f "python3 main.py" 2>/dev/null || true
 pkill -f "python3 dashboard/api.py" 2>/dev/null || true
 
-# Free port 5000 if still in use
-if fuser 5000/tcp > /dev/null 2>&1; then
-    print_info "Freeing port 5000..."
-    fuser -k 5000/tcp > /dev/null 2>&1 || true
+# Free API port if still in use
+if fuser ${API_PORT}/tcp > /dev/null 2>&1; then
+    print_info "Freeing port ${API_PORT}..."
+    fuser -k ${API_PORT}/tcp > /dev/null 2>&1 || true
     sleep 1
 fi
 
@@ -159,36 +162,6 @@ print_info "Log directory: $SCRIPT_DIR/logs"
 echo ""
 
 # ============================================================
-# Stop existing services (if running)
-# ============================================================
-print_info "Checking for existing processes..."
-if [ -f "logs/data_collector.pid" ]; then
-    OLD_PID=$(cat logs/data_collector.pid)
-    if ps -p $OLD_PID > /dev/null 2>&1; then
-        print_info "Stopping existing Data Collector (PID: $OLD_PID)..."
-        kill $OLD_PID 2>/dev/null || true
-        sleep 2
-        kill -9 $OLD_PID 2>/dev/null || true
-    fi
-    rm -f logs/data_collector.pid
-fi
-
-if [ -f "logs/api.pid" ]; then
-    OLD_PID=$(cat logs/api.pid)
-    if ps -p $OLD_PID > /dev/null 2>&1; then
-        print_info "Stopping existing Dashboard API (PID: $OLD_PID)..."
-        kill $OLD_PID 2>/dev/null || true
-        sleep 2
-        kill -9 $OLD_PID 2>/dev/null || true
-    fi
-    rm -f logs/api.pid
-fi
-
-# Also kill any orphan gunicorn workers
-pkill -f "gunicorn.*dashboard.api" 2>/dev/null || true
-echo ""
-
-# ============================================================
 # Start Data Collector (main.py)
 # ============================================================
 print_info "Starting Data Collector (main.py)..."
@@ -214,7 +187,7 @@ if [ -f "dashboard/api.py" ]; then
         print_info "Using gunicorn (production mode)"
         nohup gunicorn \
             --workers 4 \
-            --bind 0.0.0.0:5000 \
+            --bind 0.0.0.0:${API_PORT} \
             --timeout 120 \
             --chdir "$SCRIPT_DIR" \
             --access-logfile logs/gunicorn-access.log \
@@ -229,15 +202,13 @@ if [ -f "dashboard/api.py" ]; then
 import sys
 sys.path.insert(0, '$SCRIPT_DIR')
 from dashboard.api import app
-app.run(host='0.0.0.0', port=5000, debug=False)
+app.run(host='0.0.0.0', port=${API_PORT}, debug=False)
 " >> logs/api.log 2>&1 &
         API_PID=$!
     fi
-    nohup python3 dashboard/api.py > logs/api.log 2>&1 &
-    API_PID=$!
     echo $API_PID > logs/api.pid
     print_success "Dashboard API started (PID: $API_PID)"
-    echo "  Endpoint: http://0.0.0.0:5000"
+    echo "  Endpoint: http://0.0.0.0:${API_PORT}"
     echo "  Log: logs/api.log"
 else
     print_error "dashboard/api.py not found!"
@@ -272,7 +243,7 @@ fi
 if [ "$API_RUNNING" = true ]; then
     print_info "Running API health check..."
     for i in 1 2 3 4 5; do
-        if curl -sf http://localhost:5000/api/available-dates > /dev/null 2>&1; then
+        if curl -sf http://localhost:${API_PORT}/api/available-dates > /dev/null 2>&1; then
             API_HEALTHY=true
             break
         fi
@@ -323,8 +294,8 @@ if command -v nginx &> /dev/null && systemctl is-active --quiet nginx 2>/dev/nul
     echo "  Historical:     http://${SERVER_IP}/historical_data.html"
     echo "  API Endpoint:   http://${SERVER_IP}/api/"
 else
-    echo "  API Endpoint:   http://${SERVER_IP}:5000/api/"
-    echo "  Dashboard:      http://${SERVER_IP}:5000/"
+    echo "  API Endpoint:   http://${SERVER_IP}:${API_PORT}/api/"
+    echo "  Dashboard:      http://${SERVER_IP}:${API_PORT}/"
 fi
 echo ""
 echo "Commands:"
