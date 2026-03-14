@@ -872,31 +872,33 @@
         const API_BASE = '/api';
         let refreshInterval;
 
+        let isFetching = false;
+
         // Fetch and update data
         async function fetchData() {
+            if (isFetching) return;
+            isFetching = true;
             try {
-                // Fetch spot price
-                const spotResponse = await fetch(`${API_BASE}/spot-price`);
-                const spotData = await spotResponse.json();
+                // Fetch both endpoints in parallel
+                const [spotResponse, chainResponse] = await Promise.all([
+                    fetch(`${API_BASE}/spot-price`),
+                    fetch(`${API_BASE}/option-chain?symbol=NIFTY&strike_step=50`)
+                ]);
+                const [spotData, chainData] = await Promise.all([
+                    spotResponse.json(),
+                    chainResponse.json()
+                ]);
 
                 if (spotData.nifty) {
                     updateStats(spotData);
                 }
-
-                // Fetch option chain with default values
-                const symbol = 'NIFTY';
-                const strikeStep = 50;
-
-                const chainResponse = await fetch(
-                    `${API_BASE}/option-chain?symbol=${symbol}&strike_step=${strikeStep}`
-                );
-                const chainData = await chainResponse.json();
-
                 if (chainData.data) {
                     updateTable(chainData);
                 }
             } catch (error) {
                 console.error('Error fetching data:', error);
+            } finally {
+                isFetching = false;
             }
         }
 
@@ -969,14 +971,26 @@
 
         // Auto-refresh every 5 seconds
         function startAutoRefresh() {
+            if (refreshInterval) clearInterval(refreshInterval);
             refreshInterval = setInterval(fetchData, 5000);
         }
 
         function stopAutoRefresh() {
             if (refreshInterval) {
                 clearInterval(refreshInterval);
+                refreshInterval = null;
             }
         }
+
+        // Pause auto-refresh when tab is not visible
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                stopAutoRefresh();
+            } else {
+                fetchData();
+                startAutoRefresh();
+            }
+        });
 
         // Sidebar toggle functions
         function toggleSidebar() {

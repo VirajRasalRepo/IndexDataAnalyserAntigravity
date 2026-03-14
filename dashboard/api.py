@@ -905,6 +905,35 @@ _greeks_cache = {
     'prev_snapshot': {}  # For velocity calculation
 }
 
+# IV stats cache (yearly min/max — expensive query, refresh every 30 min)
+_iv_stats_cache = {
+    'iv_low': None,
+    'iv_high': None,
+    'last_update': None,
+}
+
+
+def _get_cached_iv_stats():
+    """Get IV min/max from market_feed_realtime, cached for 30 minutes."""
+    import time as _time
+    now = _time.time()
+    if (_iv_stats_cache['last_update'] and
+            now - _iv_stats_cache['last_update'] < 1800):
+        return _iv_stats_cache['iv_low'], _iv_stats_cache['iv_high']
+
+    with DatabaseManager.get_cursor() as cursor:
+        cursor.execute("""
+            SELECT MIN(india_vix_ltp), MAX(india_vix_ltp)
+            FROM market_feed_realtime
+            WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 365 DAY)
+        """)
+        row = cursor.fetchone()
+        _iv_stats_cache['iv_low'] = decimal_to_float(row[0] or 10)
+        _iv_stats_cache['iv_high'] = decimal_to_float(row[1] or 20)
+        _iv_stats_cache['last_update'] = now
+
+    return _iv_stats_cache['iv_low'], _iv_stats_cache['iv_high']
+
 
 @app.route('/api/greeks-pro', methods=['GET'])
 def greeks_pro():
@@ -934,41 +963,44 @@ def greeks_pro():
         target_time = request.args.get('time', None)
 
         with DatabaseManager.get_cursor() as cursor:
-            # Build query based on parameters
-            if target_date and target_time:
-                # Specific date and time
-                query = """
-                    SELECT *
-                    FROM nifty_oc_historical
-                    WHERE Date = %s AND Time = %s
-                """
-                cursor.execute(query, (target_date, target_time))
-            elif target_date:
-                # Latest time for specific date
-                query = """
-                    SELECT *
-                    FROM nifty_oc_historical
-                    WHERE Date = %s AND Time = (
-                        SELECT MAX(Time) FROM nifty_oc_historical WHERE Date = %s
-                    )
-                """
-                cursor.execute(query, (target_date, target_date))
+            # Resolve target date
+            use_date = target_date if target_date else datetime.now().strftime('%Y-%m-%d')
+
+            # Fetch MAX(Time) once and reuse
+            if target_time:
+                latest_time = target_time
             else:
-                # Latest data for today (default)
-                query = """
-                    SELECT *
-                    FROM nifty_oc_historical
-                    WHERE Date = CURDATE() AND Time = (
-                        SELECT MAX(Time) FROM nifty_oc_historical WHERE Date = CURDATE()
-                    )
-                """
-                cursor.execute(query)
+                cursor.execute(
+                    "SELECT MAX(Time) FROM nifty_oc_historical WHERE Date = %s",
+                    (use_date,)
+                )
+                row = cursor.fetchone()
+                if not row or row[0] is None:
+                    date_msg = f" for {use_date}"
+                    return jsonify({'status': 'error', 'message': f'No data available{date_msg}'}), 404
+                latest_time = row[0]
+
+            # Fetch option chain data with specific columns (not SELECT *)
+            cursor.execute("""
+                SELECT Date, Time, Strike_price, Spot_price,
+                       ce_oi, ce_volume, ce_IV, ce_delta, ce_gamma, ce_theta, ce_price, ce_vega, ce_signal,
+                       pe_oi, pe_volume, pe_IV, pe_delta, pe_gamma, pe_theta, pe_price, pe_vega, pe_signal,
+                       OI_Diff,
+                       ce_efficiency, ce_vega_adj_efficiency,
+                       ce_delta_velocity, ce_gamma_velocity, ce_theta_velocity, ce_iv_velocity,
+                       ce_alert_theta_trap, ce_alert_gamma_blast, ce_alert_negative_carry, ce_alert_lotto_flag,
+                       pe_efficiency, pe_vega_adj_efficiency,
+                       pe_delta_velocity, pe_gamma_velocity, pe_theta_velocity, pe_iv_velocity,
+                       pe_alert_theta_trap, pe_alert_gamma_blast, pe_alert_negative_carry, pe_alert_lotto_flag
+                FROM nifty_oc_historical
+                WHERE Date = %s AND Time = %s
+            """, (use_date, latest_time))
 
             columns = [desc[0] for desc in cursor.description]
             rows = cursor.fetchall()
 
             if not rows:
-                date_msg = f" for {target_date}" if target_date else " for today"
+                date_msg = f" for {use_date}"
                 return jsonify({'status': 'error', 'message': f'No data available{date_msg}'}), 404
 
             db_rows = [dict(zip(columns, row)) for row in rows]
@@ -986,32 +1018,28 @@ def greeks_pro():
             vix_current = decimal_to_float(vix_rows[0][0]) if vix_rows else 14.0
             vix_prev = decimal_to_float(vix_rows[1][0]) if len(vix_rows) > 1 else vix_current
 
-            # Calculate PCR (use target_date if provided, else today)
-            pcr_date = target_date if target_date else datetime.now().strftime('%Y-%m-%d')
+            # Calculate PCR (reuse latest_time instead of subquery)
             cursor.execute("""
                 SELECT
                     SUM(pe_oi) as pe_oi_total,
                     SUM(ce_oi) as ce_oi_total
                 FROM nifty_oc_historical
-                WHERE Date = %s AND Time = (
-                    SELECT MAX(Time) FROM nifty_oc_historical WHERE Date = %s
-                )
-            """, (pcr_date, pcr_date))
+                WHERE Date = %s AND Time = %s
+            """, (use_date, latest_time))
             pcr_row = cursor.fetchone()
             pe_oi = decimal_to_float(pcr_row[0] or 1)
             ce_oi = decimal_to_float(pcr_row[1] or 1)
             pcr = pe_oi / ce_oi if ce_oi > 0 else 1.0
 
             # Get day's opening spot price for straddle utilization (FEATURE 5)
-            date_for_open = target_date if target_date else datetime.now().strftime('%Y-%m-%d')
             cursor.execute("""
                 SELECT Spot_price FROM nifty_oc_historical
                 WHERE Date = %s ORDER BY Time ASC LIMIT 1
-            """, (date_for_open,))
+            """, (use_date,))
             open_row = cursor.fetchone()
             day_open = decimal_to_float(open_row[0]) if open_row else spot
 
-            # Get IV Environment (Rank + Percentile)
+            # Get IV Environment (cached — expensive yearly query)
             with DatabaseManager.get_connection() as conn:
                 iv_data = calc_iv_percentile(vix_current, conn)
             iv_rank = iv_data.get("iv_rank") or 50.0  # backward compat
@@ -1228,25 +1256,18 @@ def greeks_signals():
 
         from core.greeks_processor import generate_entry_signals
 
-        # Get IV rank
+        # Get IV rank (uses cached yearly min/max)
+        iv_low, iv_high = _get_cached_iv_stats()
+
         with DatabaseManager.get_cursor() as cursor:
-            cursor.execute("""
-                SELECT MIN(india_vix_ltp) as iv_low, MAX(india_vix_ltp) as iv_high
-                FROM market_feed_realtime
-                WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 365 DAY)
-            """)
-            iv_row = cursor.fetchone()
             cursor.execute("""
                 SELECT india_vix_ltp FROM market_feed_realtime
                 ORDER BY timestamp DESC LIMIT 1
             """)
-            vix_current = decimal_to_float(cursor.fetchone()[0]) if cursor.rowcount > 0 else 14.0
+            row = cursor.fetchone()
+            vix_current = decimal_to_float(row[0]) if row else 14.0
 
-        iv_rank = calc_iv_rank(
-            vix_current,
-            decimal_to_float(iv_row[1] or 20),
-            decimal_to_float(iv_row[0] or 10)
-        ) or 50.0
+        iv_rank = calc_iv_rank(vix_current, iv_high, iv_low) or 50.0
 
         signals = generate_entry_signals(_greeks_cache['data'], iv_rank)
 

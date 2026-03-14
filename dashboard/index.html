@@ -1139,27 +1139,34 @@
         let availableDates = [];   // Store available dates
         let currentMonth = new Date();  // Track current month being displayed
 
+        let isFetching = false;
+
         async function fetchData() {
-            // Note: No loading overlay here - this is called by auto-refresh
+            if (isFetching) return;  // Prevent overlapping requests
+            isFetching = true;
             try {
                 const strikeCount = 15;  // Fixed to 15 strikes
 
-                // Fetch OI difference data (with optional date parameter)
+                // Build OI API URL
                 let apiUrl = `${API_BASE}/oi-difference-live?strike_count=${strikeCount}`;
                 if (selectedDate) {
                     apiUrl += `&date=${selectedDate}`;
                 }
-                const response = await fetch(apiUrl);
-                const data = await response.json();
+
+                // Fetch both endpoints in parallel
+                const [response, spotResponse] = await Promise.all([
+                    fetch(apiUrl),
+                    fetch(`${API_BASE}/spot-price`)
+                ]);
+                const [data, spotData] = await Promise.all([
+                    response.json(),
+                    spotResponse.json()
+                ]);
 
                 if (data.error) {
                     console.error('API Error:', data.error);
                     return;
                 }
-
-                // Fetch spot price and VIX data
-                const spotResponse = await fetch(`${API_BASE}/spot-price`);
-                const spotData = await spotResponse.json();
 
                 currentData = data;
                 updateStats(data, spotData);
@@ -1167,6 +1174,8 @@
                 document.getElementById('last-update').textContent = new Date().toLocaleString();
             } catch (error) {
                 console.error('Error fetching data:', error);
+            } finally {
+                isFetching = false;
             }
         }
 
@@ -1513,8 +1522,20 @@
         }
 
         function startAutoRefresh() {
-            refreshInterval = setInterval(fetchData, 5000); // 5 seconds for near real-time updates
+            if (refreshInterval) clearInterval(refreshInterval);
+            refreshInterval = setInterval(fetchData, 5000);
         }
+
+        // Pause auto-refresh when tab is not visible (saves API calls)
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                clearInterval(refreshInterval);
+                refreshInterval = null;
+            } else {
+                fetchData();
+                startAutoRefresh();
+            }
+        });
 
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
