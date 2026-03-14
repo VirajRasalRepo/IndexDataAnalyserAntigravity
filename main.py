@@ -181,11 +181,14 @@ def run_pipeline():
     trade_sync = TradeSync(dhan_client)
     option_chain = OptionChainData(dhan_client, expiry)
 
-    # Initialize WebSocket market feed for real-time data
+    # Initialize WebSocket market feed (connects when market is open)
     market_feed = DhanMarketFeed(Config.DHAN_CLIENT_ID, Config.DHAN_ACCESS_TOKEN)
-    market_feed.connect()
-    market_feed.start()
-    logger.info("Real-time market feed WebSocket started")
+    if is_market_hours():
+        market_feed.connect()
+        market_feed.start()
+        logger.info("Real-time market feed WebSocket started")
+    else:
+        logger.info("Market closed - WebSocket will start when market opens")
 
     # Tracking variables
     last_trade_sync_time = 0.0
