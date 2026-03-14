@@ -232,6 +232,11 @@ def run_pipeline():
                 if Config.DEBUG:
                     logger.debug("Outside market hours but DEBUG mode enabled - continuing")
                 else:
+                    # Stop WebSocket while market is closed to avoid 429 rate-limiting
+                    if market_feed.running:
+                        logger.info("Stopping WebSocket feed (market closed)")
+                        market_feed.stop()
+
                     # Calculate next market open time
                     next_open_time = get_next_market_open_time()
                     seconds_until_open = get_seconds_until_market_open()
@@ -251,6 +256,12 @@ def run_pipeline():
                         time.sleep(300)
 
                     continue
+
+            # Restart WebSocket if it was stopped during market close
+            if not market_feed.running:
+                logger.info("Restarting WebSocket feed (market open)")
+                market_feed.connect()
+                market_feed.start()
 
             try:
                 # --- STEP 1: Sync Trades (Every 60 seconds) ---
