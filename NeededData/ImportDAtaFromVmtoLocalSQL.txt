@@ -1,0 +1,70 @@
+============================================================
+  VM → Local Database Sync Instructions
+============================================================
+
+TABLES SYNCED:
+  - nifty_oc_historical  (dedup via UNIQUE KEY on Date+Time+Strike_price)
+  - market_feed_realtime  (dedup via PRIMARY KEY id)
+  - market_watch_wide     (dedup via PRIMARY KEY id)
+  - user_trades           (dedup via PRIMARY KEY trade_id)
+  - user_                 (dedup via PRIMARY KEY trade_id)
+
+All INSERT statements use INSERT IGNORE so duplicates are
+automatically skipped — no data is overwritten.
+
+============================================================
+  OPTION 1: Automated Script (Recommended)
+============================================================
+
+  # Incremental sync (DEFAULT — only new data since last sync):
+  python sync_from_vm.py --vm-name index-data-analyser --zone asia-south1-a
+
+  # Full sync (re-download everything from scratch):
+  python sync_from_vm.py --full --vm-name index-data-analyser --zone asia-south1-a
+
+  # Import a dump file you already downloaded:
+  python sync_from_vm.py --import-only vm_data_dump.sql
+
+  # Just create the dump on VM (download manually later):
+  python sync_from_vm.py --dump-only --vm-name index-data-analyser --zone asia-south1-a
+
+  INCREMENTAL SYNC:
+    - Queries local DB for the latest date in each table
+    - Only dumps rows AFTER that date from the VM
+    - Much smaller download (e.g. 5MB vs 600MB for a day's data)
+    - State saved in sync_state.json after each successful import
+    - Use --full if you suspect data corruption or missed rows
+
+============================================================
+  OPTION 2: Manual Steps
+============================================================
+
+STEP 1 — Create dump on VM (via SSH):
+  mysqldump -u root -p --insert-ignore --no-create-info --single-transaction --quick analyzer_db > vm_data_dump.sql
+
+  Flags explained:
+    --insert-ignore     → uses INSERT IGNORE (skips duplicates)
+    --no-create-info    → data only, no CREATE TABLE (keeps local schema intact)
+    --single-transaction → consistent snapshot without locking
+    --quick              → streams large tables row-by-row (low memory)
+
+STEP 2 — Download the dump file:
+  Option A: gcloud CLI
+    gcloud compute scp index-data-analyser:/home/virajrasaloff/IndexDataAnalyser/IndexDataAnalyser/vm_data_dump.sql . --zone=asia-south1-a
+
+  Option B: GCP SSH browser → click "Download file" icon →
+    path: /home/virajrasaloff/IndexDataAnalyser/IndexDataAnalyser/vm_data_dump.sql
+
+STEP 3 — Import into local MySQL:
+  mysql -u root -pqwerty123456 analyzer_db < vm_data_dump.sql
+
+============================================================
+  NOTES
+============================================================
+  - The dump file can be large (100MB+). Import may take a few minutes.
+  - INSERT IGNORE means: if a row with the same PRIMARY KEY or UNIQUE KEY
+    already exists locally, it is silently skipped — no data is lost or overwritten.
+  - nifty_oc_historical has a UNIQUE KEY on (Date, Time, Strike_price),
+    so even if auto-increment IDs differ, duplicate data won't be inserted.
+  - Run the sync whenever you want fresh VM data locally.
+  - holidays_cache.json and .env are NOT included in the dump (data only).
