@@ -781,9 +781,7 @@ def get_available_times():
 
 @app.route('/api/credentials', methods=['GET'])
 def get_credentials():
-    """Get current API credentials from .env file. Restricted to localhost."""
-    if request.remote_addr not in ('127.0.0.1', '::1'):
-        return jsonify({'error': 'Access denied — localhost only'}), 403
+    """Get current API credentials from .env file."""
     try:
         env_path = Path(__file__).parent.parent / '.env'
 
@@ -819,9 +817,7 @@ def get_credentials():
 
 @app.route('/api/credentials', methods=['POST'])
 def update_credentials():
-    """Update API credentials in .env file. Restricted to localhost."""
-    if request.remote_addr not in ('127.0.0.1', '::1'):
-        return jsonify({'error': 'Access denied — localhost only'}), 403
+    """Update API credentials in .env file."""
     try:
         data = request.get_json()
 

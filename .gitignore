@@ -36,6 +36,9 @@ env/
 *.swo
 *~
 
+# Cache
+holidays_cache.json
+
 # Logs
 *.log
 logs/
