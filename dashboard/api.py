@@ -868,7 +868,7 @@ def update_credentials():
 
         return jsonify({
             'success': True,
-            'message': 'Credentials updated successfully. Please restart main.py to apply changes.'
+            'message': 'Credentials updated successfully. Changes will be applied automatically within 60 seconds.'
         })
 
     except Exception as e:
