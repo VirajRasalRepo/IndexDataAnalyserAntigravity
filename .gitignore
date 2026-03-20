@@ -41,6 +41,7 @@ holidays_cache.json
 
 # Sync
 vm_data_dump.sql
+vm_data_dump.sql.gz
 sync_state.json
 
 # Logs

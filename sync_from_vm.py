@@ -15,6 +15,7 @@ Usage:
 
   3. Import an already-downloaded dump file:
      python sync_from_vm.py --import-only vm_data_dump.sql
+     python sync_from_vm.py --import-only vm_data_dump.sql.gz
 
   4. Just create the dump on VM (download manually later):
      python sync_from_vm.py --dump-only --vm-name index-data-analyser --zone asia-south1-a
@@ -36,7 +37,7 @@ VM_DB_USER = "root"
 VM_DB_PASSWORD = "Indian#9190"
 VM_DB_NAME = "analyzer_db"
 VM_DUMP_DIR = "/tmp"  # /tmp is always writable
-VM_DUMP_FILE = "vm_data_dump.sql"
+VM_DUMP_FILE = "vm_data_dump.sql.gz"  # compressed dump
 GCP_PROJECT = "complete-energy-450807-r6"
 
 LOCAL_DB_HOST = os.getenv("DB_HOST", "localhost")
@@ -87,15 +88,30 @@ def mysql_cmd(sql, capture=True):
     return result.stdout.strip()
 
 
-def get_row_counts():
-    """Get row counts for each table in the local database."""
-    counts = {}
+def get_row_counts_fast():
+    """Get approximate row counts using information_schema (instant).
+
+    After a bulk import InnoDB estimates may lag, so we force a stats
+    refresh with ANALYZE TABLE first.
+    """
+    # Force InnoDB to update its row estimates
     for table in TABLES:
-        out = mysql_cmd(f"SELECT COUNT(*) FROM {table}")
-        try:
-            counts[table] = int(out)
-        except (ValueError, TypeError):
-            counts[table] = 0
+        mysql_cmd(f"ANALYZE TABLE {table}")
+
+    sql = (
+        "SELECT TABLE_NAME, TABLE_ROWS "
+        "FROM information_schema.TABLES "
+        f"WHERE TABLE_SCHEMA = '{LOCAL_DB_NAME}'"
+    )
+    out = mysql_cmd(sql)
+    counts = {table: 0 for table in TABLES}
+    for line in out.splitlines():
+        parts = line.split()
+        if len(parts) >= 2 and parts[0] in counts:
+            try:
+                counts[parts[0]] = int(parts[1])
+            except (ValueError, TypeError):
+                pass
     return counts
 
 
@@ -131,11 +147,31 @@ def get_local_max_dates():
     return max_dates
 
 
+def decompress_gz(gz_path):
+    """Decompress a .gz file and return the path to the decompressed .sql file."""
+    import gzip as gz_lib
+    import shutil
+
+    sql_path = str(gz_path).replace(".gz", "")
+    print(f"  Decompressing {gz_path}...")
+    with gz_lib.open(gz_path, 'rb') as f_in:
+        with open(sql_path, 'wb') as f_out:
+            shutil.copyfileobj(f_in, f_out)
+
+    gz_size_mb = os.path.getsize(gz_path) / (1024 * 1024)
+    sql_size_mb = os.path.getsize(sql_path) / (1024 * 1024)
+    print(f"  Decompressed to {sql_path} ({sql_size_mb:.1f} MB)")
+    if sql_size_mb > 0:
+        print(f"  Compression ratio: {gz_size_mb:.1f} MB → {sql_size_mb:.1f} MB "
+              f"({(1 - gz_size_mb / sql_size_mb) * 100:.0f}% smaller transfer)")
+    return sql_path
+
+
 # ---------------------------------------------------------------------------
-# Step 1: Create dump on VM via gcloud SSH
+# Step 1: Create dump on VM via gcloud SSH (with gzip compression)
 # ---------------------------------------------------------------------------
 def create_vm_dump(vm_name, zone, project=None, incremental_dates=None):
-    """SSH into the VM and run mysqldump.
+    """SSH into the VM and run mysqldump, piped through gzip.
 
     Args:
         incremental_dates: dict of {table: "YYYY-MM-DD ..."} for WHERE clauses.
@@ -144,7 +180,7 @@ def create_vm_dump(vm_name, zone, project=None, incremental_dates=None):
     is_incremental = incremental_dates and any(incremental_dates.values())
 
     if is_incremental:
-        print("\n[1/3] Creating INCREMENTAL dump on VM...")
+        print("\n[1/3] Creating INCREMENTAL dump on VM (gzip compressed)...")
         print("  Only fetching data newer than:")
         for table, dt in incremental_dates.items():
             if dt:
@@ -152,19 +188,20 @@ def create_vm_dump(vm_name, zone, project=None, incremental_dates=None):
             else:
                 print(f"    {table}: FULL (no prior data)")
     else:
-        print("\n[1/3] Creating FULL dump on VM...")
+        print("\n[1/3] Creating FULL dump on VM (gzip compressed)...")
 
     dump_path = f"{VM_DUMP_DIR}/{VM_DUMP_FILE}"
     proj = project or GCP_PROJECT
 
     if is_incremental:
-        # Per-table dumps with WHERE clauses, combined into one file
+        # Per-table dumps with WHERE clauses
+        # Each table dumps independently (;) so one failure doesn't skip the rest.
+        # stderr goes to /dev/stderr so errors are visible through SSH.
         dump_parts = []
         for table in TABLES:
             date_val = incremental_dates.get(table)
             col = TABLE_DATE_COLUMNS[table]
             if date_val:
-                # Use >= to catch any same-day data that may have been added after last sync
                 where = f"--where=\\\"{col} >= '{date_val}'\\\""
                 dump_parts.append(
                     f"mysqldump -u {VM_DB_USER} -p'{VM_DB_PASSWORD}' "
@@ -173,7 +210,6 @@ def create_vm_dump(vm_name, zone, project=None, incremental_dates=None):
                     f"{where} {VM_DB_NAME} {table}"
                 )
             else:
-                # No local data for this table — dump everything
                 dump_parts.append(
                     f"mysqldump -u {VM_DB_USER} -p'{VM_DB_PASSWORD}' "
                     f"--insert-ignore --no-create-info "
@@ -181,18 +217,18 @@ def create_vm_dump(vm_name, zone, project=None, incremental_dates=None):
                     f"{VM_DB_NAME} {table}"
                 )
 
-        # Chain: first command writes (>), rest append (>>)
-        remote_cmd = f"{dump_parts[0]} > {dump_path}"
-        for part in dump_parts[1:]:
-            remote_cmd += f" && {part} >> {dump_path}"
+        # Use ; so all tables are attempted even if one fails.
+        # Wrap in subshell and pipe combined stdout to gzip.
+        combined = " ; ".join(dump_parts)
+        remote_cmd = f"({combined}) | gzip > {dump_path}"
     else:
-        # Full dump — all tables at once
+        # Full dump — all tables at once, piped through gzip
         tables_str = " ".join(TABLES)
         remote_cmd = (
             f"mysqldump -u {VM_DB_USER} -p'{VM_DB_PASSWORD}' "
             f"--insert-ignore --no-create-info "
             f"--single-transaction --quick "
-            f"{VM_DB_NAME} {tables_str} > {dump_path}"
+            f"{VM_DB_NAME} {tables_str} | gzip > {dump_path}"
         )
 
     # On Windows, gcloud is a .cmd file so we need shell=True.
@@ -204,35 +240,49 @@ def create_vm_dump(vm_name, zone, project=None, incremental_dates=None):
     )
 
     mode = "incremental" if is_incremental else "full"
-    print(f"  Running {mode} mysqldump on VM...")
-    print(f"  > gcloud compute ssh {vm_name} --zone={zone} --command=mysqldump ...")
+    print(f"  Running {mode} mysqldump + gzip on VM...")
+    print(f"  > gcloud compute ssh {vm_name} --zone={zone} --command=mysqldump | gzip ...")
     subprocess.run(gcloud, shell=True, check=True)
-    print("  Dump created on VM.\n")
+    print("  Compressed dump created on VM.\n")
 
 
 # ---------------------------------------------------------------------------
 # Step 2: Download the dump via gcloud SCP
 # ---------------------------------------------------------------------------
 def download_dump(vm_name, zone, local_path, project=None):
-    """Download the dump file from the VM using gcloud scp."""
-    print("[2/3] Downloading dump from VM...")
+    """Download the compressed dump file from the VM using gcloud scp."""
+    print("[2/3] Downloading compressed dump from VM...")
 
     remote_path = f"{vm_name}:{VM_DUMP_DIR}/{VM_DUMP_FILE}"
     proj = project or GCP_PROJECT
 
+    # Download the .gz file
+    gz_local = local_path + ".gz" if not local_path.endswith(".gz") else local_path
     gcloud = (
-        f"gcloud compute scp {remote_path} {local_path} "
+        f"gcloud compute scp {remote_path} {gz_local} "
         f"--zone={zone} --project={proj}"
     )
 
-    print(f"  > gcloud compute scp {vm_name}:/tmp/{VM_DUMP_FILE} {local_path}")
+    print(f"  > gcloud compute scp {vm_name}:/tmp/{VM_DUMP_FILE} {gz_local}")
     subprocess.run(gcloud, shell=True, check=True)
-    size_mb = os.path.getsize(local_path) / (1024 * 1024)
-    print(f"  Downloaded {local_path} ({size_mb:.1f} MB)\n")
+    gz_size_mb = os.path.getsize(gz_local) / (1024 * 1024)
+    print(f"  Downloaded {gz_local} ({gz_size_mb:.1f} MB compressed)")
+
+    # Decompress locally
+    sql_path = decompress_gz(gz_local)
+
+    # Clean up .gz file
+    try:
+        os.remove(gz_local)
+    except OSError:
+        pass
+
+    print()
+    return sql_path
 
 
 # ---------------------------------------------------------------------------
-# Step 3: Import the dump into local MySQL
+# Step 3: Import the dump into local MySQL (with fast-import optimizations)
 # ---------------------------------------------------------------------------
 def import_dump(dump_path, save_state=True):
     """Import the SQL dump into the local MySQL database."""
@@ -241,22 +291,29 @@ def import_dump(dump_path, save_state=True):
         print(f"  ERROR: Dump file not found: {dump_path}")
         sys.exit(1)
 
+    # Handle .gz files transparently
+    if str(dump_path).endswith(".gz"):
+        sql_path = decompress_gz(str(dump_path))
+        dump_path = Path(sql_path)
+
     size_mb = dump_path.stat().st_size / (1024 * 1024)
     print(f"[Import] Importing {dump_path.name} ({size_mb:.1f} MB) into local DB...")
 
-    # Get row counts before import
-    print("  Counting rows before import...")
-    before = get_row_counts()
+    # Get approximate row counts before import
+    print("  Counting rows before import (approximate)...")
+    before = get_row_counts_fast()
     for table, count in before.items():
-        print(f"    {table}: {count:,} rows")
+        print(f"    {table}: ~{count:,} rows")
 
-    # Import the dump
-    print(f"\n  Importing (this may take a while for large dumps)...")
+    # Use --init-command to disable checks for THIS import session only.
+    # No GLOBAL changes needed — keeps the server safe if script crashes.
+    print("\n  Importing with index checks disabled for speed...")
     start = time.time()
 
     import_cmd = (
         f'{MYSQL_BIN} -h {LOCAL_DB_HOST} -P {LOCAL_DB_PORT} '
         f'-u {LOCAL_DB_USER} -p{LOCAL_DB_PASSWORD} '
+        f'--init-command="SET autocommit=0; SET unique_checks=0; SET foreign_key_checks=0;" '
         f'{LOCAL_DB_NAME} < "{dump_path}"'
     )
     result = run(import_cmd, check=False, capture=True)
@@ -274,15 +331,15 @@ def import_dump(dump_path, save_state=True):
 
     print(f"  Import completed in {elapsed:.1f}s")
 
-    # Get row counts after import
-    print("\n  Counting rows after import...")
-    after = get_row_counts()
+    # Get approximate row counts after import
+    print("\n  Counting rows after import (approximate)...")
+    after = get_row_counts_fast()
 
     # Summary
     print("\n" + "=" * 60)
     print("  SYNC SUMMARY")
     print("=" * 60)
-    print(f"  {'Table':<30} {'Before':>10} {'After':>10} {'New':>10}")
+    print(f"  {'Table':<30} {'Before':>10} {'After':>10} {'~New':>10}")
     print(f"  {'-'*30} {'-'*10} {'-'*10} {'-'*10}")
 
     total_new = 0
@@ -297,11 +354,12 @@ def import_dump(dump_path, save_state=True):
     print(f"  {'-'*30} {'-'*10} {'-'*10} {'-'*10}")
     print(f"  {'TOTAL':<30} {'':>10} {'':>10} {total_new:>+10,}")
     print("=" * 60)
+    print("  (counts are approximate via information_schema)")
 
     if total_new == 0:
         print("  No new data — local DB is already up to date.")
     else:
-        print(f"  Successfully synced {total_new:,} new rows.")
+        print(f"  Successfully synced ~{total_new:,} new rows.")
 
     # Save sync state after successful import
     if save_state:
@@ -338,7 +396,7 @@ def main():
     parser.add_argument(
         "--import-only",
         metavar="FILE",
-        help="Skip VM SSH — just import an existing dump file",
+        help="Skip VM SSH — just import an existing dump file (.sql or .sql.gz)",
     )
     parser.add_argument(
         "--dump-only",
@@ -395,8 +453,8 @@ def main():
             print("  No existing data found — doing full sync\n")
 
     create_vm_dump(args.vm_name, args.zone, args.project, incremental_dates)
-    download_dump(args.vm_name, args.zone, args.output, args.project)
-    import_dump(args.output)
+    sql_path = download_dump(args.vm_name, args.zone, args.output, args.project)
+    import_dump(sql_path)
 
 
 if __name__ == "__main__":
