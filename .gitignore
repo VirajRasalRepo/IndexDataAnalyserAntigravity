@@ -36,6 +36,13 @@ env/
 *.swo
 *~
 
+# Cache
+holidays_cache.json
+
+# Sync
+vm_data_dump.sql
+sync_state.json
+
 # Logs
 *.log
 logs/

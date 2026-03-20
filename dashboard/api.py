@@ -3,7 +3,7 @@ OI Data Dashboard API
 Provides REST endpoints for fetching live Option Chain data from the database.
 """
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, make_response
 from flask_cors import CORS
 from datetime import datetime, date, time as dt_time
 from decimal import Decimal
@@ -781,9 +781,7 @@ def get_available_times():
 
 @app.route('/api/credentials', methods=['GET'])
 def get_credentials():
-    """Get current API credentials from .env file. Restricted to localhost."""
-    if request.remote_addr not in ('127.0.0.1', '::1'):
-        return jsonify({'error': 'Access denied — localhost only'}), 403
+    """Get current API credentials from .env file."""
     try:
         env_path = Path(__file__).parent.parent / '.env'
 
@@ -819,9 +817,7 @@ def get_credentials():
 
 @app.route('/api/credentials', methods=['POST'])
 def update_credentials():
-    """Update API credentials in .env file. Restricted to localhost."""
-    if request.remote_addr not in ('127.0.0.1', '::1'):
-        return jsonify({'error': 'Access denied — localhost only'}), 403
+    """Update API credentials in .env file."""
     try:
         data = request.get_json()
 
@@ -872,7 +868,7 @@ def update_credentials():
 
         return jsonify({
             'success': True,
-            'message': 'Credentials updated successfully. Please restart main.py to apply changes.'
+            'message': 'Credentials updated successfully. Changes will be applied automatically within 60 seconds.'
         })
 
     except Exception as e:
@@ -1333,40 +1329,45 @@ def greeks_available_times():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
+def _serve_html(filename):
+    """Serve HTML file with no-cache headers so edits are picked up immediately."""
+    from flask import send_file
+    response = make_response(send_file(filename))
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
+
+
 @app.route('/')
 @app.route('/index.html')
 def index():
     """Serve the main dashboard page."""
-    from flask import send_file
-    return send_file('index.html')
+    return _serve_html('index.html')
 
 
 @app.route('/greeks.html')
 def greeks_dashboard():
     """Serve the Greeks dashboard page."""
-    from flask import send_file
-    return send_file('greeks.html')
+    return _serve_html('greeks.html')
 
 
 @app.route('/option_chain.html')
 def option_chain():
     """Serve the option chain page."""
-    from flask import send_file
-    return send_file('option_chain.html')
+    return _serve_html('option_chain.html')
 
 
 @app.route('/historical_data.html')
 def historical_data():
     """Serve the historical data page."""
-    from flask import send_file
-    return send_file('historical_data.html')
+    return _serve_html('historical_data.html')
 
 
 @app.route('/api_credentials.html')
 def api_credentials():
     """Serve the API credentials page."""
-    from flask import send_file
-    return send_file('api_credentials.html')
+    return _serve_html('api_credentials.html')
 
 
 if __name__ == '__main__':

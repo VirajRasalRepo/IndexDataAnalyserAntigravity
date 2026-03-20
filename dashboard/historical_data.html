@@ -1020,13 +1020,13 @@
                             </svg>
                             Export Snapshot
                         </button>
-                        <button class="btn btn-secondary" onclick="exportFullDayCSV()">
+                        <button id="export-fullday-btn" class="btn btn-secondary" onclick="exportFullDayCSV()">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                                 <polyline points="7 10 12 15 17 10"></polyline>
                                 <line x1="12" y1="15" x2="12" y2="3"></line>
                             </svg>
-                            Export Full Day
+                            <span>Export Full Day</span>
                         </button>
                         <button class="btn btn-primary" onclick="saveReport()">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1635,23 +1635,22 @@
                 return;
             }
 
-            // Show loading indicator
-            const originalText = event.target.textContent;
-            event.target.textContent = 'Exporting...';
-            event.target.disabled = true;
+            // Get button by ID — never use event.target (breaks after await)
+            const btn = document.getElementById('export-fullday-btn');
+            const savedHTML = btn.innerHTML;
+            btn.innerHTML = 'Exporting...';
+            btn.disabled = true;
 
             try {
-                // Use the backend export-full-day endpoint for efficiency
                 const response = await fetch(`${API_BASE}/export-full-day?date=${selectedDate}`);
 
                 if (!response.ok) {
                     throw new Error(`Export failed: ${response.statusText}`);
                 }
 
-                // Get the CSV content from the backend
                 const blob = await response.blob();
 
-                // Create download link
+                // Trigger download
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
                 link.href = url;
@@ -1660,15 +1659,13 @@
                 link.click();
                 document.body.removeChild(link);
                 URL.revokeObjectURL(url);
-
-                alert('Full day data exported successfully!');
             } catch (error) {
                 console.error('Error exporting full day:', error);
                 alert('Error exporting data. Please try again.');
             } finally {
-                // Restore button state
-                event.target.textContent = originalText;
-                event.target.disabled = false;
+                // Always restore — runs after await completes
+                btn.innerHTML = savedHTML;
+                btn.disabled = false;
             }
         }
 

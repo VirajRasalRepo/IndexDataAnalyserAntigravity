@@ -904,6 +904,15 @@
             .search-container { display: none; }
             .calendar-dropdown { min-width: calc(100vw - 16px); max-width: calc(100vw - 16px); }
         }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .toast-error {
+            position: fixed; bottom: 24px; right: 24px; z-index: 10000;
+            background: #1e293b; border: 1px solid #ef4444; border-radius: 8px;
+            padding: 12px 20px; color: #f87171; font-size: 13px; font-weight: 500;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     </style>
 </head>
 
@@ -1112,7 +1121,12 @@
                     <div class="table-controls">
                         <span style="font-size: 12px; font-weight: 600; color: #94a3b8;">OI Difference - 3 Minute
                             Intervals</span>
-                        <span class="timestamp">Last updated: <span id="last-update">--</span></span>
+                        <span class="timestamp">
+                            <span id="refresh-indicator" style="display:none; margin-right: 6px;">
+                                <span style="display:inline-block; width:8px; height:8px; border:2px solid #94a3b8; border-top-color:#10b981; border-radius:50%; animation: spin 0.8s linear infinite;"></span>
+                            </span>
+                            Last updated: <span id="last-update">--</span>
+                        </span>
                     </div>
                     <div class="table-scroll-container">
                         <div class="fixed-strikes" id="fixed-strikes">
@@ -1140,10 +1154,25 @@
         let currentMonth = new Date();  // Track current month being displayed
 
         let isFetching = false;
+        let fetchController = null;  // AbortController for cancelling in-flight requests
 
-        async function fetchData() {
-            if (isFetching) return;  // Prevent overlapping requests
+        async function fetchData(isUserAction = false) {
+            // If user-initiated, cancel any in-flight background request
+            if (isUserAction && fetchController) {
+                fetchController.abort();
+                isFetching = false;
+            }
+
+            if (isFetching) return;  // Prevent overlapping background requests
             isFetching = true;
+
+            // Show refresh indicator (small spinner next to "Last updated")
+            const indicator = document.getElementById('refresh-indicator');
+            if (indicator) indicator.style.display = 'inline';
+
+            fetchController = new AbortController();
+            const signal = fetchController.signal;
+
             try {
                 const strikeCount = 15;  // Fixed to 15 strikes
 
@@ -1155,8 +1184,8 @@
 
                 // Fetch both endpoints in parallel
                 const [response, spotResponse] = await Promise.all([
-                    fetch(apiUrl),
-                    fetch(`${API_BASE}/spot-price`)
+                    fetch(apiUrl, { signal }),
+                    fetch(`${API_BASE}/spot-price`, { signal })
                 ]);
                 const [data, spotData] = await Promise.all([
                     response.json(),
@@ -1165,6 +1194,7 @@
 
                 if (data.error) {
                     console.error('API Error:', data.error);
+                    showToast(`Failed to load OI data: ${data.error}`);
                     return;
                 }
 
@@ -1173,10 +1203,29 @@
                 renderTable(data);
                 document.getElementById('last-update').textContent = new Date().toLocaleString();
             } catch (error) {
+                if (error.name === 'AbortError') {
+                    console.log('Fetch cancelled (new request initiated)');
+                    return;  // Don't clear isFetching — the new request handles it
+                }
                 console.error('Error fetching data:', error);
+                showToast('Network error — retrying...');
             } finally {
                 isFetching = false;
+                fetchController = null;
+                if (indicator) indicator.style.display = 'none';
             }
+        }
+
+        function showToast(message) {
+            // Remove existing toast if any
+            const existing = document.querySelector('.toast-error');
+            if (existing) existing.remove();
+
+            const toast = document.createElement('div');
+            toast.className = 'toast-error';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
         }
 
         function updateStats(data, spotData) {
@@ -1505,7 +1554,7 @@
 
             // Show loading for user-initiated date change
             showLoading('Loading OI Data...');
-            await fetchData();
+            await fetchData(true);  // true = user action, cancels any in-flight request
             hideLoading();
         }
 
