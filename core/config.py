@@ -74,6 +74,23 @@ class Config:
     ACTIVE_EXPIRY: str = os.getenv("ACTIVE_EXPIRY", "")  # Deprecated - kept for backward compatibility
 
     @classmethod
+    def reload_credentials(cls) -> bool:
+        """
+        Re-read DHAN credentials from .env file.
+        Returns True if credentials changed, False otherwise.
+        """
+        load_dotenv(override=True)
+        new_client_id = os.getenv("DHAN_CLIENT_ID", "")
+        new_access_token = os.getenv("DHAN_ACCESS_TOKEN", "")
+
+        if new_client_id != cls.DHAN_CLIENT_ID or new_access_token != cls.DHAN_ACCESS_TOKEN:
+            cls.DHAN_CLIENT_ID = new_client_id
+            cls.DHAN_ACCESS_TOKEN = new_access_token
+            logger.info("Dhan API credentials reloaded from .env")
+            return True
+        return False
+
+    @classmethod
     def get_db_config(cls) -> Dict[str, any]:
         """Returns database configuration as a dictionary."""
         return {

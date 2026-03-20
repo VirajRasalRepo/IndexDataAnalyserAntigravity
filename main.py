@@ -192,6 +192,7 @@ def run_pipeline():
 
     # Tracking variables
     last_trade_sync_time = 0.0
+    last_credential_check_time = 0.0
     iteration_count = 0
     post_market_sync_done = False  # Track if post-market sync is done for the day
     last_sync_date = None  # Track the last date we did post-market sync
@@ -267,6 +268,23 @@ def run_pipeline():
                 market_feed.start()
 
             try:
+                # --- STEP 0: Check for credential changes (Every 60 seconds) ---
+                if current_time - last_credential_check_time >= 60:
+                    last_credential_check_time = current_time
+                    if Config.reload_credentials():
+                        logger.info("Credentials changed — reinitializing Dhan client...")
+                        dhan_client = dhanhq(Config.DHAN_CLIENT_ID, Config.DHAN_ACCESS_TOKEN)
+                        trade_sync = TradeSync(dhan_client)
+                        option_chain = OptionChainData(dhan_client, expiry)
+                        # Restart WebSocket with new credentials
+                        if market_feed.running:
+                            market_feed.stop()
+                        market_feed = DhanMarketFeed(Config.DHAN_CLIENT_ID, Config.DHAN_ACCESS_TOKEN)
+                        if in_market_hours:
+                            market_feed.connect()
+                            market_feed.start()
+                        logger.info("Dhan client reinitialized with new credentials")
+
                 # --- STEP 1: Sync Trades (Every 60 seconds) ---
                 if current_time - last_trade_sync_time >= Config.TRADE_SYNC_INTERVAL:
                     try:
