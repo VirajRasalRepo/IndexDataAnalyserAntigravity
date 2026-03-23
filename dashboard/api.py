@@ -1310,7 +1310,7 @@ def greeks_available_times():
             cursor.execute("""
                 SELECT DISTINCT Time
                 FROM nifty_oc_historical
-                WHERE Date = %s AND ce_efficiency IS NOT NULL
+                WHERE Date = %s AND ce_oi IS NOT NULL
                 ORDER BY Time ASC
             """, (target_date,))
             rows = cursor.fetchall()

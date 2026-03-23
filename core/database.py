@@ -91,6 +91,8 @@ class DatabaseManager:
         try:
             connection = cls.get_connection()
             cursor = connection.cursor(dictionary=dictionary, buffered=True)
+            # Set session timezone to IST so NOW(), CURRENT_TIMESTAMP return IST
+            cursor.execute("SET time_zone = '+05:30'")
             yield cursor
             connection.commit()
         except MySQLError as err:

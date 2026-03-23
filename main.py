@@ -10,7 +10,7 @@ from datetime import datetime, time as dt_time, timedelta, date as dt_date
 from dhanhq import dhanhq
 
 from core import Utilities
-from core.config import Config
+from core.config import Config, now_ist
 from core.database import DatabaseManager
 from core.trade_sync import TradeSync, TradeSyncError
 from core.option_chain import OptionChainData, OptionChainError
@@ -37,7 +37,7 @@ def is_trading_day(date_to_check: datetime = None) -> bool:
         True if it's a trading day, False otherwise
     """
     if date_to_check is None:
-        date_to_check = datetime.now()
+        date_to_check = now_ist()
 
     # Check if it's a weekend (Saturday=5, Sunday=6)
     if date_to_check.weekday() >= 5:
@@ -59,7 +59,7 @@ def is_market_hours() -> bool:
     Returns:
         True if within market hours, False otherwise
     """
-    now = datetime.now()
+    now = now_ist()
     current_time = now.time()
 
     market_start = dt_time(
@@ -86,7 +86,7 @@ def get_next_market_open_time() -> datetime:
     Returns:
         datetime object representing the next market open time
     """
-    now = datetime.now()
+    now = now_ist()
 
     # Start with today's market open time
     next_open = now.replace(
@@ -124,7 +124,7 @@ def get_seconds_until_market_open() -> int:
     Returns:
         Number of seconds until market opens
     """
-    now = datetime.now()
+    now = now_ist()
     next_open = get_next_market_open_time()
     time_until_open = (next_open - now).total_seconds()
     return max(0, int(time_until_open))
@@ -207,7 +207,7 @@ def run_pipeline():
         while True:
             iteration_count += 1
             current_time = time.time()
-            today = datetime.now().date()
+            today = now_ist().date()
 
             # Reset post-market sync flag if it's a new day
             if last_sync_date != today:
@@ -219,7 +219,7 @@ def run_pipeline():
 
             if not in_market_hours:
                 # Allow one final sync after market close to capture today's trades
-                if not post_market_sync_done and is_trading_day(datetime.now()):
+                if not post_market_sync_done and is_trading_day(now_ist()):
                     logger.info("Market closed. Performing final trade sync for today...")
                     try:
                         new_trades = trade_sync.sync_trades()
@@ -251,7 +251,7 @@ def run_pipeline():
                     # This allows the program to prepare and ensures we don't miss market open
                     if seconds_until_open > 3600:  # More than 1 hour
                         sleep_duration = max(seconds_until_open - 1800, 300)  # Wake up 30 min early, or 5 min minimum
-                        wake_time = datetime.now() + timedelta(seconds=sleep_duration)
+                        wake_time = now_ist() + timedelta(seconds=sleep_duration)
                         logger.info(f"Sleeping until {wake_time.strftime('%H:%M:%S')} ({sleep_duration // 60:.0f} minutes)")
                         time.sleep(sleep_duration)
                     else:
