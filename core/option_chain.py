@@ -4,11 +4,10 @@ Handles fetching and storing option chain data from Dhan API.
 """
 
 import logging
-from datetime import datetime
 from typing import Dict, Tuple, Optional
 from dhanhq import dhanhq
 
-from .config import Config
+from .config import Config, now_ist
 from .database import DatabaseManager
 from . import Utilities
 
@@ -112,7 +111,7 @@ class OptionChainData:
         Returns:
             Number of strikes stored
         """
-        now = datetime.now()
+        now = now_ist()
         current_date = now.strftime('%Y-%m-%d')
         current_time = now.strftime('%H:%M:%S')
 

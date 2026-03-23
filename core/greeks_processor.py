@@ -16,9 +16,11 @@ FEATURES:
 """
 
 import logging
-from datetime import datetime, date
+from datetime import date
 from typing import Optional, Dict, List, Tuple
 from decimal import Decimal
+
+from .config import now_ist
 
 logger = logging.getLogger(__name__)
 
@@ -640,7 +642,7 @@ def generate_entry_signals(processed: dict, iv_rank: float) -> list:
     signals   = []
     dte       = processed["dte"]
     trend     = processed["trend_intensity"]
-    now_time  = datetime.now().time()
+    now_time  = now_ist().time()
     from datetime import time as dtime
     blast_window = dtime(13, 30) <= now_time <= dtime(14, 30)
 
@@ -788,23 +790,23 @@ def process_greeks_from_db(db_rows: List[Dict],
         if row["negative_carry"]:
             alerts.append({"type": "NEGATIVE_CARRY", "strike": tag,
                            "message": "High IV Straddle Decay",
-                           "time": datetime.now().strftime("%H:%M:%S")})
+                           "time": now_ist().strftime("%H:%M:%S")})
         if row["theta_trap"]:
             alerts.append({"type": "THETA_TRAP", "strike": tag,
                            "message": f"{tag} Decay Stall",
-                           "time": datetime.now().strftime("%H:%M:%S")})
+                           "time": now_ist().strftime("%H:%M:%S")})
         if row["gamma_blast"]:
             alerts.append({"type": "GAMMA_BLAST", "strike": tag,
                            "message": f"{tag} Volume Surge",
-                           "time": datetime.now().strftime("%H:%M:%S")})
+                           "time": now_ist().strftime("%H:%M:%S")})
 
     if pcr_signal["divergence"]:
         alerts.append({"type": "PCR_DIVERGENCE", "strike": "MARKET",
                        "message": pcr_signal["signal"],
-                       "time": datetime.now().strftime("%H:%M:%S")})
+                       "time": now_ist().strftime("%H:%M:%S")})
 
     return {
-        "timestamp":       datetime.now().isoformat(),
+        "timestamp":       now_ist().isoformat(),
         "spot":            spot,
         "dte":             dte,
         "vix":             vix_current,

@@ -5,11 +5,14 @@ Utility functions for Index Data Analyser.
 import json
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
 import requests
 
 logger = logging.getLogger(__name__)
+
+# IST timezone (inline to avoid circular import with config.py)
+_IST = timezone(timedelta(hours=5, minutes=30))
 
 # Path to cached holidays file (project root)
 _CACHE_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "holidays_cache.json")
@@ -28,7 +31,7 @@ def _load_cache():
         if os.path.exists(_CACHE_FILE):
             with open(_CACHE_FILE, "r") as f:
                 cache = json.load(f)
-            if cache.get("fetched_date") == datetime.now().strftime("%Y-%m-%d"):
+            if cache.get("fetched_date") == datetime.now(_IST).strftime("%Y-%m-%d"):
                 return cache.get("holidays", [])
             # Return stale cache data (will be used as fallback)
             return cache.get("holidays", [])
@@ -43,7 +46,7 @@ def _is_cache_fresh():
         if os.path.exists(_CACHE_FILE):
             with open(_CACHE_FILE, "r") as f:
                 cache = json.load(f)
-            return cache.get("fetched_date") == datetime.now().strftime("%Y-%m-%d")
+            return cache.get("fetched_date") == datetime.now(_IST).strftime("%Y-%m-%d")
     except (json.JSONDecodeError, OSError):
         pass
     return False
@@ -53,7 +56,7 @@ def _save_cache(holidays):
     """Save holidays list to cache file."""
     try:
         cache = {
-            "fetched_date": datetime.now().strftime("%Y-%m-%d"),
+            "fetched_date": datetime.now(_IST).strftime("%Y-%m-%d"),
             "holidays": holidays,
         }
         with open(_CACHE_FILE, "w") as f:

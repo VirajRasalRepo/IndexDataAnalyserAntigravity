@@ -26,6 +26,7 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 import time
 from datetime import datetime
 from pathlib import Path
@@ -173,6 +174,10 @@ def decompress_gz(gz_path):
 def create_vm_dump(vm_name, zone, project=None, incremental_dates=None):
     """SSH into the VM and run mysqldump, piped through gzip.
 
+    For incremental mode, we write a bash script locally and SCP it to the VM
+    before executing. This avoids Windows cmd.exe mangling the >= operator
+    and datetime values with spaces in --where clauses.
+
     Args:
         incremental_dates: dict of {table: "YYYY-MM-DD ..."} for WHERE clauses.
                           If None, dumps all data (full sync).
@@ -194,35 +199,56 @@ def create_vm_dump(vm_name, zone, project=None, incremental_dates=None):
     proj = project or GCP_PROJECT
 
     if is_incremental:
-        # Per-table dumps with WHERE clauses
-        # Each table dumps independently (;) so one failure doesn't skip the rest.
-        # stderr goes to /dev/stderr so errors are visible through SSH.
-        dump_parts = []
+        # Write a bash script locally to avoid Windows cmd.exe quoting issues.
+        # cmd.exe interprets > as redirect and doesn't support \" escaping,
+        # which breaks --where="col >= 'datetime'" clauses.
+        script_lines = ["#!/bin/bash", "("]
         for table in TABLES:
             date_val = incremental_dates.get(table)
             col = TABLE_DATE_COLUMNS[table]
             if date_val:
-                where = f"--where=\\\"{col} >= '{date_val}'\\\""
-                dump_parts.append(
+                script_lines.append(
                     f"mysqldump -u {VM_DB_USER} -p'{VM_DB_PASSWORD}' "
                     f"--insert-ignore --no-create-info "
                     f"--single-transaction --quick "
-                    f"{where} {VM_DB_NAME} {table}"
+                    f'--where="{col} >= \'{date_val}\'" '
+                    f"{VM_DB_NAME} {table}"
                 )
             else:
-                dump_parts.append(
+                script_lines.append(
                     f"mysqldump -u {VM_DB_USER} -p'{VM_DB_PASSWORD}' "
                     f"--insert-ignore --no-create-info "
                     f"--single-transaction --quick "
                     f"{VM_DB_NAME} {table}"
                 )
+        script_lines.append(f") | gzip > {dump_path}")
 
-        # Use ; so all tables are attempted even if one fails.
-        # Wrap in subshell and pipe combined stdout to gzip.
-        combined = " ; ".join(dump_parts)
-        remote_cmd = f"({combined}) | gzip > {dump_path}"
+        # Write script to local temp file (Unix line endings for bash)
+        local_script = Path(tempfile.gettempdir()) / "_sync_dump.sh"
+        with open(local_script, "w", newline="\n") as f:
+            f.write("\n".join(script_lines) + "\n")
+
+        # SCP script to VM
+        print("  Uploading dump script to VM...")
+        scp_cmd = (
+            f"gcloud compute scp {local_script} {vm_name}:/tmp/_sync_dump.sh "
+            f"--zone={zone} --project={proj}"
+        )
+        subprocess.run(scp_cmd, shell=True, check=True)
+
+        # Execute script on VM
+        print("  Running incremental mysqldump + gzip on VM...")
+        ssh_cmd = (
+            f'gcloud compute ssh {vm_name} '
+            f'--zone={zone} --project={proj} '
+            f'--command="bash /tmp/_sync_dump.sh"'
+        )
+        subprocess.run(ssh_cmd, shell=True, check=True)
+
+        # Cleanup local temp script
+        local_script.unlink(missing_ok=True)
     else:
-        # Full dump — all tables at once, piped through gzip
+        # Full dump — all tables at once, no --where, no quoting issues
         tables_str = " ".join(TABLES)
         remote_cmd = (
             f"mysqldump -u {VM_DB_USER} -p'{VM_DB_PASSWORD}' "
@@ -231,18 +257,16 @@ def create_vm_dump(vm_name, zone, project=None, incremental_dates=None):
             f"{VM_DB_NAME} {tables_str} | gzip > {dump_path}"
         )
 
-    # On Windows, gcloud is a .cmd file so we need shell=True.
-    # Double-quote the --command value so cmd.exe doesn't interpret > as local redirect.
-    gcloud = (
-        f'gcloud compute ssh {vm_name} '
-        f'--zone={zone} --project={proj} '
-        f'--command="{remote_cmd}"'
-    )
+        # On Windows, gcloud is a .cmd file so we need shell=True.
+        gcloud = (
+            f'gcloud compute ssh {vm_name} '
+            f'--zone={zone} --project={proj} '
+            f'--command="{remote_cmd}"'
+        )
 
-    mode = "incremental" if is_incremental else "full"
-    print(f"  Running {mode} mysqldump + gzip on VM...")
-    print(f"  > gcloud compute ssh {vm_name} --zone={zone} --command=mysqldump | gzip ...")
-    subprocess.run(gcloud, shell=True, check=True)
+        print("  Running full mysqldump + gzip on VM...")
+        subprocess.run(gcloud, shell=True, check=True)
+
     print("  Compressed dump created on VM.\n")
 
 

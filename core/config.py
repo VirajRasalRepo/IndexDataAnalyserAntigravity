@@ -5,6 +5,7 @@ Loads settings from environment variables with validation.
 
 import os
 import logging
+from datetime import datetime, timezone, timedelta
 from typing import Dict
 from dotenv import load_dotenv
 
@@ -17,6 +18,15 @@ logger = logging.getLogger(__name__)
 class ConfigurationError(Exception):
     """Raised when configuration is invalid or missing."""
     pass
+
+
+# IST timezone (UTC+5:30) — used everywhere instead of naive datetime.now()
+IST = timezone(timedelta(hours=5, minutes=30))
+
+
+def now_ist() -> datetime:
+    """Get current time in IST. Use this instead of datetime.now() everywhere."""
+    return datetime.now(IST)
 
 
 class Config:
