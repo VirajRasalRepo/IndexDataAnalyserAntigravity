@@ -15,7 +15,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.database import DatabaseManager
-from core.config import Config
+from core.config import Config, now_ist
 from core.greeks_processor import process_greeks_from_db, calc_iv_rank, calc_iv_percentile, get_iv_trading_bias
 
 # Configure logging
@@ -87,7 +87,7 @@ def format_time_delta(td):
 @app.route('/api/health', methods=['GET'])
 def health_check():
     """Health check endpoint."""
-    return jsonify({'status': 'healthy', 'timestamp': datetime.now().isoformat()})
+    return jsonify({'status': 'healthy', 'timestamp': now_ist().isoformat()})
 
 
 @app.route('/api/spot-price', methods=['GET'])
@@ -892,7 +892,7 @@ def _get_cached_expiry():
     from dhanhq import dhanhq as DhanHQ
     from core import Utilities
 
-    today = datetime.now().date()
+    today = now_ist().date()
     if _expiry_cache['expiry_str'] and _expiry_cache['fetched_date'] == today:
         return _expiry_cache['expiry_str']
 
@@ -975,7 +975,7 @@ def greeks_pro():
 
         with DatabaseManager.get_cursor() as cursor:
             # Resolve target date
-            use_date = target_date if target_date else datetime.now().strftime('%Y-%m-%d')
+            use_date = target_date if target_date else now_ist().strftime('%Y-%m-%d')
 
             # Fetch MAX(Time) once and reuse
             if target_time:
@@ -1058,7 +1058,7 @@ def greeks_pro():
 
         # Get expiry date (cached — fetches from Dhan API at most once per day)
         expiry_str = _get_cached_expiry()
-        expiry_date = datetime.strptime(expiry_str, '%Y-%m-%d').date() if expiry_str else datetime.now().date()
+        expiry_date = datetime.strptime(expiry_str, '%Y-%m-%d').date() if expiry_str else now_ist().date()
 
         # Process Greeks
         processed = process_greeks_from_db(
@@ -1077,7 +1077,7 @@ def greeks_pro():
             for r in processed['ce_ranked'] + processed['pe_ranked']
         }
         _greeks_cache['data'] = processed
-        _greeks_cache['timestamp'] = datetime.now()
+        _greeks_cache['timestamp'] = now_ist()
 
         # Get portfolio net delta
         portfolio = get_portfolio_net_delta()
