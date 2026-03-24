@@ -401,10 +401,10 @@
             // Info cards are updated separately via updateInfoCards()
         }
 
-        // ── Update top info cards with daily gain (LTP - open) ──
-        function updateInfoCards(snapshots, dailyOpen) {
+        // ── Update top info cards with daily change (LTP - prev close) ──
+        function updateInfoCards(snapshots, prevClose) {
             if (!snapshots || snapshots.length === 0) return;
-            const latest = snapshots[snapshots.length - 1];
+            const latest = snapshots[0];
             const cards = ['nifty_50', 'india_vix', 'reliance', 'hdfc_bank', 'icici_bank'];
             const idMap = { nifty_50: 'nifty', india_vix: 'vix', reliance: 'reliance', hdfc_bank: 'hdfc_bank', icici_bank: 'icici_bank' };
             for (const prefix of cards) {
@@ -413,9 +413,9 @@
                 const id = idMap[prefix];
                 document.getElementById(`${id}-ltp`).textContent = fmtNum(share.ltp);
                 const chgEl = document.getElementById(`${id}-chg`);
-                // Daily gain = LTP - open (if open available), else tick change
-                const openPrice = dailyOpen ? dailyOpen[prefix] : null;
-                const gain = (share.ltp != null && openPrice != null && openPrice > 0) ? round2(share.ltp - openPrice) : share.chg;
+                // Daily change = LTP - previous day's close
+                const closePrice = prevClose ? prevClose[prefix] : null;
+                const gain = (share.ltp != null && closePrice != null && closePrice > 0) ? round2(share.ltp - closePrice) : share.chg;
                 chgEl.textContent = chgStr(gain);
                 chgEl.className = 'info-card-change ' + chgClass(gain);
             }
@@ -424,16 +424,16 @@
         function round2(v) { return Math.round(v * 100) / 100; }
 
         // ── Data fetching ──
-        let _dailyOpen = null;
+        let _prevClose = null;
 
         async function fetchLive() {
             try {
                 const res = await fetch('/api/top-shares/live');
                 const data = await res.json();
                 if (data.status !== 'success') throw new Error(data.message);
-                if (data.daily_open) _dailyOpen = data.daily_open;
+                if (data.prev_close) _prevClose = data.prev_close;
                 renderSnapshots(data.snapshots);
-                updateInfoCards(data.snapshots, _dailyOpen);
+                updateInfoCards(data.snapshots, _prevClose);
                 document.getElementById('last-updated').textContent = 'Updated: ' + new Date().toLocaleTimeString('en-IN');
             } catch (e) {
                 console.error('Live fetch error:', e);
