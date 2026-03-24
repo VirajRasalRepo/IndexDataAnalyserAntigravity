@@ -239,7 +239,7 @@
             </div>
 
             <div class="content-area">
-                <!-- Info bar: Nifty + VIX -->
+                <!-- Info bar -->
                 <div class="info-bar">
                     <div class="info-card">
                         <div>
@@ -254,6 +254,27 @@
                             <div class="info-card-value" id="vix-ltp">--</div>
                         </div>
                         <div class="info-card-change" id="vix-chg">--</div>
+                    </div>
+                    <div class="info-card">
+                        <div>
+                            <div class="info-card-label">Reliance</div>
+                            <div class="info-card-value" id="reliance-ltp">--</div>
+                        </div>
+                        <div class="info-card-change" id="reliance-chg">--</div>
+                    </div>
+                    <div class="info-card">
+                        <div>
+                            <div class="info-card-label">HDFC Bank</div>
+                            <div class="info-card-value" id="hdfc_bank-ltp">--</div>
+                        </div>
+                        <div class="info-card-change" id="hdfc_bank-chg">--</div>
+                    </div>
+                    <div class="info-card">
+                        <div>
+                            <div class="info-card-label">ICICI Bank</div>
+                            <div class="info-card-value" id="icici_bank-ltp">--</div>
+                        </div>
+                        <div class="info-card-change" id="icici_bank-chg">--</div>
                     </div>
                 </div>
 
@@ -377,33 +398,42 @@
                 prevSnapshotCount = snapshots.length;
             }
 
-            // Update info cards from latest snapshot
+            // Info cards are updated separately via updateInfoCards()
+        }
+
+        // ── Update top info cards with daily gain (LTP - open) ──
+        function updateInfoCards(snapshots, dailyOpen) {
+            if (!snapshots || snapshots.length === 0) return;
             const latest = snapshots[snapshots.length - 1];
-            if (latest) {
-                const nifty = latest.shares.find(s => s.prefix === 'nifty_50');
-                const vix = latest.shares.find(s => s.prefix === 'india_vix');
-                if (nifty) {
-                    document.getElementById('nifty-ltp').textContent = fmtNum(nifty.ltp);
-                    const nChg = document.getElementById('nifty-chg');
-                    nChg.textContent = chgStr(nifty.chg);
-                    nChg.className = 'info-card-change ' + chgClass(nifty.chg);
-                }
-                if (vix) {
-                    document.getElementById('vix-ltp').textContent = fmtNum(vix.ltp);
-                    const vChg = document.getElementById('vix-chg');
-                    vChg.textContent = chgStr(vix.chg);
-                    vChg.className = 'info-card-change ' + chgClass(vix.chg);
-                }
+            const cards = ['nifty_50', 'india_vix', 'reliance', 'hdfc_bank', 'icici_bank'];
+            const idMap = { nifty_50: 'nifty', india_vix: 'vix', reliance: 'reliance', hdfc_bank: 'hdfc_bank', icici_bank: 'icici_bank' };
+            for (const prefix of cards) {
+                const share = latest.shares.find(s => s.prefix === prefix);
+                if (!share) continue;
+                const id = idMap[prefix];
+                document.getElementById(`${id}-ltp`).textContent = fmtNum(share.ltp);
+                const chgEl = document.getElementById(`${id}-chg`);
+                // Daily gain = LTP - open (if open available), else tick change
+                const openPrice = dailyOpen ? dailyOpen[prefix] : null;
+                const gain = (share.ltp != null && openPrice != null && openPrice > 0) ? round2(share.ltp - openPrice) : share.chg;
+                chgEl.textContent = chgStr(gain);
+                chgEl.className = 'info-card-change ' + chgClass(gain);
             }
         }
 
+        function round2(v) { return Math.round(v * 100) / 100; }
+
         // ── Data fetching ──
+        let _dailyOpen = null;
+
         async function fetchLive() {
             try {
                 const res = await fetch('/api/top-shares/live');
                 const data = await res.json();
                 if (data.status !== 'success') throw new Error(data.message);
+                if (data.daily_open) _dailyOpen = data.daily_open;
                 renderSnapshots(data.snapshots);
+                updateInfoCards(data.snapshots, _dailyOpen);
                 document.getElementById('last-updated').textContent = 'Updated: ' + new Date().toLocaleTimeString('en-IN');
             } catch (e) {
                 console.error('Live fetch error:', e);
@@ -423,6 +453,7 @@
                 if (data.status !== 'success') throw new Error(data.message);
                 prevSnapshotCount = 0; // force scroll to right
                 renderSnapshots(data.snapshots);
+                updateInfoCards(data.snapshots, null);
                 document.getElementById('last-updated').textContent = `Showing: ${selectedDate}`;
             } catch (e) {
                 showToast('Failed to load historical data: ' + e.message);
