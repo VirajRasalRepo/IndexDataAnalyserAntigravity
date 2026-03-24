@@ -1521,6 +1521,50 @@ def top_shares_available_times():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
+# ──────────────────────────────────────────────────────────────────────
+# SIGNAL ENGINE ENDPOINTS
+# ──────────────────────────────────────────────────────────────────────
+
+@app.route('/api/signal-engine/available-dates', methods=['GET'])
+def signal_engine_available_dates():
+    """Return dates that have OI data suitable for signal engine backtest."""
+    try:
+        from core.signal_adapter import SignalBacktestAdapter
+        adapter = SignalBacktestAdapter()
+        dates = adapter.get_available_dates()
+        return jsonify({"status": "success", "dates": dates, "count": len(dates)})
+    except Exception as e:
+        logger.error(f"Error in signal-engine available-dates: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/signal-engine/run', methods=['GET'])
+def signal_engine_run():
+    """Run signal engine backtest for a single date."""
+    date_str = request.args.get('date')
+    if not date_str:
+        return jsonify({"status": "error", "message": "date parameter required"}), 400
+    try:
+        from core.signal_adapter import SignalBacktestAdapter
+        adapter = SignalBacktestAdapter()
+        result = adapter.run_backtest_for_date(date_str)
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Error in signal-engine run: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/signal-engine/config', methods=['GET'])
+def signal_engine_config():
+    """Return engine configuration parameters."""
+    try:
+        from core.signal_adapter import get_engine_config
+        return jsonify(get_engine_config())
+    except Exception as e:
+        logger.error(f"Error in signal-engine config: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 def _serve_html(filename):
     """Serve HTML file with no-cache headers so edits are picked up immediately."""
     from flask import send_file
@@ -1560,6 +1604,12 @@ def historical_data():
 def top_shares_page():
     """Serve the top shares data page."""
     return _serve_html('top_shares.html')
+
+
+@app.route('/signal_engine.html')
+def signal_engine_page():
+    """Serve the Signal Engine page."""
+    return _serve_html('signal_engine.html')
 
 
 @app.route('/api_credentials.html')
