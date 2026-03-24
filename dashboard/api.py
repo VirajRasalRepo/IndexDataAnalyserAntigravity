@@ -1329,6 +1329,194 @@ def greeks_available_times():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
+# ── Top Shares Data endpoints ──────────────────────────────────────────────
+
+# Column prefixes for shares stored in market_feed_realtime
+TOP_SHARES = [
+    {"prefix": "nifty_50", "name": "Nifty 50", "ticker": "INDEX"},
+    {"prefix": "india_vix", "name": "India VIX", "ticker": "INDEX"},
+    {"prefix": "reliance", "name": "Reliance Industries", "ticker": "NSE: RELIANCE"},
+    {"prefix": "hdfc_bank", "name": "HDFC Bank", "ticker": "NSE: HDFCBANK"},
+    {"prefix": "icici_bank", "name": "ICICI Bank", "ticker": "NSE: ICICIBANK"},
+    {"prefix": "infosys", "name": "Infosys", "ticker": "NSE: INFY"},
+    {"prefix": "tcs", "name": "TCS", "ticker": "NSE: TCS"},
+    {"prefix": "itc", "name": "ITC", "ticker": "NSE: ITC"},
+    {"prefix": "lt", "name": "L&T", "ticker": "NSE: LT"},
+]
+
+_TOP_SHARES_LTP_COLS = ", ".join(f"{s['prefix']}_ltp" for s in TOP_SHARES)
+
+
+def _format_share_rows(rows):
+    """Convert raw DB rows into structured share data with change calculation."""
+    if not rows:
+        return []
+    # rows are ordered newest-first; reverse so oldest is first for change calc
+    rows = list(reversed(rows))
+    snapshots = []
+    prev = None
+    for row in rows:
+        ts = row["timestamp"]
+        ts_str = ts.strftime("%H:%M:%S") if hasattr(ts, "strftime") else str(ts)
+        entry = {"timestamp": ts_str, "shares": []}
+        for s in TOP_SHARES:
+            ltp = decimal_to_float(row.get(f"{s['prefix']}_ltp"))
+            prev_ltp = decimal_to_float(prev.get(f"{s['prefix']}_ltp")) if prev else None
+            chg = round(ltp - prev_ltp, 2) if ltp is not None and prev_ltp is not None else 0
+            entry["shares"].append({
+                "prefix": s["prefix"],
+                "name": s["name"],
+                "ticker": s["ticker"],
+                "ltp": ltp,
+                "chg": chg,
+            })
+        snapshots.append(entry)
+        prev = row
+    return snapshots
+
+
+@app.route('/api/top-shares/live', methods=['GET'])
+def top_shares_live():
+    """Return the latest 3 data points for today plus full day history."""
+    try:
+        with DatabaseManager.get_cursor(dictionary=True) as cursor:
+            # Latest 4 rows (need 4 to compute change for latest 3)
+            cursor.execute(f"""
+                SELECT timestamp, {_TOP_SHARES_LTP_COLS}
+                FROM market_feed_realtime
+                WHERE DATE(timestamp) = CURDATE()
+                ORDER BY timestamp DESC
+                LIMIT 4
+            """)
+            latest = cursor.fetchall()
+            top3 = _format_share_rows(latest)
+
+            # Full day history sampled at ~1 min intervals for scrollable panel
+            cursor.execute(f"""
+                SELECT timestamp, {_TOP_SHARES_LTP_COLS}
+                FROM market_feed_realtime
+                WHERE DATE(timestamp) = CURDATE()
+                  AND MOD(TIME_TO_SEC(TIME(timestamp)), 60) < 5
+                ORDER BY timestamp ASC
+            """)
+            history_rows = cursor.fetchall()
+            history = _format_share_rows(history_rows)
+
+        return jsonify({"status": "success", "snapshots": top3, "history": history})
+    except Exception as e:
+        logger.error(f"Error in top-shares live: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/top-shares/historical', methods=['GET'])
+def top_shares_historical():
+    """Return share data for a specific past date. Accepts optional t1,t2,t3 times."""
+    try:
+        target_date = request.args.get('date')
+        if not target_date:
+            return jsonify({"status": "error", "message": "date parameter required"}), 400
+
+        t1 = request.args.get('t1')
+        t2 = request.args.get('t2')
+        t3 = request.args.get('t3')
+
+        with DatabaseManager.get_cursor(dictionary=True) as cursor:
+            if t1 and t2 and t3:
+                # Fetch rows closest to each requested time
+                rows = []
+                for t in [t1, t2, t3]:
+                    cursor.execute(f"""
+                        SELECT timestamp, {_TOP_SHARES_LTP_COLS}
+                        FROM market_feed_realtime
+                        WHERE DATE(timestamp) = %s
+                        ORDER BY ABS(TIME_TO_SEC(TIME(timestamp)) - TIME_TO_SEC(%s)) ASC
+                        LIMIT 1
+                    """, (target_date, t))
+                    row = cursor.fetchone()
+                    if row:
+                        rows.append(row)
+                # Need one more row before t1 for change calc
+                if rows:
+                    cursor.execute(f"""
+                        SELECT timestamp, {_TOP_SHARES_LTP_COLS}
+                        FROM market_feed_realtime
+                        WHERE DATE(timestamp) = %s AND timestamp < %s
+                        ORDER BY timestamp DESC LIMIT 1
+                    """, (target_date, rows[0]["timestamp"]))
+                    prev = cursor.fetchone()
+                    if prev:
+                        rows.insert(0, prev)
+                snapshots = _format_share_rows(rows)
+            else:
+                # Return full day sampled at ~1 min intervals
+                cursor.execute(f"""
+                    SELECT timestamp, {_TOP_SHARES_LTP_COLS}
+                    FROM market_feed_realtime
+                    WHERE DATE(timestamp) = %s
+                      AND MOD(TIME_TO_SEC(TIME(timestamp)), 60) < 5
+                    ORDER BY timestamp ASC
+                """, (target_date,))
+                all_rows = cursor.fetchall()
+                snapshots = _format_share_rows(all_rows)
+
+        return jsonify({"status": "success", "date": target_date, "snapshots": snapshots})
+    except Exception as e:
+        logger.error(f"Error in top-shares historical: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/top-shares/available-dates', methods=['GET'])
+def top_shares_available_dates():
+    """Return dates that have market_feed_realtime data."""
+    try:
+        with DatabaseManager.get_cursor(dictionary=True) as cursor:
+            cursor.execute("""
+                SELECT DISTINCT DATE(timestamp) as date
+                FROM market_feed_realtime
+                WHERE timestamp IS NOT NULL
+                ORDER BY date DESC
+            """)
+            rows = cursor.fetchall()
+            dates = [r["date"].strftime("%Y-%m-%d") if hasattr(r["date"], "strftime") else str(r["date"]) for r in rows]
+        return jsonify({"status": "success", "dates": dates, "count": len(dates)})
+    except Exception as e:
+        logger.error(f"Error in top-shares available-dates: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/api/top-shares/available-times', methods=['GET'])
+def top_shares_available_times():
+    """Return available timestamps for a date, sampled at 3-min intervals."""
+    try:
+        target_date = request.args.get('date')
+        if not target_date:
+            return jsonify({"status": "error", "message": "date parameter required"}), 400
+
+        with DatabaseManager.get_cursor(dictionary=True) as cursor:
+            cursor.execute("""
+                SELECT TIME(timestamp) as t
+                FROM market_feed_realtime
+                WHERE DATE(timestamp) = %s
+                  AND MOD(TIME_TO_SEC(TIME(timestamp)), 180) < 5
+                ORDER BY t ASC
+            """, (target_date,))
+            rows = cursor.fetchall()
+            times = []
+            for r in rows:
+                val = r["t"]
+                if hasattr(val, "strftime"):
+                    times.append(val.strftime("%H:%M:%S"))
+                else:
+                    # timedelta from MySQL TIME column
+                    total = int(val.total_seconds())
+                    h, m, s = total // 3600, (total % 3600) // 60, total % 60
+                    times.append(f"{h:02d}:{m:02d}:{s:02d}")
+        return jsonify({"status": "success", "date": target_date, "times": times, "count": len(times)})
+    except Exception as e:
+        logger.error(f"Error in top-shares available-times: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 def _serve_html(filename):
     """Serve HTML file with no-cache headers so edits are picked up immediately."""
     from flask import send_file
@@ -1362,6 +1550,12 @@ def option_chain():
 def historical_data():
     """Serve the historical data page."""
     return _serve_html('historical_data.html')
+
+
+@app.route('/top_shares.html')
+def top_shares_page():
+    """Serve the top shares data page."""
+    return _serve_html('top_shares.html')
 
 
 @app.route('/api_credentials.html')
