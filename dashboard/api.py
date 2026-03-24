@@ -1345,6 +1345,7 @@ TOP_SHARES = [
 ]
 
 _TOP_SHARES_LTP_COLS = ", ".join(f"{s['prefix']}_ltp" for s in TOP_SHARES)
+_TOP_SHARES_OPEN_COLS = ", ".join(f"{s['prefix']}_open" for s in TOP_SHARES)
 
 
 def _format_share_rows(rows):
@@ -1391,7 +1392,20 @@ def top_shares_live():
             rows = cursor.fetchall()
             snapshots = _format_share_rows(rows)
 
-        return jsonify({"status": "success", "snapshots": snapshots})
+            # Fetch open prices from first row of the day for daily gain calc
+            cursor.execute(f"""
+                SELECT {_TOP_SHARES_OPEN_COLS}
+                FROM market_feed_realtime
+                WHERE DATE(timestamp) = CURDATE()
+                ORDER BY timestamp ASC LIMIT 1
+            """)
+            open_row = cursor.fetchone()
+            daily_open = {}
+            if open_row:
+                for s in TOP_SHARES:
+                    daily_open[s["prefix"]] = decimal_to_float(open_row.get(f"{s['prefix']}_open"))
+
+        return jsonify({"status": "success", "snapshots": snapshots, "daily_open": daily_open})
     except Exception as e:
         logger.error(f"Error in top-shares live: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
