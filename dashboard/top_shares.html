@@ -86,9 +86,9 @@
         .btn-apply { background: #135bec; color: white; border: none; border-radius: 8px; padding: 6px 16px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
         .btn-apply:hover { background: #1d4ed8; }
 
-        /* LIVE TABLE */
-        .shares-table-wrapper { overflow-x: auto; border-radius: 12px; border: 1px solid #1e293b; }
-        .shares-table { width: 100%; border-collapse: collapse; min-width: 700px; }
+        /* LIVE TABLE — horizontally scrollable with sticky company column */
+        .shares-table-wrapper { overflow-x: auto; border-radius: 12px; border: 1px solid #1e293b; max-height: calc(100vh - 260px); overflow-y: auto; }
+        .shares-table { border-collapse: separate; border-spacing: 0; }
         .shares-table th { background: #0f172a; padding: 10px 14px; font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; text-align: left; border-bottom: 1px solid #1e293b; white-space: nowrap; }
         .shares-table th.time-header { text-align: center; background: #0f172a; border-left: 1px solid #1e293b; }
         .shares-table th.time-group { text-align: center; background: #135bec0d; color: #60a5fa; font-size: 12px; border-left: 1px solid #1e293b; padding: 6px; }
@@ -99,26 +99,21 @@
         .shares-table .company-ticker { font-size: 11px; color: #64748b; font-weight: 500; }
         .shares-table .ltp-cell { text-align: right; font-family: 'Roboto Mono', monospace; font-weight: 600; color: #f1f5f9; border-left: 1px solid #1e293b; }
         .shares-table .chg-cell { text-align: right; font-family: 'Roboto Mono', monospace; font-weight: 600; font-size: 12px; }
-        .shares-table .fetched-cell { font-family: 'Roboto Mono', monospace; font-size: 12px; color: #64748b; text-align: center; }
-
-        /* SCROLLABLE HISTORY PANEL */
-        .history-panel { margin-top: 24px; }
-        .history-panel h3 { font-size: 14px; font-weight: 700; color: #94a3b8; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
-        .history-table-wrapper { max-height: 400px; overflow-y: auto; border-radius: 12px; border: 1px solid #1e293b; }
-        .history-table { width: 100%; border-collapse: collapse; min-width: 600px; }
-        .history-table thead { position: sticky; top: 0; z-index: 2; }
-        .history-table th { background: #0f172a; padding: 8px 12px; font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; text-align: right; border-bottom: 1px solid #1e293b; white-space: nowrap; }
-        .history-table th:first-child { text-align: center; }
-        .history-table td { padding: 6px 12px; font-size: 12px; border-bottom: 1px solid #1e293b10; font-family: 'Roboto Mono', monospace; text-align: right; color: #cbd5e1; }
-        .history-table td:first-child { text-align: center; color: #64748b; }
-        .history-table tbody tr { transition: background 0.15s; }
-        .history-table tbody tr:hover { background: #1e293b40; }
+        /* Sticky first column (Company) */
+        .shares-table thead tr:first-child th:first-child,
+        .shares-table thead tr:last-child th:first-child { position: sticky; left: 0; z-index: 3; background: #0f172a; }
+        .shares-table thead tr { position: sticky; top: 0; z-index: 2; }
+        .shares-table thead tr:first-child { z-index: 4; }
+        .shares-table thead tr:last-child { top: 33px; z-index: 3; }
+        .shares-table td.company-cell { position: sticky; left: 0; z-index: 1; background: #101622; border-right: 1px solid #1e293b; }
+        .shares-table tbody tr:hover td.company-cell { background: #1a2332; }
 
         /* Scrollbar styling */
-        .history-table-wrapper::-webkit-scrollbar { width: 6px; }
-        .history-table-wrapper::-webkit-scrollbar-track { background: #0f172a; }
-        .history-table-wrapper::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
-        .history-table-wrapper::-webkit-scrollbar-thumb:hover { background: #475569; }
+        .shares-table-wrapper::-webkit-scrollbar { width: 8px; height: 8px; }
+        .shares-table-wrapper::-webkit-scrollbar-track { background: #0f172a; }
+        .shares-table-wrapper::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        .shares-table-wrapper::-webkit-scrollbar-thumb:hover { background: #475569; }
+        .shares-table-wrapper::-webkit-scrollbar-corner { background: #0f172a; }
         .content-area::-webkit-scrollbar { width: 6px; }
         .content-area::-webkit-scrollbar-track { background: #0f172a; }
         .content-area::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
@@ -262,14 +257,7 @@
                     </div>
                 </div>
 
-                <!-- Time selectors (historical mode only) -->
-                <div class="time-selectors" id="time-selectors">
-                    <span class="time-select-label">Compare times:</span>
-                    <select class="time-select" id="time-sel-1"></select>
-                    <select class="time-select" id="time-sel-2"></select>
-                    <select class="time-select" id="time-sel-3"></select>
-                    <button class="btn-apply" onclick="loadHistorical()">Apply</button>
-                </div>
+                <div class="time-selectors" id="time-selectors"></div>
 
                 <!-- Section title -->
                 <div class="section-title">
@@ -289,19 +277,6 @@
                 </div>
                 <div class="loading-msg" id="table-loading"><span class="spinner"></span> Loading data...</div>
 
-                <!-- Scrollable history panel (live mode) -->
-                <div class="history-panel" id="history-panel">
-                    <h3>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                        Today's History
-                    </h3>
-                    <div class="history-table-wrapper">
-                        <table class="history-table" id="history-table">
-                            <thead id="history-thead"></thead>
-                            <tbody id="history-tbody"></tbody>
-                        </table>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
@@ -351,10 +326,13 @@
             setTimeout(() => t.remove(), 4000);
         }
 
-        // ── Render main 3-snapshot table ──
+        // ── Render scrollable table with all snapshots as columns ──
+        let prevSnapshotCount = 0;
+
         function renderSnapshots(snapshots) {
             const thead = document.getElementById('shares-thead');
             const tbody = document.getElementById('shares-tbody');
+            const wrapper = document.querySelector('.shares-table-wrapper');
             const loading = document.getElementById('table-loading');
 
             if (!snapshots || snapshots.length === 0) {
@@ -366,9 +344,9 @@
             }
             loading.style.display = 'none';
 
-            // Build header: Company | Time1 LTP | Chg | Time2 LTP | Chg | Time3 LTP | Chg
-            let hdr1 = '<tr><th rowspan="2" style="min-width:180px">Company</th>';
-            let hdr2 = '<tr>';
+            // Header row 1: Company | @time1 | @time2 | ... (each colspan 2)
+            let hdr1 = '<tr><th rowspan="2" style="min-width:160px">Company</th>';
+            let hdr2 = '<tr><th style="display:none"></th>';
             for (const snap of snapshots) {
                 hdr1 += `<th class="time-group" colspan="2">@ ${snap.timestamp}</th>`;
                 hdr2 += '<th class="time-header">LTP</th><th class="time-header">Chg</th>';
@@ -377,23 +355,27 @@
             hdr2 += '</tr>';
             thead.innerHTML = hdr1 + hdr2;
 
-            // Build body rows — one per share
+            // Body rows — one per share, all timestamps as columns
             let html = '';
-            if (snapshots.length > 0) {
-                const numShares = snapshots[0].shares.length;
-                for (let i = 0; i < numShares; i++) {
-                    const s = snapshots[0].shares[i];
-                    html += '<tr>';
-                    html += `<td><div class="company-name">${s.name}</div><div class="company-ticker">${s.ticker}</div></td>`;
-                    for (const snap of snapshots) {
-                        const d = snap.shares[i];
-                        html += `<td class="ltp-cell">${fmtNum(d.ltp)}</td>`;
-                        html += `<td class="chg-cell ${chgClass(d.chg)}">${chgStr(d.chg)}</td>`;
-                    }
-                    html += '</tr>';
+            const numShares = snapshots[0].shares.length;
+            for (let i = 0; i < numShares; i++) {
+                const s = snapshots[0].shares[i];
+                html += '<tr>';
+                html += `<td class="company-cell"><div class="company-name">${s.name}</div><div class="company-ticker">${s.ticker}</div></td>`;
+                for (const snap of snapshots) {
+                    const d = snap.shares[i];
+                    html += `<td class="ltp-cell">${fmtNum(d.ltp)}</td>`;
+                    html += `<td class="chg-cell ${chgClass(d.chg)}">${chgStr(d.chg)}</td>`;
                 }
+                html += '</tr>';
             }
             tbody.innerHTML = html;
+
+            // Auto-scroll to the right (latest data) when new data arrives
+            if (snapshots.length !== prevSnapshotCount) {
+                wrapper.scrollLeft = wrapper.scrollWidth;
+                prevSnapshotCount = snapshots.length;
+            }
 
             // Update info cards from latest snapshot
             const latest = snapshots[snapshots.length - 1];
@@ -415,40 +397,6 @@
             }
         }
 
-        // ── Render scrollable history table ──
-        function renderHistory(history) {
-            const thead = document.getElementById('history-thead');
-            const tbody = document.getElementById('history-tbody');
-            const panel = document.getElementById('history-panel');
-
-            if (!history || history.length === 0) {
-                panel.style.display = 'none';
-                return;
-            }
-            panel.style.display = '';
-
-            // Header: Time | Share1 LTP | Share2 LTP | ...
-            let hdr = '<tr><th style="text-align:center">Time</th>';
-            for (const s of SHARES) {
-                hdr += `<th>${s.name}</th>`;
-            }
-            hdr += '</tr>';
-            thead.innerHTML = hdr;
-
-            // Rows — newest at top
-            let html = '';
-            for (let r = history.length - 1; r >= 0; r--) {
-                const snap = history[r];
-                html += `<tr><td>${snap.timestamp}</td>`;
-                for (const s of snap.shares) {
-                    const cls = chgClass(s.chg);
-                    html += `<td class="${cls}">${fmtNum(s.ltp)}</td>`;
-                }
-                html += '</tr>';
-            }
-            tbody.innerHTML = html;
-        }
-
         // ── Data fetching ──
         async function fetchLive() {
             try {
@@ -456,7 +404,6 @@
                 const data = await res.json();
                 if (data.status !== 'success') throw new Error(data.message);
                 renderSnapshots(data.snapshots);
-                renderHistory(data.history);
                 document.getElementById('last-updated').textContent = 'Updated: ' + new Date().toLocaleTimeString('en-IN');
             } catch (e) {
                 console.error('Live fetch error:', e);
@@ -465,32 +412,17 @@
 
         async function loadHistorical() {
             if (!selectedDate) return;
-            const t1 = document.getElementById('time-sel-1').value;
-            const t2 = document.getElementById('time-sel-2').value;
-            const t3 = document.getElementById('time-sel-3').value;
             const loading = document.getElementById('table-loading');
             loading.innerHTML = '<span class="spinner"></span> Loading data...';
             loading.style.display = '';
 
             try {
-                let url = `/api/top-shares/historical?date=${selectedDate}`;
-                if (t1 && t2 && t3) {
-                    url += `&t1=${t1}&t2=${t2}&t3=${t3}`;
-                }
+                const url = `/api/top-shares/historical?date=${selectedDate}`;
                 const res = await fetch(url);
                 const data = await res.json();
                 if (data.status !== 'success') throw new Error(data.message);
-
-                if (t1 && t2 && t3) {
-                    // Show selected 3 snapshots
-                    renderSnapshots(data.snapshots);
-                } else {
-                    // Full day — show last 3 as snapshots, rest as history
-                    const snaps = data.snapshots;
-                    const top3 = snaps.length > 3 ? snaps.slice(-3) : snaps;
-                    renderSnapshots(top3);
-                    renderHistory(snaps);
-                }
+                prevSnapshotCount = 0; // force scroll to right
+                renderSnapshots(data.snapshots);
                 document.getElementById('last-updated').textContent = `Showing: ${selectedDate}`;
             } catch (e) {
                 showToast('Failed to load historical data: ' + e.message);
@@ -533,12 +465,12 @@
         function setLiveMode() {
             isLive = true;
             selectedDate = null;
+            prevSnapshotCount = 0;
             document.getElementById('mode-badge').textContent = 'LIVE';
             document.getElementById('mode-badge').className = 'mode-badge live';
             document.getElementById('selected-date-text').textContent = 'Today';
             document.getElementById('table-subtitle').textContent = 'Live Market Feed';
             document.getElementById('time-selectors').classList.remove('show');
-            document.getElementById('history-panel').style.display = '';
             startAutoRefresh();
             fetchLive();
         }
@@ -546,15 +478,13 @@
         function setHistoricalMode(date) {
             isLive = false;
             selectedDate = date;
+            prevSnapshotCount = 0;
             stopAutoRefresh();
             document.getElementById('mode-badge').textContent = 'HISTORICAL';
             document.getElementById('mode-badge').className = 'mode-badge historical';
             document.getElementById('selected-date-text').textContent = date;
             document.getElementById('table-subtitle').textContent = `Historical Data — ${date}`;
-            document.getElementById('time-selectors').classList.add('show');
-            document.getElementById('history-panel').style.display = 'none';
-            loadAvailableTimes(date);
-            // Load full day initially (no specific times)
+            document.getElementById('time-selectors').classList.remove('show');
             loadHistorical();
         }
 

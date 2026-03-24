@@ -1377,21 +1377,10 @@ def _format_share_rows(rows):
 
 @app.route('/api/top-shares/live', methods=['GET'])
 def top_shares_live():
-    """Return the latest 3 data points for today plus full day history."""
+    """Return all data points for today sampled at ~1 min intervals."""
     try:
         with DatabaseManager.get_cursor(dictionary=True) as cursor:
-            # Latest 4 rows (need 4 to compute change for latest 3)
-            cursor.execute(f"""
-                SELECT timestamp, {_TOP_SHARES_LTP_COLS}
-                FROM market_feed_realtime
-                WHERE DATE(timestamp) = CURDATE()
-                ORDER BY timestamp DESC
-                LIMIT 4
-            """)
-            latest = cursor.fetchall()
-            top3 = _format_share_rows(latest)
-
-            # Full day history sampled at ~1 min intervals for scrollable panel
+            # Full day sampled at ~1 min intervals for scrollable table
             cursor.execute(f"""
                 SELECT timestamp, {_TOP_SHARES_LTP_COLS}
                 FROM market_feed_realtime
@@ -1399,10 +1388,10 @@ def top_shares_live():
                   AND MOD(TIME_TO_SEC(TIME(timestamp)), 60) < 5
                 ORDER BY timestamp ASC
             """)
-            history_rows = cursor.fetchall()
-            history = _format_share_rows(history_rows)
+            rows = cursor.fetchall()
+            snapshots = _format_share_rows(rows)
 
-        return jsonify({"status": "success", "snapshots": top3, "history": history})
+        return jsonify({"status": "success", "snapshots": snapshots})
     except Exception as e:
         logger.error(f"Error in top-shares live: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
