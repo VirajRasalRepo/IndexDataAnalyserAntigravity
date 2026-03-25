@@ -458,7 +458,8 @@
             const iv = assess.iv_open;
             const ivEl = document.getElementById('iv-value');
             ivEl.textContent = iv.toFixed(1) + '%';
-            ivEl.className = 'info-card-value ' + (iv < 15 ? 'positive' : iv < 18 ? 'neutral' : 'negative');
+            ivEl.className = 'info-card-value ' + (iv < 15 ? 'positive' : iv < 20 ? 'neutral' : 'negative');
+            if (assess.risky) ivEl.style.color = '#eab308';
             document.getElementById('iv-sub').textContent = `PE IV: ${assess.pe_iv_open.toFixed(1)}%`;
 
             // PCR
@@ -479,6 +480,9 @@
             if (assess.tradeable) {
                 tradEl.innerHTML = '<span class="badge badge-green">YES</span>';
                 document.getElementById('block-reason').textContent = '';
+            } else if (assess.risky) {
+                tradEl.innerHTML = '<span class="badge" style="background:rgba(234,179,8,0.15);color:#eab308;border:1px solid rgba(234,179,8,0.3)">RISKY</span>';
+                document.getElementById('block-reason').textContent = assess.block_reason || '';
             } else {
                 tradEl.innerHTML = '<span class="badge badge-red">BLOCKED</span>';
                 document.getElementById('block-reason').textContent = assess.block_reason || '';
