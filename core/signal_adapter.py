@@ -17,6 +17,8 @@ _PROJECT_ROOT = str(Path(__file__).parent.parent)
 if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 
+import nifty_signal_engine as _nse
+
 from nifty_signal_engine import (
     CandleBuilder, OIAnalyser, SignalEngine,
     IV_MAX, MIN_RANGE_PTS, MIN_TARGET_PTS, SL_POINTS, TARGET_POINTS,
@@ -95,50 +97,62 @@ class SignalBacktestAdapter:
         spot_open = float(candles_df.iloc[0]["close"])
         assessment = engine.init_day(oi_open, spot_open)
 
+        # ── 4b. Override IV blocking so high-IV days show as "risky" ──
+        original_iv_ok = engine.day_iv_ok
+        engine.day_iv_ok = True              # Force signals to generate
+        saved_iv_max = _nse.IV_MAX
+        _nse.IV_MAX = 999.0                  # Disable live IV filter too
+        if not original_iv_ok:
+            assessment["block_reason"] = f"RISKY — IV {assessment.get('iv_open', 0):.1f}% ≥ {IV_MAX}% (signals still shown)"
+
         # ── 5. Iterate candles and collect signals ──
         signals = []
         candles_out = []
         history = []
 
-        for _, row in candles_df.iterrows():
-            candle = row.to_dict()
-            t_str = candle["dt"].strftime("%H:%M:%S")
+        try:
+            for _, row in candles_df.iterrows():
+                candle = row.to_dict()
+                t_str = candle["dt"].strftime("%H:%M:%S")
 
-            # Record candle for output
-            candles_out.append({
-                "time": candle["dt"].strftime("%H:%M"),
-                "open": round(float(candle["open"]), 2),
-                "high": round(float(candle["high"]), 2),
-                "low": round(float(candle["low"]), 2),
-                "close": round(float(candle["close"]), 2),
-                "range": round(float(candle.get("range", 0)), 2),
-                "body": round(float(candle.get("body", 0)), 2),
-                "body_pct": round(float(candle.get("body_pct", 0)), 1),
-                "bull": bool(candle.get("bull", True)),
-                "pattern": str(candle.get("pattern", "")),
-            })
+                # Record candle for output
+                candles_out.append({
+                    "time": candle["dt"].strftime("%H:%M"),
+                    "open": round(float(candle["open"]), 2),
+                    "high": round(float(candle["high"]), 2),
+                    "low": round(float(candle["low"]), 2),
+                    "close": round(float(candle["close"]), 2),
+                    "range": round(float(candle.get("range", 0)), 2),
+                    "body": round(float(candle.get("body", 0)), 2),
+                    "body_pct": round(float(candle.get("body_pct", 0)), 1),
+                    "bull": bool(candle.get("bull", True)),
+                    "pattern": str(candle.get("pattern", "")),
+                })
 
-            # Get OI at this candle time
-            oi_now = self._filter_oi_at_time(oi_all, t_str)
-            spot_now = float(candle["close"])
+                # Get OI at this candle time
+                oi_now = self._filter_oi_at_time(oi_all, t_str)
+                spot_now = float(candle["close"])
 
-            # Stock snapshot (optional)
-            stock_snap = self._fetch_stock_snapshot(date_str, candle["dt"].strftime("%H:%M") + ":00")
+                # Stock snapshot (optional)
+                stock_snap = self._fetch_stock_snapshot(date_str, candle["dt"].strftime("%H:%M") + ":00")
 
-            signal = engine.evaluate_candle(candle, history, oi_now, spot_now, stock_snap)
-            if signal:
-                # Convert any non-serialisable values
-                clean = {}
-                for k, v in signal.items():
-                    if isinstance(v, (Decimal, float)):
-                        clean[k] = round(float(v), 2)
-                    elif isinstance(v, bool):
-                        clean[k] = v
-                    else:
-                        clean[k] = v
-                signals.append(clean)
+                signal = engine.evaluate_candle(candle, history, oi_now, spot_now, stock_snap)
+                if signal:
+                    # Convert any non-serialisable values
+                    clean = {}
+                    for k, v in signal.items():
+                        if isinstance(v, (Decimal, float)):
+                            clean[k] = round(float(v), 2)
+                        elif isinstance(v, bool):
+                            clean[k] = v
+                        else:
+                            clean[k] = v
+                    signals.append(clean)
 
-            history.append(candle)
+                history.append(candle)
+        finally:
+            # ── 5b. Restore original IV_MAX ──
+            _nse.IV_MAX = saved_iv_max
 
         # ── 6. Build summary ──
         entries = [s for s in signals if s.get("type") == "ENTRY"]
@@ -159,8 +173,10 @@ class SignalBacktestAdapter:
         }
 
         # ── 7. Format assessment ──
+        risky = not original_iv_ok
         assess_out = {
             "tradeable": assessment.get("tradeable", False),
+            "risky": risky,
             "iv_open": assessment.get("iv_open", 0),
             "pe_iv_open": assessment.get("pe_iv_open", 0),
             "pcr": assessment.get("pcr", 1.0),

@@ -2091,7 +2091,7 @@
             }
             if (data.trend_intensity) {
                 const netDelta = data.trend_intensity.net_delta_flow || 0;
-                document.getElementById('deltaFlowValue').textContent = (netDelta > 0 ? '+' : '') + (netDelta / 1000000).toFixed(1) + 'M';
+                document.getElementById('deltaFlowValue').textContent = (netDelta > 0 ? '+' : '') + netDelta.toFixed(4);
                 document.getElementById('marketBias').textContent = data.trend_intensity.market_bias || 'NEUTRAL';
                 document.getElementById('marketBias').className = 'trend-value ' + (data.trend_intensity.market_bias === 'BULLISH' ? 'value-positive' : data.trend_intensity.market_bias === 'BEARISH' ? 'value-negative' : '');
             }
