@@ -651,28 +651,43 @@
 
         // ── Init ──
         async function init() {
+            // Load available dates
             try {
                 const res = await fetch('/api/signal-engine/available-dates');
-                const data = await res.json();
-                availableDates = data.dates || [];
-                renderCalendar();
-
-                // Load config
-                const cfgRes = await fetch('/api/signal-engine/config');
-                const cfg = await cfgRes.json();
-                renderConfig(cfg);
-
-                // Auto-select latest date
-                if (availableDates.length > 0) {
-                    const latest = availableDates[0];
-                    const d = new Date(latest);
-                    calendarMonth = d.getMonth();
-                    calendarYear = d.getFullYear();
-                    renderCalendar();
-                    selectDate(latest);
+                if (res.ok) {
+                    const data = await res.json();
+                    availableDates = data.dates || [];
+                    console.log('Available dates loaded:', availableDates.length);
+                } else {
+                    console.error('Available dates API error:', res.status);
                 }
             } catch (e) {
-                console.error('Init error:', e);
+                console.error('Failed to load available dates:', e);
+            }
+
+            // Load config (independent)
+            try {
+                const cfgRes = await fetch('/api/signal-engine/config');
+                if (cfgRes.ok) {
+                    const cfg = await cfgRes.json();
+                    renderConfig(cfg);
+                }
+            } catch (e) {
+                console.error('Failed to load config:', e);
+            }
+
+            // Set calendar to latest date's month and render
+            if (availableDates.length > 0) {
+                const latest = availableDates[0];
+                const parts = latest.split('-');
+                calendarYear = parseInt(parts[0]);
+                calendarMonth = parseInt(parts[1]) - 1;
+            }
+            renderCalendar();
+
+            // Auto-run on latest date
+            if (availableDates.length > 0) {
+                selectDate(availableDates[0]);
             }
         }
 
