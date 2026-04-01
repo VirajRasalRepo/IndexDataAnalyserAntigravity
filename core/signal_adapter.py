@@ -17,13 +17,11 @@ _PROJECT_ROOT = str(Path(__file__).parent.parent)
 if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 
-import nifty_signal_engine as _nse
-
 from nifty_signal_engine import (
     CandleBuilder, OIAnalyser, SignalEngine,
-    IV_MAX, MIN_RANGE_PTS, MIN_TARGET_PTS, SL_POINTS, TARGET_POINTS,
-    LOT_SIZE, MAX_CONSEC, TRADE_START, TRADE_END,
-    HIGH_CORR_STOCKS, MIN_STOCK_AGREE,
+    IV_MAX, VIX_MAX, MIN_RANGE_PTS, WALL_DIST_MIN, WALL_DIST_MAX,
+    SL_POINTS, TARGET_POINTS, LOT_SIZE, MAX_CONSEC,
+    TRADE_START, TRADE_END, MIN_SCORE,
 )
 from core.database import DatabaseManager
 
@@ -100,8 +98,6 @@ class SignalBacktestAdapter:
         # ── 4b. Override IV blocking so high-IV days show as "risky" ──
         original_iv_ok = engine.day_iv_ok
         engine.day_iv_ok = True              # Force signals to generate
-        saved_iv_max = _nse.IV_MAX
-        _nse.IV_MAX = 999.0                  # Disable live IV filter too
         if not original_iv_ok:
             assessment["block_reason"] = f"RISKY — IV {assessment.get('iv_open', 0):.1f}% ≥ {IV_MAX}% (signals still shown)"
 
@@ -110,49 +106,47 @@ class SignalBacktestAdapter:
         candles_out = []
         history = []
 
-        try:
-            for _, row in candles_df.iterrows():
-                candle = row.to_dict()
-                t_str = candle["dt"].strftime("%H:%M:%S")
+        for _, row in candles_df.iterrows():
+            candle = row.to_dict()
+            t_str = candle["dt"].strftime("%H:%M:%S")
 
-                # Record candle for output
-                candles_out.append({
-                    "time": candle["dt"].strftime("%H:%M"),
-                    "open": round(float(candle["open"]), 2),
-                    "high": round(float(candle["high"]), 2),
-                    "low": round(float(candle["low"]), 2),
-                    "close": round(float(candle["close"]), 2),
-                    "range": round(float(candle.get("range", 0)), 2),
-                    "body": round(float(candle.get("body", 0)), 2),
-                    "body_pct": round(float(candle.get("body_pct", 0)), 1),
-                    "bull": bool(candle.get("bull", True)),
-                    "pattern": str(candle.get("pattern", "")),
-                })
+            # Record candle for output
+            candles_out.append({
+                "time": candle["dt"].strftime("%H:%M"),
+                "open": round(float(candle["open"]), 2),
+                "high": round(float(candle["high"]), 2),
+                "low": round(float(candle["low"]), 2),
+                "close": round(float(candle["close"]), 2),
+                "range": round(float(candle.get("range", 0)), 2),
+                "body": round(float(candle.get("body", 0)), 2),
+                "body_pct": round(float(candle.get("body_pct", 0)), 1),
+                "bull": bool(candle.get("bull", True)),
+                "pattern": str(candle.get("pattern", "")),
+            })
 
-                # Get OI at this candle time
-                oi_now = self._filter_oi_at_time(oi_all, t_str)
-                spot_now = float(candle["close"])
+            # Get OI at this candle time
+            oi_now = self._filter_oi_at_time(oi_all, t_str)
+            spot_now = float(candle["close"])
 
-                # Stock snapshot (optional)
-                stock_snap = self._fetch_stock_snapshot(date_str, candle["dt"].strftime("%H:%M") + ":00")
+            # VIX snapshot
+            vix = self._fetch_vix(date_str, candle["dt"].strftime("%H:%M") + ":00")
 
-                signal = engine.evaluate_candle(candle, history, oi_now, spot_now, stock_snap)
-                if signal:
-                    # Convert any non-serialisable values
-                    clean = {}
-                    for k, v in signal.items():
-                        if isinstance(v, (Decimal, float)):
-                            clean[k] = round(float(v), 2)
-                        elif isinstance(v, bool):
-                            clean[k] = v
-                        else:
-                            clean[k] = v
-                    signals.append(clean)
+            signal = engine.evaluate_candle(candle, history, oi_now, spot_now, vix)
+            if signal:
+                # Convert any non-serialisable values
+                clean = {}
+                for k, v in signal.items():
+                    if isinstance(v, (Decimal, float)):
+                        clean[k] = round(float(v), 2)
+                    elif isinstance(v, bool):
+                        clean[k] = v
+                    elif isinstance(v, list):
+                        clean[k] = v
+                    else:
+                        clean[k] = v
+                signals.append(clean)
 
-                history.append(candle)
-        finally:
-            # ── 5b. Restore original IV_MAX ──
-            _nse.IV_MAX = saved_iv_max
+            history.append(candle)
 
         # ── 6. Build summary ──
         entries = [s for s in signals if s.get("type") == "ENTRY"]
@@ -266,15 +260,12 @@ class SignalBacktestAdapter:
         df["spot"] = df["spot"].apply(_dec)
         return df
 
-    def _fetch_stock_snapshot(self, date_str: str, time_str: str) -> dict | None:
-        """Get stock LTP snapshot from market_feed_realtime."""
+    def _fetch_vix(self, date_str: str, time_str: str) -> float | None:
+        """Get India VIX LTP from market_feed_realtime."""
         try:
             with DatabaseManager.get_cursor(dictionary=True) as cursor:
                 cursor.execute("""
-                    SELECT
-                        infosys_ltp, lt_ltp, tcs_ltp, icici_bank_ltp,
-                        nifty_50_ltp, india_vix_ltp,
-                        infosys_open, lt_open, tcs_open, icici_bank_open
+                    SELECT india_vix_ltp
                     FROM market_feed_realtime
                     WHERE DATE(timestamp) = %s
                       AND TIME(timestamp) <= %s
@@ -282,9 +273,9 @@ class SignalBacktestAdapter:
                     LIMIT 1
                 """, (date_str, time_str))
                 row = cursor.fetchone()
-            if not row:
+            if not row or row["india_vix_ltp"] is None:
                 return None
-            return {k: _dec(v) for k, v in row.items()}
+            return float(row["india_vix_ltp"])
         except Exception:
             return None
 
@@ -293,14 +284,15 @@ def get_engine_config() -> dict:
     """Return the engine's configuration parameters."""
     return {
         "iv_max": IV_MAX,
+        "vix_max": VIX_MAX,
         "min_range_pts": MIN_RANGE_PTS,
-        "min_target_pts": MIN_TARGET_PTS,
+        "wall_dist_min": WALL_DIST_MIN,
+        "wall_dist_max": WALL_DIST_MAX,
         "sl_points": SL_POINTS,
         "target_points": TARGET_POINTS,
         "lot_size": LOT_SIZE,
         "max_consec": MAX_CONSEC,
         "trade_start": TRADE_START,
         "trade_end": TRADE_END,
-        "high_corr_stocks": HIGH_CORR_STOCKS,
-        "min_stock_agree": MIN_STOCK_AGREE,
+        "min_score": MIN_SCORE,
     }

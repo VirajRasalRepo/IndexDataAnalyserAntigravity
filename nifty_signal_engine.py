@@ -3,7 +3,7 @@
 ║         NIFTY 50 OPTIONS SIGNAL ENGINE                              ║
 ║         Automated entry/exit signal generator                       ║
 ║         Uses: MySQL DB (OI data) + Dhan API (live prices)          ║
-║         Strategy: Marubozu + OI walls + IV + PCR + 8 filters       ║
+║         Strategy: StrongCandle + OI walls + IV + PCR + scoring      ║
 ╚══════════════════════════════════════════════════════════════════════╝
 
 INSTALL:
@@ -18,8 +18,8 @@ HOW IT WORKS:
     1. Pulls OI data from YOUR MySQL database (same tables as the CSVs)
     2. Pulls live Nifty spot price from Dhan API every 5 minutes
     3. Builds 5-min candles in memory
-    4. Applies all 12 filters (IV, PCR, Marubozu, Range, Walls, Time...)
-    5. Prints BUY CALL / BUY PUT signals with exact entry prices
+    4. Scores candles on 7 filters (PCR, StrongCandle, Time, Range, Walls, VIX...)
+    5. Prints BUY CALL / BUY PUT signals with score and entry prices
     6. Tracks open trades and prints EXIT signals when target/SL hit
     7. Logs everything to a CSV file for your records
 
@@ -48,20 +48,18 @@ SHARES_TABLE    = "TopSharesData"        # your stock LTP table
 
 # Strategy parameters (tuned from backtest)
 IV_MAX          = 20.0      # skip day if ATM IV >= this at open
-MIN_RANGE_PTS   = 80        # last 6 candles combined range must exceed this
-MIN_TARGET_PTS  = 40        # OI wall must be at least this far from entry
+VIX_MAX         = 20.0      # skip CALL signals if India VIX > this
+MIN_RANGE_PTS   = 50        # last 4 candles combined range must exceed this
+WALL_DIST_MIN   = 25        # OI wall must be at least this far from entry
+WALL_DIST_MAX   = 80        # OI wall must be at most this far (reachable)
 SL_POINTS       = 50        # stop loss in Nifty points
 TARGET_POINTS   = 80        # profit target in Nifty points
 LOT_SIZE        = 75        # Nifty lot size
 MAX_CONSEC      = 3         # skip if N consecutive opposite candles before signal
-TRADE_START     = "10:30"   # no entries before this time
-TRADE_END       = "14:30"   # no entries after this time
+TRADE_START     = "10:15"   # preferred entry window start
+TRADE_END       = "14:45"   # preferred entry window end
 SCAN_INTERVAL   = 300       # seconds between scans in live mode (5 min)
-
-# High-correlation stocks for confluence filter
-# Based on backtest: Infosys=85%, L&T=76%, TCS=70%, ICICI=67% agreement with Nifty
-HIGH_CORR_STOCKS = ["infosys_ltp", "lt_ltp", "tcs_ltp", "icici_bank_ltp"]
-MIN_STOCK_AGREE  = 3        # out of 4 high-corr stocks must agree
+MIN_SCORE       = 5         # minimum filter score out of 7 to generate signal
 
 # Nifty 50 security details for Dhan API
 NIFTY_SECURITY_ID    = "13"
@@ -209,6 +207,22 @@ class DBClient:
         if df.empty:
             return {}
         return df.iloc[0].to_dict()
+
+    def get_vix_snapshot(self, target_date: str, at_time: str) -> float | None:
+        """Get India VIX LTP at a given time from TopSharesData."""
+        sql = f"""
+            SELECT india_vix_ltp
+            FROM {SHARES_TABLE}
+            WHERE DATE(timestamp) = %s
+              AND TIME(timestamp) <= %s
+            ORDER BY timestamp DESC
+            LIMIT 1
+        """
+        df = self.query(sql, params=(target_date, at_time))
+        if df.empty:
+            return None
+        val = df.iloc[0]["india_vix_ltp"]
+        return float(val) if val is not None else None
 
     def get_available_dates(self) -> list:
         sql = f"SELECT DISTINCT Date FROM {OI_TABLE} ORDER BY Date"
@@ -376,7 +390,7 @@ class CandleBuilder:
         up = c["upper"] / max(c["range"], 0.01) * 100
         lo = c["lower"] / max(c["range"], 0.01) * 100
         if bp < 10:                          return "Doji"
-        if bp > 70 and up < 15 and lo < 15: return "Marubozu"
+        if bp > 55 and (up < 20 or lo < 20): return "StrongCandle"
         if lo > 50 and up < 15:             return "Hammer"
         if up > 50 and lo < 15:             return "Shooting Star"
         return "Bull" if c["bull"] else "Bear"
@@ -440,18 +454,23 @@ class OIAnalyser:
 
 class SignalEngine:
     """
-    Applies all 12 filters and generates BUY / EXIT signals.
+    Scores candles on 7 filters and generates BUY / EXIT signals.
+    Signal fires when score >= MIN_SCORE (default 5/7).
 
     State machine:
         IDLE   → waiting for a valid signal
         IN_TRADE → tracking an open position for exit
     """
 
+    FILTER_NAMES = [
+        "pcr_direction", "strong_candle", "time_window",
+        "no_consecutive", "range_ok", "wall_distance_ok", "vix_ok",
+    ]
+
     def __init__(self):
         self.state         = "IDLE"
         self.open_trade    = None   # dict with trade details
         self.day_trades    = 0
-        self.first_signal_done = False
 
         # Day-level values (set at open, persist all day)
         self.day_iv_ok     = False
@@ -471,7 +490,6 @@ class SignalEngine:
         Returns a dict with the day assessment.
         """
         self.day_trades         = 0
-        self.first_signal_done  = False
         self.state              = "IDLE"
         self.open_trade         = None
 
@@ -480,10 +498,10 @@ class SignalEngine:
         self.pcr_open = OIAnalyser.get_pcr(oi_df)
         self.open_ce_walls, self.open_pe_walls = OIAnalyser.get_walls(oi_df, spot)
 
-        # ── FILTER 1: IV check
+        # ── FILTER 1: IV check (hard gate — blocks entire day)
         self.day_iv_ok = (ce_iv < IV_MAX)
 
-        # ── FILTER 2: PCR direction
+        # ── PCR direction
         if self.pcr_open > 1.2:
             self.allowed_dirs = ["PUT"]
         elif self.pcr_open < 0.8:
@@ -507,9 +525,10 @@ class SignalEngine:
 
     def evaluate_candle(self, candle: dict, candles_history: list,
                         oi_df: pd.DataFrame, spot: float,
-                        stock_snap: dict | None = None) -> dict | None:
+                        vix: float | None = None) -> dict | None:
         """
-        Main evaluation function. Returns a signal dict or None.
+        Score-based evaluation. Returns a signal dict or None.
+        Signal fires when score >= MIN_SCORE (default 5/7).
         Signal types:  'ENTRY'  or  'EXIT'
         """
         now_str = candle["dt"].strftime("%H:%M") if hasattr(candle["dt"], "strftime") \
@@ -519,58 +538,54 @@ class SignalEngine:
         if self.state == "IN_TRADE":
             return self._check_exit(candle, spot, now_str)
 
-        # ── Gate checks ──────────────────────────────────────────────
+        # ── Hard gate: IV at open (only day-level block) ─────────────
         if not self.day_iv_ok:
-            return None
-
-        # ── FILTER 5: Time window
-        if now_str < TRADE_START or now_str > TRADE_END:
-            return None
-
-        # ── FILTER 3: Marubozu pattern
-        if candle["pattern"] != "Marubozu":
             return None
 
         direction = "CALL" if candle["bull"] else "PUT"
 
-        # ── FILTER 2: PCR direction
-        if direction not in self.allowed_dirs:
-            return self._skip(now_str, direction,
-                              f"PCR {self.pcr_open:.2f} only allows {self.allowed_dirs}")
+        # ── Score each filter ────────────────────────────────────────
+        score = 0
+        passed = []
 
-        # ── FILTER 6: IV live check
-        ce_iv_now, _ = OIAnalyser.get_atm_iv(oi_df, spot)
-        if ce_iv_now >= IV_MAX:
-            return self._skip(now_str, direction,
-                              f"Live IV {ce_iv_now:.1f}% ≥ {IV_MAX}%")
+        # 1. PCR direction match
+        if direction in self.allowed_dirs:
+            score += 1
+            passed.append("pcr_direction")
 
-        # ── FILTER 4: Skip first signal of the day
-        if not self.first_signal_done:
-            self.first_signal_done = True
-            return self._skip(now_str, direction,
-                              "First signal of day — always skip")
+        # 2. StrongCandle pattern
+        if candle["pattern"] == "StrongCandle":
+            score += 1
+            passed.append("strong_candle")
 
-        # ── FILTER 7: No consecutive candles
+        # 3. Time window
+        if TRADE_START <= now_str <= TRADE_END:
+            score += 1
+            passed.append("time_window")
+
+        # 4. No consecutive opposite candles
+        consec_ok = True
         if len(candles_history) >= MAX_CONSEC:
             prev_n = candles_history[-MAX_CONSEC:]
             if direction == "PUT"  and all(c["bull"] for c in prev_n):
-                return self._skip(now_str, direction,
-                                  f"{MAX_CONSEC} consecutive bull candles before PUT")
+                consec_ok = False
             if direction == "CALL" and all(not c["bull"] for c in prev_n):
-                return self._skip(now_str, direction,
-                                  f"{MAX_CONSEC} consecutive bear candles before CALL")
+                consec_ok = False
+        if consec_ok:
+            score += 1
+            passed.append("no_consecutive")
 
-        # ── FILTER 8: Range / choppiness check
+        # 5. Range check (last 4 candles)
+        rng4 = 999
         if len(candles_history) >= 4:
-            last6 = candles_history[-6:]
-            rng6  = max(c["high"] for c in last6) - min(c["low"] for c in last6)
-            if rng6 < MIN_RANGE_PTS:
-                return self._skip(now_str, direction,
-                                  f"Market too choppy — 6-candle range {rng6:.0f}pts < {MIN_RANGE_PTS}pts")
-        else:
-            rng6 = 999
+            last4 = candles_history[-4:]
+            rng4  = max(c["high"] for c in last4) - min(c["low"] for c in last4)
+        range_ok = rng4 >= MIN_RANGE_PTS
+        if range_ok:
+            score += 1
+            passed.append("range_ok")
 
-        # ── FILTER 9: OI walls — find target and check distance
+        # 6. Wall distance (merged: 25 <= dist <= 80)
         live_ce_walls, live_pe_walls = OIAnalyser.get_walls(oi_df, spot)
         entry_spot = candle["close"]
 
@@ -581,60 +596,43 @@ class SignalEngine:
             target_strike, target_oi = OIAnalyser.get_nearest_wall(
                 [(s, o) for s, o in live_pe_walls if s < entry_spot])
 
-        target_dist = abs(target_strike - entry_spot) if target_strike else 0
+        wall_dist = abs(target_strike - entry_spot) if target_strike else 0
+        wall_ok = WALL_DIST_MIN <= wall_dist <= WALL_DIST_MAX
+        if wall_ok:
+            score += 1
+            passed.append("wall_distance_ok")
 
-        # ── FILTER 10: Minimum target distance
-        if target_dist < MIN_TARGET_PTS:
+        # 7. VIX check (skip CALL only when VIX > threshold)
+        vix_ok = True
+        if vix is not None and vix > VIX_MAX and direction == "CALL":
+            vix_ok = False
+        if vix_ok:
+            score += 1
+            passed.append("vix_ok")
+
+        # ── Check minimum score ──────────────────────────────────────
+        if score < MIN_SCORE:
             return self._skip(now_str, direction,
-                              f"Target wall too close: {target_dist:.0f}pts < {MIN_TARGET_PTS}pts")
+                              f"Score {score}/7 < {MIN_SCORE} (passed: {', '.join(passed)})")
 
-        # ── FILTER 11: Not entering into a wall
-        nearest_ce = live_ce_walls[0][0] if live_ce_walls else 99999
-        nearest_pe = live_pe_walls[0][0] if live_pe_walls else 0
-        if direction == "CALL" and (nearest_ce - entry_spot) < 30:
-            return self._skip(now_str, direction,
-                              f"Buying CALL within 30pts of CE wall {nearest_ce}")
-        if direction == "PUT" and (entry_spot - nearest_pe) < 30:
-            return self._skip(now_str, direction,
-                              f"Buying PUT within 30pts of PE wall {nearest_pe}")
-
-        # ── FILTER 12: Stock confluence (optional — when data available)
-        confluence_str = "N/A"
-        if stock_snap:
-            bull_stocks = 0
-            for col in HIGH_CORR_STOCKS:
-                prev_col = col.replace("_ltp", "_open")  # use open as prev reference
-                curr = stock_snap.get(col, 0)
-                prev = stock_snap.get(prev_col, curr)
-                if curr > 0 and prev > 0:
-                    bull_stocks += int(curr >= prev)
-            bear_stocks = len(HIGH_CORR_STOCKS) - bull_stocks
-            if direction == "CALL" and bull_stocks < MIN_STOCK_AGREE:
-                return self._skip(now_str, direction,
-                                  f"Stock confluence {bull_stocks}/{len(HIGH_CORR_STOCKS)} < {MIN_STOCK_AGREE} for CALL")
-            if direction == "PUT"  and bear_stocks < MIN_STOCK_AGREE:
-                return self._skip(now_str, direction,
-                                  f"Stock confluence {bear_stocks}/{len(HIGH_CORR_STOCKS)} < {MIN_STOCK_AGREE} for PUT")
-            confluence_str = f"{bull_stocks}/{len(HIGH_CORR_STOCKS)} stocks bull"
-
-        # ── ALL FILTERS PASSED — GENERATE ENTRY SIGNAL ───────────────
+        # ── SCORE MET — GENERATE ENTRY SIGNAL ────────────────────────
         sl_level = (entry_spot - SL_POINTS) if direction == "CALL" \
                    else (entry_spot + SL_POINTS)
 
-        # Estimate option price using delta × intrinsic + time value proxy
+        # Estimate option price
         atm_row = oi_df.copy()
         atm_row["dist"] = abs(atm_row["Strike"] - entry_spot)
         atm = atm_row.nsmallest(1, "dist").iloc[0] if not atm_row.empty else None
         est_option_price = float(atm["ce_ltp"]) if (atm is not None and direction == "CALL") \
                       else float(atm["pe_ltp"]) if (atm is not None) else 0.0
-        est_sl_px        = round(est_option_price * 0.5, 1)   # 50% of premium = option SL
+        est_sl_px        = round(est_option_price * 0.5, 1)
 
         signal = {
             "type":         "ENTRY",
             "time":         now_str,
             "direction":    direction,
             "action":       f"BUY {direction}",
-            "strike":       target_strike - 50 if direction == "CALL" else target_strike + 50,  # ATM/near ITM
+            "strike":       target_strike - 50 if direction == "CALL" else target_strike + 50,
             "entry_spot":   round(entry_spot, 2),
             "target_spot":  target_strike,
             "sl_spot":      round(sl_level, 2),
@@ -642,13 +640,16 @@ class SignalEngine:
             "sl_pts":       SL_POINTS,
             "option_price": round(est_option_price, 2),
             "option_sl":    est_sl_px,
-            "ce_iv":        round(ce_iv_now, 2),
             "pcr":          round(OIAnalyser.get_pcr(oi_df), 3),
             "target_wall":  target_strike,
             "wall_oi_L":    round(target_oi, 2),
-            "rng6":         round(rng6, 1),
+            "wall_dist":    round(wall_dist, 0),
+            "rng4":         round(rng4, 1),
             "body_pct":     candle["body_pct"],
-            "confluence":   confluence_str,
+            "vix":          round(vix, 2) if vix else None,
+            "score":        score,
+            "score_max":    7,
+            "filters_passed": passed,
         }
 
         self.state      = "IN_TRADE"
@@ -686,7 +687,7 @@ class SignalEngine:
         elif direction == "PUT"  and curr >= sl_level:
             exit_reason = f"STOP LOSS HIT -{abs(move):.0f}pts"
         elif now_str >= TRADE_END:
-            exit_reason = "TIME EXIT 14:30"
+            exit_reason = f"TIME EXIT {TRADE_END}"
 
         if exit_reason is None:
             return None   # trade still alive
@@ -736,19 +737,24 @@ def print_signal(signal: dict):
     if signal["type"] == "ENTRY":
         d = signal["direction"]
         clr = "🟢" if d == "CALL" else "🔴"
+        sc = signal.get("score", "?")
+        mx = signal.get("score_max", 7)
+        fp = ", ".join(signal.get("filters_passed", []))
         print(f"\n{sep}")
-        print(f"  {clr}  SIGNAL: {signal['action']}  [{signal['time']}]")
+        print(f"  {clr}  SIGNAL: {signal['action']}  [{signal['time']}]  Score: {sc}/{mx}")
         print(f"{sep}")
         print(f"  Entry spot    :  {signal['entry_spot']:,.2f}")
         print(f"  Target spot   :  {signal['target_spot']:,.0f}  (OI wall  {signal['wall_oi_L']:.1f}L)")
+        print(f"  Wall distance :  {signal.get('wall_dist', 0):.0f} pts")
         print(f"  Stop loss     :  {signal['sl_spot']:,.2f}  (−{signal['sl_pts']} pts)")
         print(f"  Reward        :  +{signal['target_pts']} pts target")
         print(f"  Option ~price :  ₹{signal['option_price']:.1f}  |  Option SL ≈ ₹{signal['option_sl']:.1f}")
-        print(f"  ATM IV        :  {signal['ce_iv']:.1f}%")
         print(f"  PCR           :  {signal['pcr']}")
-        print(f"  Range (6 can) :  {signal['rng6']:.0f} pts")
-        print(f"  Candle body   :  {signal['body_pct']:.0f}%  (Marubozu ✓)")
-        print(f"  Stocks        :  {signal['confluence']}")
+        print(f"  Range (4 can) :  {signal.get('rng4', 0):.0f} pts")
+        print(f"  Candle body   :  {signal['body_pct']:.0f}%")
+        vix_val = signal.get("vix")
+        print(f"  VIX           :  {vix_val:.1f}" if vix_val else "  VIX           :  N/A")
+        print(f"  Filters       :  [{fp}]")
         print(f"  Max P&L/lot   :  ₹{round(signal['target_pts']*0.5*LOT_SIZE):,}")
         print(f"{sep}\n")
 
@@ -832,15 +838,15 @@ def run_backtest(db: DBClient, dates: list = None):
             oi_now = db.get_oi_snapshot(candle["dt"].strftime("%H:%M:%S"), date_str)
             spot_now = candle["close"]
 
-            # Optional stock data
-            stock_snap = None
+            # VIX snapshot
+            vix = None
             try:
-                stock_snap = db.get_stock_snapshot(date_str, t_str + ":00")
+                vix = db.get_vix_snapshot(date_str, t_str + ":00")
             except Exception:
                 pass
 
             signal = engine.evaluate_candle(candle, history, oi_now,
-                                            spot_now, stock_snap)
+                                            spot_now, vix)
             if signal:
                 print_signal(signal)
                 if signal["type"] == "ENTRY":
@@ -946,15 +952,15 @@ def run_live(db: DBClient):
                          f"C:{completed_candle['close']:.0f} "
                          f"→ {completed_candle['pattern']}")
 
-                # Get stock snapshot from DB
-                stock_snap = None
+                # VIX snapshot from DB
+                vix = None
                 try:
-                    stock_snap = db.get_stock_snapshot(today, t_str + ":00")
+                    vix = db.get_vix_snapshot(today, t_str + ":00")
                 except Exception:
                     pass
 
                 signal = engine.evaluate_candle(completed_candle, history,
-                                                oi_now, spot, stock_snap)
+                                                oi_now, spot, vix)
                 if signal:
                     print_signal(signal)
 

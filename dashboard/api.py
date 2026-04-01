@@ -3,10 +3,12 @@ OI Data Dashboard API
 Provides REST endpoints for fetching live Option Chain data from the database.
 """
 
-from flask import Flask, jsonify, request, make_response
+from flask import Flask, jsonify, request, make_response, Response
 from flask_cors import CORS
 from datetime import datetime, date, time as dt_time
 from decimal import Decimal
+import json
+import math
 import logging
 import sys
 from pathlib import Path
@@ -1565,6 +1567,693 @@ def signal_engine_config():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
+# ──────────────────────────────────────────────────────────────────────
+# SIGNAL DASHBOARD — LIVE MONITORING ENDPOINT
+# ──────────────────────────────────────────────────────────────────────
+
+# Module-level cache: one SignalEngine instance per date, processed incrementally
+_signal_dash_cache = {
+    'date': None,
+    'engine': None,
+    'candle_count': 0,      # how many candles already processed
+    'candles_out': [],
+    'history': [],
+    'assessment': None,
+    'oi_all': None,
+}
+
+
+@app.route('/api/signal-data', methods=['GET'])
+def signal_dashboard_data():
+    """Return live signal dashboard data: pulse, heatmap, checklist, signal log."""
+    try:
+        data = _compute_signal_dashboard_data()
+        return jsonify(data)
+    except Exception as e:
+        logger.error(f"/api/signal-data error: {e}", exc_info=True)
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+def _compute_signal_dashboard_data() -> dict:
+    """Build signal dashboard payload from DB + engine classes."""
+    from datetime import timedelta as _td
+    from nifty_signal_engine import (
+        CandleBuilder, OIAnalyser, SignalEngine,
+        IV_MAX, VIX_MAX, MIN_RANGE_PTS, WALL_DIST_MIN, WALL_DIST_MAX,
+        SL_POINTS, TARGET_POINTS, LOT_SIZE, MAX_CONSEC,
+        TRADE_START, TRADE_END, MIN_SCORE,
+    )
+    from core.signal_adapter import _dec, _td_to_str
+
+    cache = _signal_dash_cache
+
+    # ── Q1: Latest spot + VIX from market_feed_realtime ─────────────
+    with DatabaseManager.get_cursor(dictionary=True) as cursor:
+        cursor.execute("""
+            SELECT nifty_50_ltp, india_vix_ltp, timestamp
+            FROM market_feed_realtime
+            ORDER BY timestamp DESC LIMIT 1
+        """)
+        mf_row = cursor.fetchone()
+
+    spot = float(_dec(mf_row['nifty_50_ltp'])) if mf_row and mf_row['nifty_50_ltp'] else 0
+    vix = float(_dec(mf_row['india_vix_ltp'])) if mf_row and mf_row['india_vix_ltp'] else 0
+    last_ts = mf_row['timestamp'].strftime('%H:%M:%S') if mf_row and hasattr(mf_row['timestamp'], 'strftime') else ''
+
+    # ── Q2: Latest full OI snapshot ─────────────────────────────────
+    with DatabaseManager.get_cursor(dictionary=True) as cursor:
+        cursor.execute("""
+            SELECT Date, MAX(Time) AS latest_time
+            FROM nifty_oc_historical
+            WHERE Date = (SELECT MAX(Date) FROM nifty_oc_historical)
+            GROUP BY Date
+        """)
+        dt_row = cursor.fetchone()
+
+    if not dt_row:
+        return {'status': 'error', 'message': 'No OI data available'}
+
+    oi_date = dt_row['Date']
+    oi_time = dt_row['latest_time']
+    oi_date_str = oi_date.isoformat() if hasattr(oi_date, 'isoformat') else str(oi_date)
+
+    with DatabaseManager.get_cursor(dictionary=True) as cursor:
+        cursor.execute("""
+            SELECT
+                Time,
+                Strike_price   AS Strike,
+                Spot_price,
+                ce_oi / 100000 AS ce_oi,
+                ce_volume,
+                ce_IV          AS ce_iv,
+                ce_delta,
+                ce_price       AS ce_ltp,
+                pe_price       AS pe_ltp,
+                pe_delta,
+                pe_IV          AS pe_iv,
+                pe_volume,
+                pe_oi / 100000 AS pe_oi
+            FROM nifty_oc_historical
+            WHERE Date = %s AND Time = %s
+            ORDER BY Strike_price
+        """, (oi_date, oi_time))
+        oi_rows = cursor.fetchall()
+
+    if not oi_rows:
+        return {'status': 'error', 'message': 'No OI snapshot available'}
+
+    import pandas as _pd
+    oi_df = _pd.DataFrame(oi_rows)
+    oi_df['Time'] = oi_df['Time'].apply(_td_to_str)
+    for col in oi_df.columns:
+        if col != 'Time':
+            oi_df[col] = oi_df[col].apply(_dec)
+
+    # Use spot from OI if market feed unavailable
+    if spot == 0:
+        spot = float(oi_df['Spot_price'].iloc[0]) if not oi_df.empty else 0
+
+    # ── Derive pulse metrics from OI ────────────────────────────────
+    pcr = OIAnalyser.get_pcr(oi_df)
+    ce_iv_atm, pe_iv_atm = OIAnalyser.get_atm_iv(oi_df, spot)
+    atm_iv = round((ce_iv_atm + pe_iv_atm) / 2, 2)
+    ce_walls, pe_walls = OIAnalyser.get_walls(oi_df, spot, top_n=3)
+
+    # ── Heatmap: 10 nearest strikes ─────────────────────────────────
+    strikes_sorted = sorted(oi_df['Strike'].unique())
+    atm_idx = min(range(len(strikes_sorted)), key=lambda i: abs(strikes_sorted[i] - spot))
+    start_i = max(0, atm_idx - 5)
+    end_i = min(len(strikes_sorted), start_i + 10)
+    heatmap_strikes = strikes_sorted[start_i:end_i]
+
+    heatmap = []
+    for s in heatmap_strikes:
+        row = oi_df[oi_df['Strike'] == s]
+        if row.empty:
+            continue
+        r = row.iloc[0]
+        heatmap.append({
+            'strike': int(s),
+            'ce_oi': round(float(r['ce_oi']), 2),
+            'pe_oi': round(float(r['pe_oi']), 2),
+            'is_atm': abs(s - spot) < 25,
+        })
+
+    # ── Q3: Candle building + engine processing ─────────────────────
+    # Fetch spot series for the OI date
+    with DatabaseManager.get_cursor(dictionary=True) as cursor:
+        cursor.execute("""
+            SELECT DISTINCT Time, Spot_price AS spot
+            FROM nifty_oc_historical
+            WHERE Date = %s
+            ORDER BY Time
+        """, (oi_date,))
+        spot_rows = cursor.fetchall()
+
+    spot_df = _pd.DataFrame(spot_rows) if spot_rows else _pd.DataFrame()
+    if not spot_df.empty:
+        spot_df['Time'] = spot_df['Time'].apply(_td_to_str)
+        spot_df['spot'] = spot_df['spot'].apply(_dec)
+
+    # Fetch ALL OI for the day (for engine.evaluate_candle at each time)
+    with DatabaseManager.get_cursor(dictionary=True) as cursor:
+        cursor.execute("""
+            SELECT
+                Time,
+                Strike_price   AS Strike,
+                Spot_price,
+                ce_oi / 100000 AS ce_oi,
+                ce_volume,
+                ce_IV          AS ce_iv,
+                ce_delta,
+                ce_price       AS ce_ltp,
+                pe_price       AS pe_ltp,
+                pe_delta,
+                pe_IV          AS pe_iv,
+                pe_volume,
+                pe_oi / 100000 AS pe_oi
+            FROM nifty_oc_historical
+            WHERE Date = %s
+            ORDER BY Time, Strike_price
+        """, (oi_date,))
+        all_oi_rows = cursor.fetchall()
+
+    oi_all = _pd.DataFrame(all_oi_rows) if all_oi_rows else _pd.DataFrame()
+    if not oi_all.empty:
+        oi_all['Time'] = oi_all['Time'].apply(_td_to_str)
+        for col in oi_all.columns:
+            if col != 'Time':
+                oi_all[col] = oi_all[col].apply(_dec)
+
+    # Check if we can reuse cached engine (same date)
+    if cache['date'] != oi_date_str or cache['engine'] is None:
+        cache['date'] = oi_date_str
+        cache['engine'] = SignalEngine()
+        cache['candle_count'] = 0
+        cache['candles_out'] = []
+        cache['history'] = []
+        cache['assessment'] = None
+        cache['oi_all'] = oi_all
+
+    engine = cache['engine']
+
+    # Build candles
+    candles_df = _pd.DataFrame()
+    if not spot_df.empty:
+        cb = CandleBuilder()
+        candles_df = cb.build_from_df(spot_df, oi_date_str)
+
+    # Init day if not yet done
+    if cache['assessment'] is None and not candles_df.empty:
+        open_time = candles_df.iloc[0]['dt'].strftime('%H:%M:%S')
+        # Get OI at market open
+        if not oi_all.empty:
+            mask = oi_all['Time'] <= open_time
+            subset = oi_all[mask]
+            if subset.empty:
+                earliest = oi_all['Time'].min()
+                oi_open = oi_all[oi_all['Time'] == earliest].reset_index(drop=True)
+            else:
+                lt = subset['Time'].max()
+                oi_open = subset[subset['Time'] == lt].reset_index(drop=True)
+        else:
+            oi_open = _pd.DataFrame()
+
+        if not oi_open.empty:
+            spot_open = float(candles_df.iloc[0]['close'])
+            assessment = engine.init_day(oi_open, spot_open)
+            # Force signals on high-IV days (same as adapter risky pattern)
+            original_iv_ok = engine.day_iv_ok
+            engine.day_iv_ok = True
+            if not original_iv_ok:
+                assessment['block_reason'] = f"RISKY — IV {assessment.get('iv_open', 0):.1f}% >= {IV_MAX}%"
+            cache['assessment'] = assessment
+
+    # Process only NEW candles incrementally
+    if not candles_df.empty and cache['candle_count'] < len(candles_df):
+        for idx in range(cache['candle_count'], len(candles_df)):
+            row = candles_df.iloc[idx]
+            candle = row.to_dict()
+            t_str = candle['dt'].strftime('%H:%M:%S')
+
+            # Record candle for output
+            cache['candles_out'].append({
+                'time': candle['dt'].strftime('%H:%M'),
+                'open': round(float(candle['open']), 2),
+                'high': round(float(candle['high']), 2),
+                'low': round(float(candle['low']), 2),
+                'close': round(float(candle['close']), 2),
+                'bull': bool(candle.get('bull', True)),
+                'pattern': str(candle.get('pattern', '')),
+            })
+
+            # Get OI at this candle time
+            if not oi_all.empty:
+                mask = oi_all['Time'] <= t_str
+                subset = oi_all[mask]
+                if subset.empty:
+                    earliest = oi_all['Time'].min()
+                    oi_now = oi_all[oi_all['Time'] == earliest].reset_index(drop=True)
+                else:
+                    lt = subset['Time'].max()
+                    oi_now = subset[subset['Time'] == lt].reset_index(drop=True)
+            else:
+                oi_now = _pd.DataFrame()
+
+            spot_now = float(candle['close'])
+
+            # VIX for this candle time
+            vix_now = _fetch_vix_for_dash(oi_date_str, candle['dt'].strftime('%H:%M') + ':00')
+
+            engine.evaluate_candle(candle, cache['history'], oi_now, spot_now, vix_now)
+            cache['history'].append(candle)
+
+        cache['candle_count'] = len(candles_df)
+
+    # ── Build checklist (7 filters for the LATEST candle) ───────────
+    checklist = _build_checklist(cache, oi_df, spot, vix, engine)
+
+    # ── Signal log from engine ──────────────────────────────────────
+    signal_log = []
+    for s in engine.signal_log:
+        entry = {}
+        for k, v in s.items():
+            if isinstance(v, (Decimal, float)):
+                entry[k] = round(float(v), 2)
+            elif isinstance(v, list):
+                entry[k] = v
+            else:
+                entry[k] = v
+        signal_log.append(entry)
+
+    # ── Wall distances for assessment display ───────────────────────
+    assess_out = {}
+    if cache['assessment']:
+        a = cache['assessment']
+        assess_out = {
+            'tradeable': a.get('tradeable', False),
+            'iv_open': round(a.get('iv_open', 0), 2),
+            'pe_iv_open': round(a.get('pe_iv_open', 0), 2),
+            'pcr': round(a.get('pcr', 1.0), 3),
+            'allowed_dirs': a.get('allowed_dirs', []),
+            'block_reason': a.get('block_reason'),
+        }
+
+    return {
+        'status': 'success',
+        'date': oi_date_str,
+        'last_updated': last_ts,
+        'pulse': {
+            'spot': round(spot, 2),
+            'vix': round(vix, 2),
+            'pcr': round(pcr, 3),
+            'atm_iv': atm_iv,
+        },
+        'heatmap': heatmap,
+        'ce_walls': [[int(s), round(o, 2)] for s, o in ce_walls],
+        'pe_walls': [[int(s), round(o, 2)] for s, o in pe_walls],
+        'checklist': checklist,
+        'signal_log': signal_log,
+        'assessment': assess_out,
+        'candles': cache['candles_out'],
+        'config': {
+            'iv_max': IV_MAX,
+            'vix_max': VIX_MAX,
+            'min_range_pts': MIN_RANGE_PTS,
+            'wall_dist_min': WALL_DIST_MIN,
+            'wall_dist_max': WALL_DIST_MAX,
+            'sl_points': SL_POINTS,
+            'target_points': TARGET_POINTS,
+            'trade_start': TRADE_START,
+            'trade_end': TRADE_END,
+            'min_score': MIN_SCORE,
+        },
+    }
+
+
+def _fetch_vix_for_dash(date_str: str, time_str: str):
+    """Get India VIX for a given time (signal dashboard helper)."""
+    try:
+        with DatabaseManager.get_cursor(dictionary=True) as cursor:
+            cursor.execute("""
+                SELECT india_vix_ltp
+                FROM market_feed_realtime
+                WHERE DATE(timestamp) = %s AND TIME(timestamp) <= %s
+                ORDER BY timestamp DESC LIMIT 1
+            """, (date_str, time_str))
+            row = cursor.fetchone()
+        if not row or row['india_vix_ltp'] is None:
+            return None
+        return float(row['india_vix_ltp'])
+    except Exception:
+        return None
+
+
+def _build_checklist(cache, oi_df, spot, vix, engine) -> dict:
+    """Evaluate 7 filters against latest state and return checklist."""
+    from nifty_signal_engine import (
+        OIAnalyser, TRADE_START, TRADE_END, MIN_RANGE_PTS,
+        WALL_DIST_MIN, WALL_DIST_MAX, VIX_MAX, MAX_CONSEC, MIN_SCORE,
+    )
+
+    filters = []
+    score = 0
+
+    # Determine latest candle direction
+    history = cache.get('history', [])
+    latest_candle = history[-1] if history else None
+    direction = 'CALL' if (latest_candle and latest_candle.get('bull')) else 'PUT'
+
+    now_str = latest_candle['dt'].strftime('%H:%M') if latest_candle and hasattr(latest_candle['dt'], 'strftime') else ''
+
+    # 1. PCR direction
+    pcr_pass = direction in engine.allowed_dirs
+    if pcr_pass:
+        score += 1
+    filters.append({
+        'name': 'PCR Direction',
+        'passed': pcr_pass,
+        'value': f"PCR {engine.pcr_open:.3f} → {', '.join(engine.allowed_dirs)}",
+    })
+
+    # 2. StrongCandle
+    candle_pass = latest_candle and latest_candle.get('pattern') == 'StrongCandle'
+    if candle_pass:
+        score += 1
+    pat = latest_candle.get('pattern', 'None') if latest_candle else 'None'
+    filters.append({
+        'name': 'Strong Candle',
+        'passed': bool(candle_pass),
+        'value': pat,
+    })
+
+    # 3. Time window
+    time_pass = bool(now_str and TRADE_START <= now_str <= TRADE_END)
+    if time_pass:
+        score += 1
+    filters.append({
+        'name': 'Time Window',
+        'passed': time_pass,
+        'value': f"{now_str} in [{TRADE_START}–{TRADE_END}]" if now_str else 'N/A',
+    })
+
+    # 4. No consecutive
+    consec_pass = True
+    if len(history) >= MAX_CONSEC:
+        prev_n = history[-MAX_CONSEC:]
+        if direction == 'PUT' and all(c['bull'] for c in prev_n):
+            consec_pass = False
+        if direction == 'CALL' and all(not c['bull'] for c in prev_n):
+            consec_pass = False
+    if consec_pass:
+        score += 1
+    filters.append({
+        'name': 'No Consecutive',
+        'passed': consec_pass,
+        'value': f"Last {MAX_CONSEC} candles OK",
+    })
+
+    # 5. Range check
+    rng4 = 0
+    if len(history) >= 4:
+        last4 = history[-4:]
+        rng4 = max(c['high'] for c in last4) - min(c['low'] for c in last4)
+    range_pass = rng4 >= MIN_RANGE_PTS
+    if range_pass:
+        score += 1
+    filters.append({
+        'name': 'Range (4 can)',
+        'passed': range_pass,
+        'value': f"{rng4:.0f} pts (min {MIN_RANGE_PTS})",
+    })
+
+    # 6. Wall distance
+    entry_spot = latest_candle['close'] if latest_candle else spot
+    ce_walls_live, pe_walls_live = OIAnalyser.get_walls(oi_df, spot)
+    if direction == 'CALL':
+        tgt_strike, tgt_oi = OIAnalyser.get_nearest_wall(
+            [(s, o) for s, o in ce_walls_live if s > entry_spot])
+    else:
+        tgt_strike, tgt_oi = OIAnalyser.get_nearest_wall(
+            [(s, o) for s, o in pe_walls_live if s < entry_spot])
+    wall_dist = abs(tgt_strike - entry_spot) if tgt_strike else 0
+    wall_pass = WALL_DIST_MIN <= wall_dist <= WALL_DIST_MAX
+    if wall_pass:
+        score += 1
+    filters.append({
+        'name': 'Wall Distance',
+        'passed': wall_pass,
+        'value': f"{wall_dist:.0f} pts [{WALL_DIST_MIN}–{WALL_DIST_MAX}]",
+    })
+
+    # 7. VIX check
+    vix_pass = True
+    if vix and vix > VIX_MAX and direction == 'CALL':
+        vix_pass = False
+    if vix_pass:
+        score += 1
+    filters.append({
+        'name': 'VIX Check',
+        'passed': vix_pass,
+        'value': f"VIX {vix:.1f}" if vix else 'N/A',
+    })
+
+    verdict = 'SIGNAL' if score >= MIN_SCORE else 'NO SIGNAL'
+
+    return {
+        'filters': filters,
+        'score': score,
+        'score_max': 7,
+        'min_score': MIN_SCORE,
+        'verdict': verdict,
+        'direction': direction,
+    }
+
+
+# ──────────────────────────────────────────────────────────────────────
+# BACKTEST RESULTS — MULTI-DATE SSE ENDPOINT
+# ──────────────────────────────────────────────────────────────────────
+
+@app.route('/api/backtest/run', methods=['POST'])
+def backtest_run_multi():
+    """Run multi-date backtest with SSE progress streaming."""
+    body = request.get_json(force=True)
+    from_date = body.get('from_date')
+    to_date = body.get('to_date')
+
+    if not from_date or not to_date:
+        return jsonify({"status": "error", "message": "from_date and to_date required"}), 400
+
+    def generate():
+        from core.signal_adapter import SignalBacktestAdapter
+        adapter = SignalBacktestAdapter()
+        all_dates = adapter.get_available_dates()
+
+        target_dates = sorted([d for d in all_dates if from_date <= d <= to_date])
+
+        if not target_dates:
+            yield f"data: {json.dumps({'type': 'error', 'message': 'No available dates in range'})}\n\n"
+            return
+
+        total = len(target_dates)
+        all_trades = []
+        daily_pnl = []
+        equity = 0
+
+        for idx, date_str in enumerate(target_dates, 1):
+            try:
+                result = adapter.run_backtest_for_date(date_str)
+
+                if result.get('status') == 'error':
+                    yield f"data: {json.dumps({'type': 'progress', 'date': date_str, 'index': idx, 'total': total, 'status': 'skipped', 'message': result.get('message', '')})}\n\n"
+                    continue
+
+                signals = result.get('signals', [])
+                summary = result.get('summary', {})
+                day_pnl = summary.get('total_pnl', 0)
+                equity += day_pnl
+
+                paired = _pair_trades(signals, date_str)
+                all_trades.extend(paired)
+
+                daily_pnl.append({
+                    'date': date_str,
+                    'pnl': day_pnl,
+                    'trades': summary.get('exits', 0),
+                    'wins': summary.get('wins', 0),
+                    'losses': summary.get('losses', 0),
+                    'cumulative_pnl': equity,
+                })
+
+                yield f"data: {json.dumps({'type': 'progress', 'date': date_str, 'index': idx, 'total': total, 'status': 'success', 'signals_found': len(signals), 'exits': summary.get('exits', 0), 'pnl': day_pnl})}\n\n"
+
+            except Exception as e:
+                logger.error(f"Backtest error for {date_str}: {e}", exc_info=True)
+                yield f"data: {json.dumps({'type': 'progress', 'date': date_str, 'index': idx, 'total': total, 'status': 'error', 'message': str(e)})}\n\n"
+
+        aggregated = _aggregate_backtest_results(all_trades, daily_pnl)
+        yield f"data: {json.dumps({'type': 'complete', 'results': aggregated})}\n\n"
+
+    return Response(
+        generate(),
+        mimetype='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'X-Accel-Buffering': 'no',
+        }
+    )
+
+
+def _pair_trades(signals, date_str):
+    """Pair ENTRY and EXIT signals into trade rows."""
+    trades = []
+    open_entries = []
+
+    for s in signals:
+        if s.get('type') == 'ENTRY':
+            open_entries.append(s)
+        elif s.get('type') == 'EXIT':
+            entry = open_entries.pop(0) if open_entries else None
+            trades.append({
+                'date': date_str,
+                'entry_time': entry.get('time', '--') if entry else '--',
+                'exit_time': s.get('time', '--'),
+                'direction': s.get('direction', '--'),
+                'score': entry.get('score') if entry else None,
+                'score_max': entry.get('score_max') if entry else None,
+                'entry_spot': s.get('entry_spot', 0),
+                'exit_spot': s.get('exit_spot', 0),
+                'target_spot': entry.get('target_spot') if entry else None,
+                'sl_spot': entry.get('sl_spot') if entry else None,
+                'pnl_lot': s.get('pnl_lot', 0),
+                'win': s.get('win', False),
+                'reason': s.get('reason', ''),
+                'vix': entry.get('vix') if entry else None,
+                'pcr': entry.get('pcr') if entry else None,
+                'body_pct': entry.get('body_pct') if entry else None,
+                'wall_dist': entry.get('wall_dist') if entry else None,
+            })
+
+    for entry in open_entries:
+        trades.append({
+            'date': date_str,
+            'entry_time': entry.get('time', '--'),
+            'exit_time': None,
+            'direction': entry.get('direction', '--'),
+            'score': entry.get('score'),
+            'score_max': entry.get('score_max'),
+            'entry_spot': entry.get('entry_spot', 0),
+            'exit_spot': None,
+            'target_spot': entry.get('target_spot'),
+            'sl_spot': entry.get('sl_spot'),
+            'pnl_lot': 0,
+            'win': None,
+            'reason': 'OPEN',
+            'vix': entry.get('vix'),
+            'pcr': entry.get('pcr'),
+            'body_pct': entry.get('body_pct'),
+            'wall_dist': entry.get('wall_dist'),
+        })
+
+    return trades
+
+
+def _aggregate_backtest_results(trades, daily_pnl):
+    """Compute aggregate statistics from paired trades and daily P&L."""
+    closed_trades = [t for t in trades if t.get('win') is not None]
+    wins = [t for t in closed_trades if t['win']]
+    losses = [t for t in closed_trades if not t['win']]
+    open_trades = [t for t in trades if t.get('win') is None]
+
+    total_pnl = sum(t['pnl_lot'] for t in closed_trades)
+    total_exits = len(closed_trades)
+    win_count = len(wins)
+    loss_count = len(losses)
+    win_rate = round(win_count / max(total_exits, 1) * 100, 1)
+    avg_pnl = round(total_pnl / max(total_exits, 1), 2)
+
+    # Best / worst day
+    pnl_days = [d for d in daily_pnl if d['pnl'] != 0]
+    best_day = max(pnl_days, key=lambda d: d['pnl']) if pnl_days else None
+    worst_day = min(pnl_days, key=lambda d: d['pnl']) if pnl_days else None
+
+    # Sharpe Ratio (daily returns, annualized)
+    daily_returns = [d['pnl'] for d in daily_pnl]
+    if len(daily_returns) >= 2:
+        mean_ret = sum(daily_returns) / len(daily_returns)
+        variance = sum((r - mean_ret) ** 2 for r in daily_returns) / (len(daily_returns) - 1)
+        std_ret = math.sqrt(variance) if variance > 0 else 0
+        sharpe = round((mean_ret / std_ret) * math.sqrt(252), 2) if std_ret > 0 else 0
+    else:
+        sharpe = 0
+
+    # Max drawdown
+    peak = 0
+    max_dd = 0
+    for d in daily_pnl:
+        cum = d['cumulative_pnl']
+        if cum > peak:
+            peak = cum
+        dd = cum - peak
+        if dd < max_dd:
+            max_dd = dd
+
+    # Profit factor
+    gross_profit = sum(t['pnl_lot'] for t in wins)
+    gross_loss = abs(sum(t['pnl_lot'] for t in losses))
+    profit_factor = round(gross_profit / max(gross_loss, 1), 2)
+
+    # Score distribution
+    score_dist = {}
+    for t in closed_trades:
+        s = str(t.get('score', '?'))
+        score_dist[s] = score_dist.get(s, 0) + 1
+
+    # Entry time distribution
+    time_dist = {}
+    for t in trades:
+        et = t.get('entry_time', '')
+        if et and et != '--':
+            time_dist[et] = time_dist.get(et, 0) + 1
+
+    # Monthly P&L
+    monthly_pnl = {}
+    for d in daily_pnl:
+        month_key = d['date'][:7]
+        monthly_pnl[month_key] = monthly_pnl.get(month_key, 0) + d['pnl']
+
+    # Equity curve
+    equity_curve = [{'date': d['date'], 'cumulative_pnl': d['cumulative_pnl']} for d in daily_pnl]
+
+    return {
+        'summary': {
+            'total_dates': len(daily_pnl),
+            'dates_with_signals': len([d for d in daily_pnl if d['trades'] > 0]),
+            'total_entries': len(trades),
+            'total_exits': total_exits,
+            'wins': win_count,
+            'losses': loss_count,
+            'open_trades': len(open_trades),
+            'win_rate': win_rate,
+            'total_pnl': total_pnl,
+            'avg_pnl_per_trade': avg_pnl,
+            'best_day': {'date': best_day['date'], 'pnl': best_day['pnl']} if best_day else None,
+            'worst_day': {'date': worst_day['date'], 'pnl': worst_day['pnl']} if worst_day else None,
+            'sharpe_ratio': sharpe,
+            'max_drawdown': max_dd,
+            'profit_factor': profit_factor,
+        },
+        'equity_curve': equity_curve,
+        'daily_pnl': [{'date': d['date'], 'pnl': d['pnl'], 'trades': d['trades'],
+                        'wins': d['wins'], 'losses': d['losses']} for d in daily_pnl],
+        'trades': trades,
+        'score_distribution': score_dist,
+        'entry_time_distribution': time_dist,
+        'monthly_pnl': monthly_pnl,
+    }
+
+
 def _serve_html(filename):
     """Serve HTML file with no-cache headers so edits are picked up immediately."""
     from flask import send_file
@@ -1610,6 +2299,18 @@ def top_shares_page():
 def signal_engine_page():
     """Serve the Signal Engine page."""
     return _serve_html('signal_engine.html')
+
+
+@app.route('/signal_dashboard.html')
+def signal_dashboard_page():
+    """Serve the Signal Dashboard page."""
+    return _serve_html('signal_dashboard.html')
+
+
+@app.route('/backtest_results.html')
+def backtest_results_page():
+    """Serve the Backtest Results page."""
+    return _serve_html('backtest_results.html')
 
 
 @app.route('/api_credentials.html')
