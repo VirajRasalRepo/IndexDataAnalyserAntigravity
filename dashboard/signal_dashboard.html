@@ -466,8 +466,8 @@
 
             let html = `<table class="log-table">
                 <thead><tr>
-                    <th>Time</th><th>Type</th><th>Direction</th><th>Entry</th>
-                    <th>Target</th><th>SL</th><th>Score</th><th>Status</th><th>P&L</th>
+                    <th>Time</th><th>Buy</th><th>Entry</th>
+                    <th>Target</th><th>SL</th><th>Score</th><th>OI Chg</th><th>Status</th><th>P&L</th>
                 </tr></thead><tbody>`;
 
             signals.forEach(s => {
@@ -482,14 +482,19 @@
 
                 const pnl = s.pnl_lot != null ? `₹${s.pnl_lot.toLocaleString()}` : '--';
 
+                const buyLabel = s.buy_label ? `${s.buy_label} @ ₹${s.option_price != null ? s.option_price.toFixed(0) : '?'}` : (s.type === 'EXIT' ? s.action || 'EXIT' : '--');
+                const buyCls = s.direction === 'CALL' ? 'color:#10b981;font-weight:700' : s.direction === 'PUT' ? 'color:#f43f5e;font-weight:700' : 'color:#f59e0b;font-weight:700';
+                const oiChg = s.oi_change_L != null ? (s.oi_change_L > 0 ? '+' : '') + s.oi_change_L.toFixed(1) + 'L' : '--';
+                const oiCls = s.oi_change_L > 0 ? 'color:#10b981' : s.oi_change_L < 0 ? 'color:#f43f5e' : '';
+
                 html += `<tr>
                     <td>${s.time || ''}</td>
-                    <td><span class="badge ${typeCls}">${s.type || ''}</span></td>
-                    <td><span class="badge ${dirCls}">${s.direction || ''}</span></td>
+                    <td style="${buyCls};white-space:nowrap">${buyLabel}</td>
                     <td>${s.entry_spot != null ? s.entry_spot.toFixed(2) : (s.exit_spot != null ? s.exit_spot.toFixed(2) : '--')}</td>
                     <td>${s.target_spot != null ? s.target_spot : '--'}</td>
                     <td>${s.sl_spot != null ? s.sl_spot : '--'}</td>
-                    <td>${s.score != null ? s.score + '/7' : '--'}</td>
+                    <td>${s.score != null ? s.score + '/' + (s.score_max || 8) : '--'}</td>
+                    <td style="${oiCls}">${oiChg}</td>
                     <td>${statusBadge}</td>
                     <td>${pnl}</td>
                 </tr>`;

@@ -278,12 +278,13 @@
                             <table class="signals-table" id="trades-table">
                                 <thead><tr>
                                     <th data-sort="date">Date <span class="sort-arrow"></span></th>
+                                    <th>Buy</th>
                                     <th data-sort="entry_time">Entry <span class="sort-arrow"></span></th>
                                     <th data-sort="exit_time">Exit <span class="sort-arrow"></span></th>
-                                    <th data-sort="direction">Dir <span class="sort-arrow"></span></th>
                                     <th data-sort="score">Score <span class="sort-arrow"></span></th>
                                     <th data-sort="entry_spot">Entry Spot <span class="sort-arrow"></span></th>
                                     <th data-sort="exit_spot">Exit Spot <span class="sort-arrow"></span></th>
+                                    <th data-sort="oi_change_L">OI Chg <span class="sort-arrow"></span></th>
                                     <th data-sort="pnl_lot">P&L/Lot <span class="sort-arrow"></span></th>
                                     <th data-sort="win">Result <span class="sort-arrow"></span></th>
                                     <th>Reason</th>
@@ -595,14 +596,20 @@
                 const pnl = t.pnl_lot || 0;
                 const pnlCls = pnl > 0 ? 'clr-green' : pnl < 0 ? 'clr-red' : '';
 
+                const buyLabel = t.buy_label ? `${t.buy_label} @ ₹${t.option_price != null ? t.option_price.toFixed(0) : '?'}` : '--';
+                const buyCls = t.direction === 'CALL' ? 'color:#10b981;font-weight:700' : 'color:#f43f5e;font-weight:700';
+                const oiChg = t.oi_change_L != null ? (t.oi_change_L > 0 ? '+' : '') + t.oi_change_L.toFixed(1) + 'L' : '--';
+                const oiCls = t.oi_change_L > 0 ? 'clr-green' : t.oi_change_L < 0 ? 'clr-red' : '';
+
                 html += `<tr>
                     <td>${t.date}</td>
+                    <td style="${buyCls};white-space:nowrap">${buyLabel}</td>
                     <td>${t.entry_time || '--'}</td>
                     <td>${t.exit_time || '--'}</td>
-                    <td><span class="badge ${dirCls}">${t.direction}</span></td>
-                    <td>${t.score != null ? t.score + '/7' : '--'}</td>
+                    <td>${t.score != null ? t.score + '/8' : '--'}</td>
                     <td>${t.entry_spot ? t.entry_spot.toFixed(2) : '--'}</td>
                     <td>${t.exit_spot ? t.exit_spot.toFixed(2) : '--'}</td>
+                    <td class="${oiCls}">${oiChg}</td>
                     <td class="${pnlCls}">${pnl ? (pnl > 0 ? '+' : '') + pnl.toLocaleString() : '--'}</td>
                     <td>${resBadge}</td>
                     <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis" title="${t.reason || ''}">${t.reason || ''}</td>
@@ -634,10 +641,11 @@
 
         // ── CSV Export ──
         function exportCSV() {
-            const headers = ['Date','Entry Time','Exit Time','Direction','Score','Entry Spot','Exit Spot','P&L/Lot','Result','Reason'];
+            const headers = ['Date','Buy','Entry Time','Exit Time','Score','Entry Spot','Exit Spot','OI Change (L)','P&L/Lot','Result','Reason'];
             const rows = filteredTrades.map(t => [
-                t.date, t.entry_time || '', t.exit_time || '', t.direction,
+                t.date, t.buy_label || '', t.entry_time || '', t.exit_time || '',
                 t.score != null ? t.score : '', t.entry_spot || '', t.exit_spot || '',
+                t.oi_change_L != null ? t.oi_change_L : '',
                 t.pnl_lot || 0,
                 t.win === true ? 'WIN' : t.win === false ? 'LOSS' : 'OPEN',
                 '"' + (t.reason || '').replace(/"/g, '""') + '"'

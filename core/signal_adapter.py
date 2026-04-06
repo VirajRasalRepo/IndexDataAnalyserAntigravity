@@ -131,7 +131,7 @@ class SignalBacktestAdapter:
             # VIX snapshot
             vix = self._fetch_vix(date_str, candle["dt"].strftime("%H:%M") + ":00")
 
-            signal = engine.evaluate_candle(candle, history, oi_now, spot_now, vix)
+            signal = engine.evaluate_candle(candle, history, oi_now, spot_now, vix, oi_prev=oi_open)
             if signal:
                 # Convert any non-serialisable values
                 clean = {}

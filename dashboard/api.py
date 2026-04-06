@@ -1788,6 +1788,7 @@ def _compute_signal_dashboard_data() -> dict:
             if not original_iv_ok:
                 assessment['block_reason'] = f"RISKY — IV {assessment.get('iv_open', 0):.1f}% >= {IV_MAX}%"
             cache['assessment'] = assessment
+            cache['oi_open'] = oi_open
 
     # Process only NEW candles incrementally
     if not candles_df.empty and cache['candle_count'] < len(candles_df):
@@ -1825,12 +1826,13 @@ def _compute_signal_dashboard_data() -> dict:
             # VIX for this candle time
             vix_now = _fetch_vix_for_dash(oi_date_str, candle['dt'].strftime('%H:%M') + ':00')
 
-            engine.evaluate_candle(candle, cache['history'], oi_now, spot_now, vix_now)
+            engine.evaluate_candle(candle, cache['history'], oi_now, spot_now, vix_now,
+                                   oi_prev=cache.get('oi_open'))
             cache['history'].append(candle)
 
         cache['candle_count'] = len(candles_df)
 
-    # ── Build checklist (7 filters for the LATEST candle) ───────────
+    # ── Build checklist (8 filters for the LATEST candle) ───────────
     checklist = _build_checklist(cache, oi_df, spot, vix, engine)
 
     # ── Signal log from engine ──────────────────────────────────────
@@ -1910,7 +1912,7 @@ def _fetch_vix_for_dash(date_str: str, time_str: str):
 
 
 def _build_checklist(cache, oi_df, spot, vix, engine) -> dict:
-    """Evaluate 7 filters against latest state and return checklist."""
+    """Evaluate 8 filters against latest state and return checklist."""
     from nifty_signal_engine import (
         OIAnalyser, TRADE_START, TRADE_END, MIN_RANGE_PTS,
         WALL_DIST_MIN, WALL_DIST_MAX, VIX_MAX, MAX_CONSEC, MIN_SCORE,
@@ -2018,12 +2020,36 @@ def _build_checklist(cache, oi_df, spot, vix, engine) -> dict:
         'value': f"VIX {vix:.1f}" if vix else 'N/A',
     })
 
+    # 8. OI Buildup at target wall confirms direction
+    oi_open_ref = cache.get('oi_open')
+    buildup_pass = True  # pass by default if no data
+    buildup_val = 'N/A'
+    if oi_open_ref is not None and not oi_open_ref.empty and tgt_strike and not oi_df.empty:
+        if direction == 'CALL':
+            pe_strike, _ = OIAnalyser.get_nearest_wall(
+                [(s, o) for s, o in pe_walls_live if s < entry_spot])
+            if pe_strike:
+                delta = OIAnalyser.get_oi_change_at_strike(oi_df, oi_open_ref, pe_strike, 'pe')
+                buildup_pass = delta > 0
+                buildup_val = f"PE@{pe_strike} {'+'if delta>0 else ''}{delta:.2f}L"
+        else:
+            delta = OIAnalyser.get_oi_change_at_strike(oi_df, oi_open_ref, tgt_strike, 'ce')
+            buildup_pass = delta > 0
+            buildup_val = f"CE@{tgt_strike} {'+'if delta>0 else ''}{delta:.2f}L"
+    if buildup_pass:
+        score += 1
+    filters.append({
+        'name': 'OI Buildup',
+        'passed': buildup_pass,
+        'value': buildup_val,
+    })
+
     verdict = 'SIGNAL' if score >= MIN_SCORE else 'NO SIGNAL'
 
     return {
         'filters': filters,
         'score': score,
-        'score_max': 7,
+        'score_max': 8,
         'min_score': MIN_SCORE,
         'verdict': verdict,
         'direction': direction,
@@ -2120,12 +2146,15 @@ def _pair_trades(signals, date_str):
                 'entry_time': entry.get('time', '--') if entry else '--',
                 'exit_time': s.get('time', '--'),
                 'direction': s.get('direction', '--'),
+                'buy_label': entry.get('buy_label') if entry else None,
+                'option_price': entry.get('option_price') if entry else None,
                 'score': entry.get('score') if entry else None,
                 'score_max': entry.get('score_max') if entry else None,
                 'entry_spot': s.get('entry_spot', 0),
                 'exit_spot': s.get('exit_spot', 0),
                 'target_spot': entry.get('target_spot') if entry else None,
                 'sl_spot': entry.get('sl_spot') if entry else None,
+                'oi_change_L': entry.get('oi_change_L') if entry else None,
                 'pnl_lot': s.get('pnl_lot', 0),
                 'win': s.get('win', False),
                 'reason': s.get('reason', ''),
@@ -2141,12 +2170,15 @@ def _pair_trades(signals, date_str):
             'entry_time': entry.get('time', '--'),
             'exit_time': None,
             'direction': entry.get('direction', '--'),
+            'buy_label': entry.get('buy_label'),
+            'option_price': entry.get('option_price'),
             'score': entry.get('score'),
             'score_max': entry.get('score_max'),
             'entry_spot': entry.get('entry_spot', 0),
             'exit_spot': None,
             'target_spot': entry.get('target_spot'),
             'sl_spot': entry.get('sl_spot'),
+            'oi_change_L': entry.get('oi_change_L'),
             'pnl_lot': 0,
             'win': None,
             'reason': 'OPEN',

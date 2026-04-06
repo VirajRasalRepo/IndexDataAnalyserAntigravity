@@ -18,7 +18,7 @@ HOW IT WORKS:
     1. Pulls OI data from YOUR MySQL database (same tables as the CSVs)
     2. Pulls live Nifty spot price from Dhan API every 5 minutes
     3. Builds 5-min candles in memory
-    4. Scores candles on 7 filters (PCR, StrongCandle, Time, Range, Walls, VIX...)
+    4. Scores candles on 8 filters (PCR, StrongCandle, Time, Range, Walls, VIX, OI Buildup...)
     5. Prints BUY CALL / BUY PUT signals with score and entry prices
     6. Tracks open trades and prints EXIT signals when target/SL hit
     7. Logs everything to a CSV file for your records
@@ -59,7 +59,7 @@ MAX_CONSEC      = 3         # skip if N consecutive opposite candles before sign
 TRADE_START     = "10:15"   # preferred entry window start
 TRADE_END       = "14:45"   # preferred entry window end
 SCAN_INTERVAL   = 300       # seconds between scans in live mode (5 min)
-MIN_SCORE       = 5         # minimum filter score out of 7 to generate signal
+MIN_SCORE       = 5         # minimum filter score out of 8 to generate signal
 
 # Nifty 50 security details for Dhan API
 NIFTY_SECURITY_ID    = "13"
@@ -447,6 +447,20 @@ class OIAnalyser:
             return None, 0.0
         return walls[0][0], walls[0][1]
 
+    @staticmethod
+    def get_oi_change_at_strike(oi_curr: pd.DataFrame, oi_prev: pd.DataFrame,
+                                strike: int, side: str) -> float:
+        """
+        Returns OI change (in lakhs) at a specific strike for CE or PE.
+        side = "ce" or "pe".  Positive = buildup, negative = unwinding.
+        """
+        col = f"{side}_oi"
+        curr_val = oi_curr.loc[oi_curr["Strike"] == strike, col]
+        prev_val = oi_prev.loc[oi_prev["Strike"] == strike, col]
+        c = float(curr_val.iloc[0]) if len(curr_val) > 0 else 0.0
+        p = float(prev_val.iloc[0]) if len(prev_val) > 0 else 0.0
+        return c - p
+
 
 # ─────────────────────────────────────────────────────────────────────
 # SIGNAL ENGINE  (the brain)
@@ -454,8 +468,8 @@ class OIAnalyser:
 
 class SignalEngine:
     """
-    Scores candles on 7 filters and generates BUY / EXIT signals.
-    Signal fires when score >= MIN_SCORE (default 5/7).
+    Scores candles on 8 filters and generates BUY / EXIT signals.
+    Signal fires when score >= MIN_SCORE (default 5/8).
 
     State machine:
         IDLE   → waiting for a valid signal
@@ -465,6 +479,7 @@ class SignalEngine:
     FILTER_NAMES = [
         "pcr_direction", "strong_candle", "time_window",
         "no_consecutive", "range_ok", "wall_distance_ok", "vix_ok",
+        "oi_buildup",
     ]
 
     def __init__(self):
@@ -479,6 +494,7 @@ class SignalEngine:
         self.iv_open       = 15.0
         self.open_ce_walls = []
         self.open_pe_walls = []
+        self.oi_open       = pd.DataFrame()   # OI snapshot at market open
 
         self.signal_log    = []
 
@@ -492,6 +508,7 @@ class SignalEngine:
         self.day_trades         = 0
         self.state              = "IDLE"
         self.open_trade         = None
+        self.oi_open            = oi_df.copy()
 
         ce_iv, pe_iv = OIAnalyser.get_atm_iv(oi_df, spot)
         self.iv_open = ce_iv
@@ -525,10 +542,11 @@ class SignalEngine:
 
     def evaluate_candle(self, candle: dict, candles_history: list,
                         oi_df: pd.DataFrame, spot: float,
-                        vix: float | None = None) -> dict | None:
+                        vix: float | None = None,
+                        oi_prev: pd.DataFrame | None = None) -> dict | None:
         """
         Score-based evaluation. Returns a signal dict or None.
-        Signal fires when score >= MIN_SCORE (default 5/7).
+        Signal fires when score >= MIN_SCORE (default 5/8).
         Signal types:  'ENTRY'  or  'EXIT'
         """
         now_str = candle["dt"].strftime("%H:%M") if hasattr(candle["dt"], "strftime") \
@@ -610,10 +628,33 @@ class SignalEngine:
             score += 1
             passed.append("vix_ok")
 
+        # 8. OI buildup at target wall confirms direction
+        oi_ref = oi_prev if oi_prev is not None else self.oi_open
+        buildup_ok = True  # pass by default if no data to compare
+        oi_change_val = 0.0  # OI change at the relevant wall (in lakhs)
+        oi_change_strike = None
+        if target_strike and not oi_ref.empty:
+            if direction == "CALL":
+                # PE OI increasing at nearest support wall = writers building support
+                pe_strike, _ = OIAnalyser.get_nearest_wall(
+                    [(s, o) for s, o in live_pe_walls if s < entry_spot])
+                if pe_strike:
+                    oi_change_val = OIAnalyser.get_oi_change_at_strike(oi_df, oi_ref, pe_strike, "pe")
+                    oi_change_strike = pe_strike
+                    buildup_ok = oi_change_val > 0
+            else:
+                # CE OI increasing at nearest resistance wall = writers building resistance
+                oi_change_val = OIAnalyser.get_oi_change_at_strike(oi_df, oi_ref, target_strike, "ce")
+                oi_change_strike = target_strike
+                buildup_ok = oi_change_val > 0
+        if buildup_ok:
+            score += 1
+            passed.append("oi_buildup")
+
         # ── Check minimum score ──────────────────────────────────────
         if score < MIN_SCORE:
             return self._skip(now_str, direction,
-                              f"Score {score}/7 < {MIN_SCORE} (passed: {', '.join(passed)})")
+                              f"Score {score}/8 < {MIN_SCORE} (passed: {', '.join(passed)})")
 
         # ── SCORE MET — GENERATE ENTRY SIGNAL ────────────────────────
         sl_level = (entry_spot - SL_POINTS) if direction == "CALL" \
@@ -627,12 +668,16 @@ class SignalEngine:
                       else float(atm["pe_ltp"]) if (atm is not None) else 0.0
         est_sl_px        = round(est_option_price * 0.5, 1)
 
+        opt_strike = target_strike - 50 if direction == "CALL" else target_strike + 50
+        buy_label  = f"NIFTY {opt_strike} {direction}"
+
         signal = {
             "type":         "ENTRY",
             "time":         now_str,
             "direction":    direction,
             "action":       f"BUY {direction}",
-            "strike":       target_strike - 50 if direction == "CALL" else target_strike + 50,
+            "buy_label":    buy_label,
+            "strike":       opt_strike,
             "entry_spot":   round(entry_spot, 2),
             "target_spot":  target_strike,
             "sl_spot":      round(sl_level, 2),
@@ -644,11 +689,13 @@ class SignalEngine:
             "target_wall":  target_strike,
             "wall_oi_L":    round(target_oi, 2),
             "wall_dist":    round(wall_dist, 0),
+            "oi_change_L":  round(oi_change_val, 2),
+            "oi_change_strike": oi_change_strike,
             "rng4":         round(rng4, 1),
             "body_pct":     candle["body_pct"],
             "vix":          round(vix, 2) if vix else None,
             "score":        score,
-            "score_max":    7,
+            "score_max":    8,
             "filters_passed": passed,
         }
 
@@ -738,7 +785,7 @@ def print_signal(signal: dict):
         d = signal["direction"]
         clr = "🟢" if d == "CALL" else "🔴"
         sc = signal.get("score", "?")
-        mx = signal.get("score_max", 7)
+        mx = signal.get("score_max", 8)
         fp = ", ".join(signal.get("filters_passed", []))
         print(f"\n{sep}")
         print(f"  {clr}  SIGNAL: {signal['action']}  [{signal['time']}]  Score: {sc}/{mx}")

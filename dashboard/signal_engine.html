@@ -337,8 +337,7 @@
                         <thead>
                             <tr>
                                 <th>Time</th>
-                                <th>Action</th>
-                                <th>Strike</th>
+                                <th>Buy</th>
                                 <th>Entry</th>
                                 <th>Target</th>
                                 <th>SL</th>
@@ -348,7 +347,8 @@
                                 <th>Range</th>
                                 <th>VIX</th>
                                 <th>Wall OI</th>
-                                <th>Option</th>
+                                <th>OI Chg</th>
+                                <th>Option ₹</th>
                                 <th>Result</th>
                             </tr>
                         </thead>
@@ -528,20 +528,22 @@
                 if (s.type === 'ENTRY') {
                     const cls = s.direction === 'CALL' ? 'entry-call' : 'entry-put';
                     const actCls = s.direction === 'CALL' ? 'action-call' : 'action-put';
+                    const oiChg = s.oi_change_L != null ? (s.oi_change_L > 0 ? '+' : '') + s.oi_change_L.toFixed(1) + 'L' : '--';
+                    const oiCls = s.oi_change_L > 0 ? 'positive' : s.oi_change_L < 0 ? 'negative' : '';
                     html += `<tr class="${cls}">
                         <td>${s.time}</td>
-                        <td class="${actCls}">${s.action}</td>
-                        <td>${s.strike || '--'}</td>
+                        <td class="${actCls}" style="white-space:nowrap">${s.buy_label || s.action} @ \u20B9${s.option_price != null ? s.option_price.toFixed(0) : '?'}</td>
                         <td>${fmtNum(s.entry_spot)}</td>
                         <td>${fmtNum(s.target_spot)}</td>
                         <td>${fmtNum(s.sl_spot)}</td>
-                        <td><span class="badge ${s.score >= 6 ? 'badge-green' : 'badge-yellow'}">${s.score || '?'}/${s.score_max || 7}</span></td>
+                        <td><span class="badge ${s.score >= 6 ? 'badge-green' : 'badge-yellow'}">${s.score || '?'}/${s.score_max || 8}</span></td>
                         <td>${s.pcr != null ? s.pcr.toFixed(3) : '--'}</td>
                         <td>${s.body_pct != null ? s.body_pct.toFixed(0) + '%' : '--'}</td>
                         <td>${s.rng4 != null ? s.rng4.toFixed(0) + 'pts' : '--'}</td>
                         <td>${s.vix != null ? s.vix.toFixed(1) : 'N/A'}</td>
                         <td>${s.wall_oi_L != null ? s.wall_oi_L.toFixed(1) + 'L' : '--'}</td>
-                        <td>${s.option_price != null ? '\u20B9' + s.option_price.toFixed(1) : '--'}</td>
+                        <td class="${oiCls}">${oiChg}</td>
+                        <td>\u20B9${s.option_price != null ? s.option_price.toFixed(1) : '--'}</td>
                         <td><span class="badge badge-yellow">OPEN</span></td>
                     </tr>`;
                 } else if (s.type === 'EXIT') {
@@ -549,11 +551,10 @@
                     html += `<tr class="${cls}">
                         <td>${s.time}</td>
                         <td class="action-exit">${s.action}</td>
-                        <td>--</td>
                         <td>${fmtNum(s.entry_spot)}</td>
                         <td>${fmtNum(s.exit_spot)}</td>
                         <td>--</td>
-                        <td colspan="4" style="font-family:Inter,sans-serif;color:${s.win ? '#10b981' : '#f43f5e'}">${s.reason}</td>
+                        <td colspan="5" style="font-family:Inter,sans-serif;color:${s.win ? '#10b981' : '#f43f5e'}">${s.reason}</td>
                         <td></td>
                         <td>${s.move_pts != null ? (s.move_pts > 0 ? '+' : '') + s.move_pts.toFixed(1) + 'pts' : '--'}</td>
                         <td class="${s.win ? 'positive' : 'negative'}">\u20B9${(s.pnl_lot || 0).toLocaleString()}</td>
@@ -620,7 +621,7 @@
                 `Window: ${cfg.trade_start}-${cfg.trade_end}`,
                 `Min Range: ${cfg.min_range_pts}pts`,
                 `Wall: ${cfg.wall_dist_min}-${cfg.wall_dist_max}pts`,
-                `Min Score: ${cfg.min_score}/7`,
+                `Min Score: ${cfg.min_score}/8`,
             ].map(t => `<span class="config-tag">${t}</span>`).join('');
         }
 
