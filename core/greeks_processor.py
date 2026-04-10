@@ -40,8 +40,8 @@ TOP_N                   = 5                  # Strikes for trend intensity
 # ═══════════════════════════════════════════════════════════════
 
 def get_dte(expiry_date: date) -> int:
-    """Calculate days to expiry."""
-    return max((expiry_date - date.today()).days, 0)
+    """Calculate days to expiry (uses IST 'today' to avoid off-by-1 near UTC midnight)."""
+    return max((expiry_date - now_ist().date()).days, 0)
 
 
 def safe_float(val, default=0.0) -> float:
@@ -174,9 +174,10 @@ def calc_iv_percentile(current_vix: float, conn) -> dict:
         rows = cursor.fetchall()
         cursor.close()
     except Exception as e:
+        logger.debug(f"Closing-window VIX query failed, will use fallback: {e}")
         try:
             cursor.close()
-        except:
+        except Exception:
             pass
         rows = []
 

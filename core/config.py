@@ -6,7 +6,7 @@ Loads settings from environment variables with validation.
 import os
 import logging
 from datetime import datetime, timezone, timedelta
-from typing import Dict
+from typing import Any, Dict
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -101,7 +101,7 @@ class Config:
         return False
 
     @classmethod
-    def get_db_config(cls) -> Dict[str, any]:
+    def get_db_config(cls) -> Dict[str, Any]:
         """Returns database configuration as a dictionary."""
         return {
             "host": cls.DB_HOST,

@@ -28,19 +28,31 @@ NOTE: This is a SIGNAL GENERATOR only. It does NOT place orders.
 """
 
 # ─────────────────────────────────────────────────────────────────────
-# CONFIGURATION — edit these before running
+# CONFIGURATION — loaded from .env via core.config (no hardcoded secrets)
 # ─────────────────────────────────────────────────────────────────────
 
-DHAN_CLIENT_ID   = "1107702034"
-DHAN_ACCESS_TOKEN = "PASTE_YOUR_FRESH_TOKEN_HERE"   # refresh daily from DhanHQ
-
-DB_CONFIG = {
-    "host":     "localhost",       # your MySQL host
-    "port":     3306,
-    "user":     "your_db_user",
-    "password": "your_db_password",
-    "database": "your_db_name",
-}
+try:
+    from core.config import Config
+    DHAN_CLIENT_ID    = Config.DHAN_CLIENT_ID
+    DHAN_ACCESS_TOKEN = Config.DHAN_ACCESS_TOKEN
+    DB_CONFIG         = Config.get_db_config()
+except Exception:
+    # Fallback: read env vars directly (used if core.config isn't importable)
+    import os as _os
+    try:
+        from dotenv import load_dotenv as _load_dotenv
+        _load_dotenv()
+    except ImportError:
+        pass
+    DHAN_CLIENT_ID    = _os.environ.get("DHAN_CLIENT_ID", "")
+    DHAN_ACCESS_TOKEN = _os.environ.get("DHAN_ACCESS_TOKEN", "")
+    DB_CONFIG = {
+        "host":     _os.environ.get("DB_HOST", "localhost"),
+        "port":     int(_os.environ.get("DB_PORT", "3306")),
+        "user":     _os.environ.get("DB_USER", "root"),
+        "password": _os.environ.get("DB_PASSWORD", ""),
+        "database": _os.environ.get("DB_NAME", "analyzer_db"),
+    }
 
 # Table names in your MySQL database (adjust if different)
 OI_TABLE        = "NiftyHistorical"      # your OI + option chain table

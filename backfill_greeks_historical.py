@@ -5,7 +5,7 @@ This script processes existing historical data and calculates Greeks that weren'
 import logging
 from datetime import datetime, date as dt_date
 from dhanhq import dhanhq
-from core.config import Config
+from core.config import Config, now_ist
 from core import Utilities
 from core.greeks_processor import process_greeks_from_db
 from core.database import DatabaseManager
@@ -221,7 +221,7 @@ def main():
     try:
         expiry_data = Utilities.get_expiry_list(dhan_client)
         expiry_str = expiry_data[0] if isinstance(expiry_data, list) and len(expiry_data) > 0 else expiry_data
-        expiry_date = datetime.strptime(expiry_str, '%Y-%m-%d').date() if expiry_str else datetime.now().date()
+        expiry_date = datetime.strptime(expiry_str, '%Y-%m-%d').date() if expiry_str else now_ist().date()
         logger.info(f"Using expiry date: {expiry_date}\n")
     except Exception as e:
         logger.error(f"Failed to fetch expiry: {e}")

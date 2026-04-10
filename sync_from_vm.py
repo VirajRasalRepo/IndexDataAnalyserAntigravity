@@ -1,7 +1,3 @@
-#command to get data from vm to local sql
-#python sync_from_vm.py --vm-name index-data-analyser --zone asia-south1-a
-
-
 #!/usr/bin/env python3
 """
 Sync database data from GCP VM to local MySQL.
@@ -19,11 +15,20 @@ Usage:
 
   4. Just create the dump on VM (download manually later):
      python sync_from_vm.py --dump-only --vm-name index-data-analyser --zone asia-south1-a
+
+Configuration is read from environment variables (see .env.example):
+  VM_DB_USER, VM_DB_PASSWORD, VM_DB_NAME   — VM mysql credentials
+  DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_PORT — local mysql credentials
+  GCP_PROJECT                              — GCP project ID
+  MYSQL_BIN                                — path to local mysql.exe (optional)
 """
 
 import argparse
+import gzip
 import json
 import os
+import shlex
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -31,22 +36,58 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-# ---------------------------------------------------------------------------
-# Configuration – edit these if your setup differs
-# ---------------------------------------------------------------------------
-VM_DB_USER = "root"
-VM_DB_PASSWORD = "Indian#9190"
-VM_DB_NAME = "analyzer_db"
-VM_DUMP_DIR = "/tmp"  # /tmp is always writable
-VM_DUMP_FILE = "vm_data_dump.sql.gz"  # compressed dump
-GCP_PROJECT = "complete-energy-450807-r6"
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # python-dotenv is optional — env vars can still be set by the shell
+    pass
 
-LOCAL_DB_HOST = os.getenv("DB_HOST", "localhost")
-LOCAL_DB_USER = os.getenv("DB_USER", "root")
-LOCAL_DB_PASSWORD = os.getenv("DB_PASSWORD", "qwerty123456")
-LOCAL_DB_NAME = os.getenv("DB_NAME", "analyzer_db")
-LOCAL_DB_PORT = os.getenv("DB_PORT", "3306")
-MYSQL_BIN = r'"C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe"'
+
+# ---------------------------------------------------------------------------
+# Configuration – loaded from environment variables, no hardcoded secrets
+# ---------------------------------------------------------------------------
+def _require_env(name: str) -> str:
+    """Return env var or exit with a helpful error."""
+    val = os.environ.get(name)
+    if not val:
+        sys.stderr.write(
+            f"ERROR: Required environment variable '{name}' is not set.\n"
+            f"  Add it to your .env file or export it in your shell.\n"
+            f"  See .env.example for the expected variables.\n"
+        )
+        sys.exit(2)
+    return val
+
+
+# VM MySQL credentials (required — no defaults)
+VM_DB_USER = os.environ.get("VM_DB_USER", "root")
+VM_DB_NAME = os.environ.get("VM_DB_NAME", "analyzer_db")
+VM_DB_PASSWORD = _require_env("VM_DB_PASSWORD")
+
+# Local MySQL credentials
+LOCAL_DB_HOST = os.environ.get("DB_HOST", "localhost")
+LOCAL_DB_USER = os.environ.get("DB_USER", "root")
+LOCAL_DB_PASSWORD = _require_env("DB_PASSWORD")
+LOCAL_DB_NAME = os.environ.get("DB_NAME", "analyzer_db")
+LOCAL_DB_PORT = os.environ.get("DB_PORT", "3306")
+
+# GCP project
+GCP_PROJECT = os.environ.get("GCP_PROJECT", "complete-energy-450807-r6")
+
+# VM paths
+VM_DUMP_DIR = "/tmp"
+VM_DUMP_FILE = "vm_data_dump.sql.gz"
+
+# Local mysql client binary. Default is the typical Windows install path;
+# override via MYSQL_BIN env var on other setups.
+MYSQL_BIN = os.environ.get(
+    "MYSQL_BIN",
+    r"C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe",
+).strip('"').strip("'")
+
+# Resolve gcloud executable (handles gcloud.cmd on Windows via PATHEXT).
+GCLOUD = shutil.which("gcloud") or "gcloud"
 
 SYNC_STATE_FILE = Path(__file__).parent / "sync_state.json"
 
@@ -62,52 +103,73 @@ TABLE_DATE_COLUMNS = {
 TABLES = list(TABLE_DATE_COLUMNS.keys())
 
 
-def run(cmd, check=True, capture=False, **kwargs):
-    """Run a shell command with nice logging."""
-    print(f"  > {cmd}")
-    result = subprocess.run(
-        cmd,
-        shell=True,
+# ---------------------------------------------------------------------------
+# Subprocess helpers — argv lists only, shell=False, no interpolation
+# ---------------------------------------------------------------------------
+def run_cmd(argv, check=True, capture=False, stdin=None, env=None):
+    """Run a command with an argv list (no shell, no injection risk)."""
+    display = " ".join(str(a) for a in argv)
+    if len(display) > 220:
+        display = display[:220] + "…"
+    print(f"  > {display}")
+    return subprocess.run(
+        argv,
         check=check,
         capture_output=capture,
         text=True,
-        **kwargs,
+        stdin=stdin,
+        env=env,
     )
-    return result
 
 
-def mysql_cmd(sql, capture=True):
+def _mysql_env():
+    """Return an env dict with MYSQL_PWD set.
+
+    Using MYSQL_PWD keeps the password out of the command line (and out of
+    `ps`/task manager) and silences the 'password on cmdline is insecure'
+    warning from mysql/mysqldump.
+    """
+    env = os.environ.copy()
+    env["MYSQL_PWD"] = LOCAL_DB_PASSWORD
+    return env
+
+
+def mysql_query(sql: str) -> str:
     """Execute a SQL statement on the local database and return stdout."""
-    cmd = (
-        f'{MYSQL_BIN} -h {LOCAL_DB_HOST} -P {LOCAL_DB_PORT} '
-        f'-u {LOCAL_DB_USER} -p{LOCAL_DB_PASSWORD} '
-        f'{LOCAL_DB_NAME} -N -e "{sql}"'
-    )
+    argv = [
+        MYSQL_BIN,
+        "-h", LOCAL_DB_HOST,
+        "-P", str(LOCAL_DB_PORT),
+        "-u", LOCAL_DB_USER,
+        LOCAL_DB_NAME,
+        "-N",
+        "-e", sql,
+    ]
     result = subprocess.run(
-        cmd, shell=True, capture_output=True, text=True
+        argv, capture_output=True, text=True, env=_mysql_env()
     )
     return result.stdout.strip()
 
 
 def get_row_counts_fast():
-    """Get approximate row counts using information_schema (instant).
+    """Approximate row counts via information_schema (instant).
 
     After a bulk import InnoDB estimates may lag, so we force a stats
     refresh with ANALYZE TABLE first.
     """
-    # Force InnoDB to update its row estimates
     for table in TABLES:
-        mysql_cmd(f"ANALYZE TABLE {table}")
+        mysql_query(f"ANALYZE TABLE {table}")
 
     sql = (
         "SELECT TABLE_NAME, TABLE_ROWS "
         "FROM information_schema.TABLES "
         f"WHERE TABLE_SCHEMA = '{LOCAL_DB_NAME}'"
     )
-    out = mysql_cmd(sql)
+    out = mysql_query(sql)
     counts = {table: 0 for table in TABLES}
     for line in out.splitlines():
-        parts = line.split()
+        # mysql -N output is tab-separated — do NOT use .split() (any whitespace)
+        parts = line.split("\t")
         if len(parts) >= 2 and parts[0] in counts:
             try:
                 counts[parts[0]] = int(parts[1])
@@ -125,8 +187,8 @@ def load_sync_state():
         try:
             with open(SYNC_STATE_FILE, "r") as f:
                 return json.load(f)
-        except (json.JSONDecodeError, IOError):
-            pass
+        except (json.JSONDecodeError, IOError) as e:
+            print(f"  Warning: could not read {SYNC_STATE_FILE.name}: {e}")
     return {}
 
 
@@ -142,47 +204,79 @@ def get_local_max_dates():
     """Query local DB for the max date/timestamp of each table."""
     max_dates = {}
     for table, col in TABLE_DATE_COLUMNS.items():
-        out = mysql_cmd(f"SELECT MAX({col}) FROM {table}")
+        out = mysql_query(f"SELECT MAX({col}) FROM {table}")
         if out and out != "NULL":
             max_dates[table] = out.strip()
     return max_dates
 
 
-def decompress_gz(gz_path):
+def decompress_gz(gz_path: str) -> str:
     """Decompress a .gz file and return the path to the decompressed .sql file."""
-    import gzip as gz_lib
-    import shutil
-
     sql_path = str(gz_path).replace(".gz", "")
     print(f"  Decompressing {gz_path}...")
-    with gz_lib.open(gz_path, 'rb') as f_in:
-        with open(sql_path, 'wb') as f_out:
-            shutil.copyfileobj(f_in, f_out)
+    with gzip.open(gz_path, "rb") as f_in, open(sql_path, "wb") as f_out:
+        shutil.copyfileobj(f_in, f_out)
 
     gz_size_mb = os.path.getsize(gz_path) / (1024 * 1024)
     sql_size_mb = os.path.getsize(sql_path) / (1024 * 1024)
     print(f"  Decompressed to {sql_path} ({sql_size_mb:.1f} MB)")
-    if sql_size_mb > 0:
-        print(f"  Compression ratio: {gz_size_mb:.1f} MB → {sql_size_mb:.1f} MB "
-              f"({(1 - gz_size_mb / sql_size_mb) * 100:.0f}% smaller transfer)")
+    if gz_size_mb > 0 and sql_size_mb > gz_size_mb:
+        ratio = sql_size_mb / gz_size_mb
+        saved = (1 - gz_size_mb / sql_size_mb) * 100
+        print(
+            f"  Compression: {gz_size_mb:.1f} MB → {sql_size_mb:.1f} MB "
+            f"({ratio:.1f}x ratio, {saved:.0f}% bandwidth saved)"
+        )
     return sql_path
+
+
+# ---------------------------------------------------------------------------
+# VM bash script — generated locally, uploaded to VM, executed via SSH
+# ---------------------------------------------------------------------------
+def _build_dump_script(incremental_dates=None) -> str:
+    """Build the bash script that runs mysqldump + gzip on the VM.
+
+    The password is passed via the MYSQL_PWD env var so it never appears in
+    the VM's process list (ps/top).
+    """
+    # shlex.quote handles any single quotes or special chars in the password.
+    quoted_pw = shlex.quote(VM_DB_PASSWORD)
+
+    lines = [
+        "#!/bin/bash",
+        "set -e",
+        f"export MYSQL_PWD={quoted_pw}",
+        "(",
+    ]
+
+    is_incremental = bool(incremental_dates and any(incremental_dates.values()))
+
+    for table in TABLES:
+        col = TABLE_DATE_COLUMNS[table]
+        base = (
+            f"  mysqldump -u {VM_DB_USER} "
+            f"--insert-ignore --no-create-info "
+            f"--single-transaction --quick"
+        )
+        if is_incremental:
+            date_val = incremental_dates.get(table)
+            if date_val:
+                # Dates are well-formed (YYYY-MM-DD [HH:MM:SS[.ffffff]])
+                # so the single-quoted literal is safe.
+                base += f' --where="{col} >= \'{date_val}\'"'
+        base += f" {VM_DB_NAME} {table}"
+        lines.append(base)
+
+    lines.append(f") | gzip > {VM_DUMP_DIR}/{VM_DUMP_FILE}")
+    return "\n".join(lines) + "\n"
 
 
 # ---------------------------------------------------------------------------
 # Step 1: Create dump on VM via gcloud SSH (with gzip compression)
 # ---------------------------------------------------------------------------
-def create_vm_dump(vm_name, zone, project=None, incremental_dates=None):
-    """SSH into the VM and run mysqldump, piped through gzip.
-
-    For incremental mode, we write a bash script locally and SCP it to the VM
-    before executing. This avoids Windows cmd.exe mangling the >= operator
-    and datetime values with spaces in --where clauses.
-
-    Args:
-        incremental_dates: dict of {table: "YYYY-MM-DD ..."} for WHERE clauses.
-                          If None, dumps all data (full sync).
-    """
-    is_incremental = incremental_dates and any(incremental_dates.values())
+def create_vm_dump(vm_name, zone, project, incremental_dates=None):
+    """Upload a bash script to the VM and run it to produce a gzipped dump."""
+    is_incremental = bool(incremental_dates and any(incremental_dates.values()))
 
     if is_incremental:
         print("\n[1/3] Creating INCREMENTAL dump on VM (gzip compressed)...")
@@ -195,111 +289,81 @@ def create_vm_dump(vm_name, zone, project=None, incremental_dates=None):
     else:
         print("\n[1/3] Creating FULL dump on VM (gzip compressed)...")
 
-    dump_path = f"{VM_DUMP_DIR}/{VM_DUMP_FILE}"
-    proj = project or GCP_PROJECT
+    # Write bash script with Unix line endings (bash is picky about \r)
+    script_body = _build_dump_script(incremental_dates)
+    local_script = Path(tempfile.gettempdir()) / "_sync_dump.sh"
+    with open(local_script, "w", newline="\n") as f:
+        f.write(script_body)
 
-    if is_incremental:
-        # Write a bash script locally to avoid Windows cmd.exe quoting issues.
-        # cmd.exe interprets > as redirect and doesn't support \" escaping,
-        # which breaks --where="col >= 'datetime'" clauses.
-        script_lines = ["#!/bin/bash", "("]
-        for table in TABLES:
-            date_val = incremental_dates.get(table)
-            col = TABLE_DATE_COLUMNS[table]
-            if date_val:
-                script_lines.append(
-                    f"mysqldump -u {VM_DB_USER} -p'{VM_DB_PASSWORD}' "
-                    f"--insert-ignore --no-create-info "
-                    f"--single-transaction --quick "
-                    f'--where="{col} >= \'{date_val}\'" '
-                    f"{VM_DB_NAME} {table}"
-                )
-            else:
-                script_lines.append(
-                    f"mysqldump -u {VM_DB_USER} -p'{VM_DB_PASSWORD}' "
-                    f"--insert-ignore --no-create-info "
-                    f"--single-transaction --quick "
-                    f"{VM_DB_NAME} {table}"
-                )
-        script_lines.append(f") | gzip > {dump_path}")
-
-        # Write script to local temp file (Unix line endings for bash)
-        local_script = Path(tempfile.gettempdir()) / "_sync_dump.sh"
-        with open(local_script, "w", newline="\n") as f:
-            f.write("\n".join(script_lines) + "\n")
-
-        # SCP script to VM
+    try:
         print("  Uploading dump script to VM...")
-        scp_cmd = (
-            f"gcloud compute scp {local_script} {vm_name}:/tmp/_sync_dump.sh "
-            f"--zone={zone} --project={proj}"
-        )
-        subprocess.run(scp_cmd, shell=True, check=True)
+        run_cmd([
+            GCLOUD, "compute", "scp",
+            str(local_script),
+            f"{vm_name}:/tmp/_sync_dump.sh",
+            f"--zone={zone}",
+            f"--project={project}",
+        ])
 
-        # Execute script on VM
-        print("  Running incremental mysqldump + gzip on VM...")
-        ssh_cmd = (
-            f'gcloud compute ssh {vm_name} '
-            f'--zone={zone} --project={proj} '
-            f'--command="bash /tmp/_sync_dump.sh"'
-        )
-        subprocess.run(ssh_cmd, shell=True, check=True)
-
-        # Cleanup local temp script
-        local_script.unlink(missing_ok=True)
-    else:
-        # Full dump — all tables at once, no --where, no quoting issues
-        tables_str = " ".join(TABLES)
-        remote_cmd = (
-            f"mysqldump -u {VM_DB_USER} -p'{VM_DB_PASSWORD}' "
-            f"--insert-ignore --no-create-info "
-            f"--single-transaction --quick "
-            f"{VM_DB_NAME} {tables_str} | gzip > {dump_path}"
-        )
-
-        # On Windows, gcloud is a .cmd file so we need shell=True.
-        gcloud = (
-            f'gcloud compute ssh {vm_name} '
-            f'--zone={zone} --project={proj} '
-            f'--command="{remote_cmd}"'
-        )
-
-        print("  Running full mysqldump + gzip on VM...")
-        subprocess.run(gcloud, shell=True, check=True)
+        print("  Running mysqldump + gzip on VM...")
+        run_cmd([
+            GCLOUD, "compute", "ssh", vm_name,
+            f"--zone={zone}",
+            f"--project={project}",
+            "--command",
+            "bash /tmp/_sync_dump.sh && rm -f /tmp/_sync_dump.sh",
+        ])
+    finally:
+        # Always clean up local temp script, even on failure
+        try:
+            local_script.unlink(missing_ok=True)
+        except OSError:
+            pass
 
     print("  Compressed dump created on VM.\n")
+
+
+def cleanup_vm_dump(vm_name, zone, project):
+    """Delete the dump file from the VM after successful download."""
+    try:
+        run_cmd([
+            GCLOUD, "compute", "ssh", vm_name,
+            f"--zone={zone}",
+            f"--project={project}",
+            "--command",
+            f"rm -f {VM_DUMP_DIR}/{VM_DUMP_FILE}",
+        ], check=False)
+    except Exception as e:
+        print(f"  Warning: could not clean up VM dump file: {e}")
 
 
 # ---------------------------------------------------------------------------
 # Step 2: Download the dump via gcloud SCP
 # ---------------------------------------------------------------------------
-def download_dump(vm_name, zone, local_path, project=None):
+def download_dump(vm_name, zone, local_path, project):
     """Download the compressed dump file from the VM using gcloud scp."""
     print("[2/3] Downloading compressed dump from VM...")
 
     remote_path = f"{vm_name}:{VM_DUMP_DIR}/{VM_DUMP_FILE}"
-    proj = project or GCP_PROJECT
+    gz_local = local_path if local_path.endswith(".gz") else local_path + ".gz"
 
-    # Download the .gz file
-    gz_local = local_path + ".gz" if not local_path.endswith(".gz") else local_path
-    gcloud = (
-        f"gcloud compute scp {remote_path} {gz_local} "
-        f"--zone={zone} --project={proj}"
-    )
+    run_cmd([
+        GCLOUD, "compute", "scp",
+        remote_path,
+        gz_local,
+        f"--zone={zone}",
+        f"--project={project}",
+    ])
 
-    print(f"  > gcloud compute scp {vm_name}:/tmp/{VM_DUMP_FILE} {gz_local}")
-    subprocess.run(gcloud, shell=True, check=True)
     gz_size_mb = os.path.getsize(gz_local) / (1024 * 1024)
     print(f"  Downloaded {gz_local} ({gz_size_mb:.1f} MB compressed)")
 
-    # Decompress locally
     sql_path = decompress_gz(gz_local)
 
-    # Clean up .gz file
     try:
         os.remove(gz_local)
-    except OSError:
-        pass
+    except OSError as e:
+        print(f"  Warning: could not remove {gz_local}: {e}")
 
     print()
     return sql_path
@@ -317,36 +381,45 @@ def import_dump(dump_path, save_state=True):
 
     # Handle .gz files transparently
     if str(dump_path).endswith(".gz"):
-        sql_path = decompress_gz(str(dump_path))
-        dump_path = Path(sql_path)
+        dump_path = Path(decompress_gz(str(dump_path)))
 
     size_mb = dump_path.stat().st_size / (1024 * 1024)
     print(f"[Import] Importing {dump_path.name} ({size_mb:.1f} MB) into local DB...")
 
-    # Get approximate row counts before import
     print("  Counting rows before import (approximate)...")
     before = get_row_counts_fast()
     for table, count in before.items():
         print(f"    {table}: ~{count:,} rows")
 
-    # Use --init-command to disable checks for THIS import session only.
-    # No GLOBAL changes needed — keeps the server safe if script crashes.
     print("\n  Importing with index checks disabled for speed...")
     start = time.time()
 
-    import_cmd = (
-        f'{MYSQL_BIN} -h {LOCAL_DB_HOST} -P {LOCAL_DB_PORT} '
-        f'-u {LOCAL_DB_USER} -p{LOCAL_DB_PASSWORD} '
-        f'--init-command="SET autocommit=0; SET unique_checks=0; SET foreign_key_checks=0;" '
-        f'{LOCAL_DB_NAME} < "{dump_path}"'
-    )
-    result = run(import_cmd, check=False, capture=True)
+    # --init-command runs once at session start to disable checks for speed.
+    # Scoped to THIS session only — no GLOBAL changes needed.
+    argv = [
+        MYSQL_BIN,
+        "-h", LOCAL_DB_HOST,
+        "-P", str(LOCAL_DB_PORT),
+        "-u", LOCAL_DB_USER,
+        "--init-command=SET autocommit=0; SET unique_checks=0; SET foreign_key_checks=0;",
+        LOCAL_DB_NAME,
+    ]
+    print(f"  > {' '.join(argv)} < {dump_path.name}")
+
+    with open(dump_path, "rb") as f_in:
+        result = subprocess.run(
+            argv,
+            stdin=f_in,
+            capture_output=True,
+            text=True,
+            env=_mysql_env(),
+            check=False,
+        )
 
     elapsed = time.time() - start
 
     if result.returncode != 0:
         stderr = result.stderr.strip()
-        # Warnings about INSERT IGNORE are expected
         if "ERROR" in stderr:
             print(f"  MySQL errors:\n{stderr}")
             sys.exit(1)
@@ -355,7 +428,6 @@ def import_dump(dump_path, save_state=True):
 
     print(f"  Import completed in {elapsed:.1f}s")
 
-    # Get approximate row counts after import
     print("\n  Counting rows after import (approximate)...")
     after = get_row_counts_fast()
 
@@ -445,26 +517,26 @@ def main():
     print("=" * 60)
 
     if args.import_only:
-        # Just import an existing file
         import_dump(args.import_only)
         return
 
     if args.dump_only:
-        # Just create the dump on VM
         incremental_dates = None
         if not args.full:
             incremental_dates = get_local_max_dates()
             if incremental_dates:
                 print("  Using incremental mode (add --full for complete dump)")
         create_vm_dump(args.vm_name, args.zone, args.project, incremental_dates)
-        print("Dump created on VM. Download it manually via GCP SSH browser")
-        print(f"or run: gcloud compute scp {args.vm_name}:{VM_DUMP_DIR}/{VM_DUMP_FILE} . --zone={args.zone} --project={args.project}")
+        print("Dump created on VM. Download it manually via GCP SSH browser or run:")
+        print(
+            f"  gcloud compute scp {args.vm_name}:{VM_DUMP_DIR}/{VM_DUMP_FILE} . "
+            f"--zone={args.zone} --project={args.project}"
+        )
         return
 
     # Full flow: dump → download → import
     incremental_dates = None
     if not args.full:
-        # Check local DB for latest data to determine incremental cutoff
         print("\n  Checking local DB for latest data...")
         incremental_dates = get_local_max_dates()
         if incremental_dates:
