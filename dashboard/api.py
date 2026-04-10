@@ -11,6 +11,7 @@ import json
 import math
 import logging
 import sys
+import threading
 from pathlib import Path
 
 # Add parent directory to path for imports
@@ -216,6 +217,23 @@ def get_option_chain():
             if not rows:
                 return jsonify({'error': 'No data for latest timestamp'}), 404
 
+            # Fetch the opening snapshot (first Time of the day) for OI-change baseline.
+            # One extra indexed query keeps oi_change consistent with the signal engine.
+            cursor.execute("""
+                SELECT Strike_price, ce_oi, pe_oi
+                FROM nifty_oc_historical
+                WHERE Date = %s
+                  AND Time = (SELECT MIN(Time) FROM nifty_oc_historical WHERE Date = %s)
+            """, (latest[0], latest[0]))
+            open_rows = cursor.fetchall()
+            open_oi = {
+                decimal_to_float(r[0]): (
+                    decimal_to_float(r[1]) if r[1] is not None else 0,
+                    decimal_to_float(r[2]) if r[2] is not None else 0,
+                )
+                for r in open_rows
+            }
+
             # Process data
             option_data = []
             spot_price = None
@@ -232,10 +250,13 @@ def get_option_chain():
 
                 strike = decimal_to_float(row[0])
 
-                # Calculate OI change (difference from previous record)
-                # TODO: Implement proper OI change calculation
-                ce_oi_change = 0
-                pe_oi_change = 0
+                # OI change = current OI - opening OI (in raw units, converted to
+                # lakhs below to match ce.oi / pe.oi rendering).
+                curr_ce_oi = decimal_to_float(row[2]) if row[2] is not None else 0
+                curr_pe_oi = decimal_to_float(row[11]) if row[11] is not None else 0
+                open_ce_oi, open_pe_oi = open_oi.get(strike, (0, 0))
+                ce_oi_change = (curr_ce_oi - open_ce_oi) / 100000
+                pe_oi_change = (curr_pe_oi - open_pe_oi) / 100000
 
                 option_data.append({
                     'strike': strike,
@@ -882,6 +903,12 @@ def update_credentials():
 # GREEKS ANALYTICS ENDPOINTS
 # ═══════════════════════════════════════════════════════════════
 
+# ─── Shared-cache lock ───────────────────────────────────────────
+# Flask's default server is multi-threaded, so any module-level dict mutated
+# from request handlers must be guarded. One lock serializes read-modify-write
+# across all three caches below (low contention — fast critical sections).
+_cache_lock = threading.Lock()
+
 # Expiry cache — fetched once per day, not per request
 _expiry_cache = {
     'expiry_str': None,
@@ -895,20 +922,24 @@ def _get_cached_expiry():
     from core import Utilities
 
     today = now_ist().date()
-    if _expiry_cache['expiry_str'] and _expiry_cache['fetched_date'] == today:
-        return _expiry_cache['expiry_str']
+    with _cache_lock:
+        if _expiry_cache['expiry_str'] and _expiry_cache['fetched_date'] == today:
+            return _expiry_cache['expiry_str']
 
+    # Network call outside the lock — don't block other requests during I/O
     try:
         dhan = DhanHQ(Config.DHAN_CLIENT_ID, Config.DHAN_ACCESS_TOKEN)
         expiry_data = Utilities.get_expiry_list(dhan)
         expiry_str = expiry_data[0] if isinstance(expiry_data, list) and len(expiry_data) > 0 else expiry_data
-        _expiry_cache['expiry_str'] = expiry_str
-        _expiry_cache['fetched_date'] = today
+        with _cache_lock:
+            _expiry_cache['expiry_str'] = expiry_str
+            _expiry_cache['fetched_date'] = today
         logger.info(f"Expiry cached for today: {expiry_str}")
         return expiry_str
     except Exception as e:
         logger.error(f"Failed to fetch expiry: {e}")
-        return _expiry_cache['expiry_str']  # return stale cache if available
+        with _cache_lock:
+            return _expiry_cache['expiry_str']  # return stale cache if available
 
 
 # In-memory cache for Greeks data
@@ -930,10 +961,12 @@ def _get_cached_iv_stats():
     """Get IV min/max from market_feed_realtime, cached for 30 minutes."""
     import time as _time
     now = _time.time()
-    if (_iv_stats_cache['last_update'] and
-            now - _iv_stats_cache['last_update'] < 1800):
-        return _iv_stats_cache['iv_low'], _iv_stats_cache['iv_high']
+    with _cache_lock:
+        if (_iv_stats_cache['last_update'] and
+                now - _iv_stats_cache['last_update'] < 1800):
+            return _iv_stats_cache['iv_low'], _iv_stats_cache['iv_high']
 
+    # DB query outside the lock — don't block other requests during I/O
     with DatabaseManager.get_cursor() as cursor:
         cursor.execute("""
             SELECT MIN(india_vix_ltp), MAX(india_vix_ltp)
@@ -941,11 +974,14 @@ def _get_cached_iv_stats():
             WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 365 DAY)
         """)
         row = cursor.fetchone()
-        _iv_stats_cache['iv_low'] = decimal_to_float(row[0] or 10)
-        _iv_stats_cache['iv_high'] = decimal_to_float(row[1] or 20)
-        _iv_stats_cache['last_update'] = now
 
-    return _iv_stats_cache['iv_low'], _iv_stats_cache['iv_high']
+    iv_low = decimal_to_float(row[0] or 10)
+    iv_high = decimal_to_float(row[1] or 20)
+    with _cache_lock:
+        _iv_stats_cache['iv_low'] = iv_low
+        _iv_stats_cache['iv_high'] = iv_high
+        _iv_stats_cache['last_update'] = now
+    return iv_low, iv_high
 
 
 @app.route('/api/greeks-pro', methods=['GET'])
@@ -1062,6 +1098,10 @@ def greeks_pro():
         expiry_str = _get_cached_expiry()
         expiry_date = datetime.strptime(expiry_str, '%Y-%m-%d').date() if expiry_str else now_ist().date()
 
+        # Snapshot prev velocity data under lock (read), then process outside it.
+        with _cache_lock:
+            prev_snapshot = dict(_greeks_cache['prev_snapshot'])
+
         # Process Greeks
         processed = process_greeks_from_db(
             db_rows=db_rows,
@@ -1070,16 +1110,18 @@ def greeks_pro():
             vix_current=vix_current,
             vix_prev=vix_prev,
             pcr=pcr,
-            prev_minute_greeks=_greeks_cache['prev_snapshot']
+            prev_minute_greeks=prev_snapshot
         )
 
         # Update cache for next velocity calculation
-        _greeks_cache['prev_snapshot'] = {
+        new_prev = {
             f"{r['strike_price']}_{r['option_type']}": r
             for r in processed['ce_ranked'] + processed['pe_ranked']
         }
-        _greeks_cache['data'] = processed
-        _greeks_cache['timestamp'] = now_ist()
+        with _cache_lock:
+            _greeks_cache['prev_snapshot'] = new_prev
+            _greeks_cache['data'] = processed
+            _greeks_cache['timestamp'] = now_ist()
 
         # Get portfolio net delta
         portfolio = get_portfolio_net_delta()
@@ -1264,7 +1306,9 @@ def get_portfolio_net_delta():
 def greeks_signals():
     """Get latest entry/exit signals."""
     try:
-        if _greeks_cache['data'] is None:
+        with _cache_lock:
+            cached_data = _greeks_cache['data']
+        if cached_data is None:
             return jsonify({'error': 'No Greeks data available. Call /api/greeks-pro first'}), 404
 
         from core.greeks_processor import generate_entry_signals
@@ -1282,7 +1326,7 @@ def greeks_signals():
 
         iv_rank = calc_iv_rank(vix_current, iv_high, iv_low) or 50.0
 
-        signals = generate_entry_signals(_greeks_cache['data'], iv_rank)
+        signals = generate_entry_signals(cached_data, iv_rank)
 
         return jsonify({'signals': signals})
 
