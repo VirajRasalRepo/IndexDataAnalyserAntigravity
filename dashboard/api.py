@@ -1594,7 +1594,7 @@ def signal_engine_run():
         from core.signal_adapter import SignalBacktestAdapter
         adapter = SignalBacktestAdapter()
         result = adapter.run_backtest_for_date(date_str)
-        return jsonify(result)
+        return jsonify(_sanitize_for_json(result))
     except Exception as e:
         logger.error(f"Error in signal-engine run: {e}", exc_info=True)
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -1627,12 +1627,30 @@ _signal_dash_cache = {
 }
 
 
+def _sanitize_for_json(obj):
+    """Recursively convert numpy/pandas types to native Python types for JSON."""
+    import numpy as _np
+    if isinstance(obj, dict):
+        return {k: _sanitize_for_json(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return type(obj)(_sanitize_for_json(v) for v in obj)
+    if isinstance(obj, _np.bool_):
+        return bool(obj)
+    if isinstance(obj, _np.integer):
+        return int(obj)
+    if isinstance(obj, _np.floating):
+        return float(obj)
+    if isinstance(obj, _np.ndarray):
+        return obj.tolist()
+    return obj
+
+
 @app.route('/api/signal-data', methods=['GET'])
 def signal_dashboard_data():
     """Return live signal dashboard data: pulse, heatmap, checklist, signal log."""
     try:
         data = _compute_signal_dashboard_data()
-        return jsonify(data)
+        return jsonify(_sanitize_for_json(data))
     except Exception as e:
         logger.error(f"/api/signal-data error: {e}", exc_info=True)
         return jsonify({'status': 'error', 'message': str(e)}), 500
