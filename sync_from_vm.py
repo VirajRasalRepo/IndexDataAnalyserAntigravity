@@ -110,16 +110,22 @@ def run_cmd(argv, check=True, capture=False, stdin=None, env=None):
     """Run a command with an argv list (no shell, no injection risk)."""
     display = " ".join(str(a) for a in argv)
     if len(display) > 220:
-        display = display[:220] + "…"
+        display = display[:220] + "..."
     print(f"  > {display}")
-    return subprocess.run(
-        argv,
-        check=check,
-        capture_output=capture,
-        text=True,
-        stdin=stdin,
-        env=env,
-    )
+    try:
+        return subprocess.run(
+            argv,
+            check=check,
+            capture_output=capture,
+            text=True,
+            stdin=stdin,
+            env=env,
+        )
+    except subprocess.CalledProcessError as e:
+        # Print stderr if available to help diagnose gcloud/ssh failures
+        if e.stderr:
+            print(f"\nError output:\n{e.stderr}", file=sys.stderr)
+        raise
 
 
 def _mysql_env():
@@ -296,6 +302,24 @@ def create_vm_dump(vm_name, zone, project, incremental_dates=None):
         f.write(script_body)
 
     try:
+        # Test SSH connectivity first to give a clearer error
+        print("  Testing SSH connectivity to VM...")
+        try:
+            run_cmd([
+                GCLOUD, "compute", "ssh", vm_name,
+                f"--zone={zone}",
+                f"--project={project}",
+                "--command", "echo 'SSH OK'",
+            ], capture=True)
+        except subprocess.CalledProcessError as e:
+            print("\nERROR: Cannot connect to VM via SSH.", file=sys.stderr)
+            print("Common causes:", file=sys.stderr)
+            print("  1. VM is stopped - start it with: gcloud compute instances start", file=sys.stderr)
+            print(f"     {vm_name} --zone={zone} --project={project}", file=sys.stderr)
+            print("  2. Firewall blocking SSH - check 'allow-ssh-from-me' rule allows your current IP", file=sys.stderr)
+            print("  3. SSH keys not configured - gcloud will prompt to generate them", file=sys.stderr)
+            raise SystemExit(1) from e
+
         print("  Uploading dump script to VM...")
         run_cmd([
             GCLOUD, "compute", "scp",
