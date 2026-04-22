@@ -91,7 +91,7 @@ GCLOUD = shutil.which("gcloud") or "gcloud"
 
 SYNC_STATE_FILE = Path(__file__).parent / "sync_state.json"
 
-# Table name → date/time column used for incremental WHERE clause
+# Table name -> date/time column used for incremental WHERE clause
 TABLE_DATE_COLUMNS = {
     "nifty_oc_historical": "Date",
     "market_feed_realtime": "timestamp",
@@ -224,7 +224,7 @@ def decompress_gz(gz_path: str) -> str:
         ratio = sql_size_mb / gz_size_mb
         saved = (1 - gz_size_mb / sql_size_mb) * 100
         print(
-            f"  Compression: {gz_size_mb:.1f} MB → {sql_size_mb:.1f} MB "
+            f"  Compression: {gz_size_mb:.1f} MB -> {sql_size_mb:.1f} MB "
             f"({ratio:.1f}x ratio, {saved:.0f}% bandwidth saved)"
         )
     return sql_path
@@ -513,7 +513,7 @@ def main():
     args = parser.parse_args()
 
     print("=" * 60)
-    print("  VM → Local Database Sync")
+    print("  VM -> Local Database Sync")
     print("=" * 60)
 
     if args.import_only:
@@ -534,7 +534,7 @@ def main():
         )
         return
 
-    # Full flow: dump → download → import
+    # Full flow: dump -> download -> import
     incremental_dates = None
     if not args.full:
         print("\n  Checking local DB for latest data...")
