@@ -28,33 +28,26 @@ logger = logging.getLogger(__name__)
 
 def is_trading_day(date_to_check: datetime = None) -> bool:
     """
-    Check if a given date is a trading day (not weekend or holiday).
+    Check if a given date is a weekday (Monday-Friday).
+    Holiday checking is skipped — on holidays the pipeline will simply
+    get no new data from the market APIs, which is harmless.
 
     Args:
         date_to_check: Date to check (defaults to today)
 
     Returns:
-        True if it's a trading day, False otherwise
+        True if it's a weekday, False if weekend
     """
     if date_to_check is None:
         date_to_check = now_ist()
 
-    # Check if it's a weekend (Saturday=5, Sunday=6)
-    if date_to_check.weekday() >= 5:
-        return False
-
-    # Check if it's a market holiday
-    date_str = date_to_check.strftime("%Y-%m-%d")
-    if date_str in Config.MARKET_HOLIDAYS:
-        return False
-
-    return True
+    return date_to_check.weekday() < 5
 
 
 def is_market_hours() -> bool:
     """
     Check if current time is within market hours (9:15 AM - 3:30 PM IST)
-    and today is a trading day (not weekend or holiday).
+    and today is a weekday.
 
     Returns:
         True if within market hours, False otherwise
@@ -71,7 +64,7 @@ def is_market_hours() -> bool:
         Config.MARKET_END_MINUTE
     )
 
-    # Check if it's a trading day (not weekend or holiday)
+    # Check if it's a weekday
     if not is_trading_day(now):
         return False
 
@@ -81,7 +74,7 @@ def is_market_hours() -> bool:
 def get_next_market_open_time() -> datetime:
     """
     Calculate the next market open time (9:15 AM IST on next trading day).
-    Skips weekends and market holidays.
+    Skips weekends.
 
     Returns:
         datetime object representing the next market open time
@@ -104,7 +97,7 @@ def get_next_market_open_time() -> datetime:
     # Otherwise, find next trading day
     next_open = next_open + timedelta(days=1)
 
-    # Skip weekends and holidays
+    # Skip weekends
     max_iterations = 30  # Safety limit to avoid infinite loop
     iterations = 0
     while not is_trading_day(next_open) and iterations < max_iterations:

@@ -41,22 +41,14 @@ INTERVAL_SECONDS = 180     # 3 minutes
 
 
 def is_trading_day(date_obj):
-    """Check if a date is a trading day (Monday-Friday, excluding holidays)."""
+    """Check if a date is a weekday (Monday-Friday). No holiday list needed."""
     if isinstance(date_obj, str):
         date_obj = datetime.strptime(date_obj, '%Y-%m-%d').date()
     elif isinstance(date_obj, datetime):
         date_obj = date_obj.date()
 
     # Check if weekend (Saturday=5, Sunday=6)
-    if date_obj.weekday() >= 5:
-        return False
-
-    # Check if market holiday
-    date_str = date_obj.strftime('%Y-%m-%d')
-    if date_str in Config.MARKET_HOLIDAYS:
-        return False
-
-    return True
+    return date_obj.weekday() < 5
 
 
 def decimal_to_float(obj):
@@ -507,7 +499,7 @@ def get_historical_data():
         if not is_trading_day(date_str):
             date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
             return jsonify({
-                'error': f'{date_obj.strftime("%A")} - Market closed (Weekend/Holiday)',
+                'error': f'{date_obj.strftime("%A")} - Market closed (Weekend)',
                 'is_trading_day': False
             }), 400
 
@@ -610,7 +602,7 @@ def export_full_day():
         if not is_trading_day(date_str):
             date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
             return jsonify({
-                'error': f'{date_obj.strftime("%A")} - Market closed (Weekend/Holiday)'
+                'error': f'{date_obj.strftime("%A")} - Market closed (Weekend)'
             }), 400
 
         with DatabaseManager.get_cursor() as cursor:
@@ -706,7 +698,7 @@ def get_available_dates():
 
             all_dates = [str(row[0]) for row in cursor.fetchall()]
 
-            # Filter to only include trading days (exclude weekends and holidays)
+            # Filter to only include weekdays (exclude weekends)
             trading_dates = [date_str for date_str in all_dates if is_trading_day(date_str)]
 
             return jsonify({
@@ -736,7 +728,7 @@ def check_trading_day():
             'date': date_str,
             'is_trading_day': is_trading,
             'day_of_week': date_obj.strftime('%A'),
-            'message': 'Trading day' if is_trading else 'Weekend/Holiday - Market closed'
+            'message': 'Weekday' if is_trading else 'Weekend - Market closed'
         })
 
     except Exception as e:
@@ -758,7 +750,7 @@ def get_available_times():
         if not is_trading_day(date_str):
             date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
             return jsonify({
-                'warning': f'{date_obj.strftime("%A")} - Market closed (Weekend/Holiday)',
+                'warning': f'{date_obj.strftime("%A")} - Market closed (Weekend)',
                 'times': []
             })
 

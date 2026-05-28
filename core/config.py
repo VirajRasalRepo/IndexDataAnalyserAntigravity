@@ -56,24 +56,6 @@ class Config:
     MARKET_END_HOUR: int = 15
     MARKET_END_MINUTE: int = 30
 
-    # Market Holidays - Fetched dynamically from NSE API (cached daily)
-    # Falls back to hardcoded list if NSE is unreachable
-    MARKET_HOLIDAYS = []  # Populated at module load via _load_holidays()
-
-    @classmethod
-    def _load_holidays(cls):
-        """Load market holidays from NSE API (with caching and fallback)."""
-        try:
-            from .Utilities import fetch_market_holidays
-            cls.MARKET_HOLIDAYS = fetch_market_holidays()
-            logger.info(f"Loaded {len(cls.MARKET_HOLIDAYS)} market holidays")
-        except Exception as e:
-            logger.warning(f"Failed to load holidays dynamically: {e}")
-            cls.MARKET_HOLIDAYS = [
-                "2025-01-26", "2025-03-14", "2025-08-15", "2025-10-02", "2025-12-25",
-                "2026-01-26", "2026-03-03", "2026-08-15", "2026-10-02", "2026-12-25",
-            ]
-
     # Nifty Option Chain Constants
     NIFTY_SECURITY_ID: int = 13
     NIFTY_EXCHANGE_SEGMENT: str = "IDX_I"
@@ -145,6 +127,3 @@ try:
 except ConfigurationError as e:
     logger.error(f"Configuration error: {e}")
     raise
-
-# Load market holidays from NSE API (with caching)
-Config._load_holidays()
